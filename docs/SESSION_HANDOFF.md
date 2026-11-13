@@ -1,5 +1,19 @@
 # Session handoff
-- Issue: NOT STARTED
-- Baseline commit: UNKNOWN
-- Actual tests: NOT RUN
-- Next: Inspect repository; decide SEC-01 scope; implement typed gateway and Mock ERP in new branch.
+- Issue: **POC-001 Project Bootstrap** (= backlog EP-00), implemented 2026-11-13. Previous issue G0-1 (docs) is complete; ADRs still PROPOSED; approvals A-01..A-15 are pending, except A-04, where the owner instruction chose Maven.
+- Baseline commit: af2d09f. Working tree uncommitted. Pre-existing user deletions and modifications to the BRD/UI/backlog docs and the old kit files were left untouched.
+- Branch: none created (still on `main`). No commit, no push. Suggested branch if committing: `feat/POC-001-project-bootstrap`.
+- Changed (POC-001):
+  - `backend/`: `pom.xml` with Spring Boot 4.1.2, Modulith 2.1.2 and ArchUnit 1.5.1; `mvnw` and `.mvn/` (Maven 3.9.11); `compose.yaml` (postgres:17.12-alpine on 127.0.0.1, password from env); `.gitignore`; `README.md`.
+  - `src/main`: 14 module `package-info` files with `allowedDependencies`; `platform` (ErrorCode, ApplicationException, GlobalExceptionHandler, CorrelationIdFilter, Clock); `application.yml` and `application-local.yml`; `db/migration/V1__baseline.sql` (no tables).
+  - `src/test`: ArchitectureRules + ArchitectureRulesTest with fixtures, ModuleStructureTest, GlobalExceptionHandlerTest + ValidationProbeController, ErrorCodeMappingTest, ConfigurationPolicyTest, ApplicationBootstrapIT, TestcontainersConfiguration.
+  - Docs: ADR-002 update, DECISIONS_REQUIRED A-04, IMPLEMENTATION_PLAN row 3, MODULE_BOUNDARIES §6.
+- Tests (VERIFIED, 2026-11-13, Java 21.0.12, Maven 3.9.11, Docker 28.3.0):
+  - `cd backend && ./mvnw -B clean verify` → exit 0. Surefire ran 77 tests and failsafe ran 6; 0 failures, 0 skipped. The build log contains 0 occurrences of the sentinel 987654321.
+  - Negative proof: violations planted temporarily in `identity`, `audit` and `quote` made ModuleStructureTest and ArchitectureRulesTest fail (exit 1). The planted files were removed.
+  - Local smoke test: `docker compose up -d --wait` on port 55432 with a random throwaway password, then the jar with `--spring.profiles.active=local`. `/actuator/health` returned UP, `/actuator/env` returned 404, an unknown path returned the problem+code shape, and Flyway reached v1. Stopped afterwards with `docker compose down -v`.
+  - Fail-closed: starting with no profile and no DB env exits with code 1.
+- Review: backend-reviewer (advisory) found 2 High, 5 Medium and 5 Low. Fixed: H1 (statuses 401/403/409/429/other are preserved), H2 (Spring Security exceptions re-thrown, matched by name; **not testable until Spring Security is added**), M1 (allowlists, audit→platform only), M3 (module set asserted through package-info), M4 (ARCH-07 also covers `@Table`), M5 (trace ID always server-generated), L1 (index/map-key content stripped, class-level errors reported), L2 (ARCH-09/11 broadened; still denylists), L3 (`include-path: never`, filter on error dispatch), L4 (regex token scan), L5 (cause-chain class names, image pinned). Open: M2 (named interfaces are needed once `api`/`spi` packages exist), and L3 partly (filter exceptions still go to Boot's `/error`, which has a different shape). A second review pass was not run.
+- Not done / NOT RUN: ARCH-05/06/08 (SEC-01a); auth (ADR-010); `demo` profile and endpoints (ADR-015); dependency/CVE scan (no scanner installed); a formatter or linter is not configured.
+- Blockers: owner sign-off on ADR-001/002; A-01..A-03, A-05..A-15; D-01..D-13 OPEN.
+- Next 3 actions: (1) the owner reviews POC-001 and decides on a commit/branch; (2) SEC-01a egress guard at gateway level, including ARCH-05/06/08 and named interfaces; (3) a second backend/security review on the SEC-01a diff.
+- Resume prompt: Read CLAUDE.md and docs/SESSION_HANDOFF.md, inspect git status, then work on the next issue only.

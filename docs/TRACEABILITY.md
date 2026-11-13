@@ -9,6 +9,13 @@
 | Original pp. 9–10 | VIN/OE provenance, quote version, reprice, idempotency | catalog + quote | domain & integration tests |
 | Original pp. 12–14 | Workstreams, UAT, Arito API uncertainty | product manager | decision gates |
 
+## Detailed traceability (added 2026-11-13, G0-1)
+- Business source: `docs/01_BRD_SRS_Security.md` at commit `af2d09f` (deleted in working tree — see A-01 in `docs/DECISIONS_REQUIRED.md`). The original 15-page proposal is not in the repository; page references above are preliminary.
+- Use cases & rules: `docs/requirements/USE_CASES.md`, `docs/requirements/BUSINESS_RULES.md`.
+- FR → UC → BR → control → test → SEC matrix: `docs/backlog/IMPLEMENTATION_PLAN.md` §3–§4.
+- Contracts: `docs/contracts/`; security: `docs/security/`; architecture & ADRs: `docs/architecture/`.
+- All test IDs are NOT RUN until executed with recorded command and exit code.
+
 ## Evidence vocabulary
 - SOURCE FACT: explicitly in proposal; does not guarantee Arito/provider behavior.
 - DESIGN PROPOSAL: engineering recommendation in this package.
