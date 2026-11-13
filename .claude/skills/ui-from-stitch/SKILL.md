@@ -1,9 +1,9 @@
 ---
 name: ui-from-stitch
-description: Convert approved Stitch UX flows to accessible frontend components.
+description: Implement approved workflow design accessibly
 ---
-# Procedure
-Verify design against role matrix and states; align DESIGN.md tokens; implement reusable accessible components, responsive behavior and E2E authorization tests.
+# Workflow
+Review approved BRD/role matrix/flow and Stitch/Figma design. Create screen→use-case→role→API→state→test mapping. Implement typed React UI with loading, empty, error, forbidden, quote expired/version mismatch, takeover and provider outage. Security Inspector only displays redacted/synthetic traces. Backend remains authority. Run keyboard/accessibility and E2E tests. Never assume a generated visual prototype verifies business rules.
 
-## Output
-Record assumptions, work performed, actual test commands/outcomes, security concerns and next suggested task. Follow `CLAUDE.md` and `.claude/rules/`.
+## Required result
+Separate VERIFIED, NOT RUN, BLOCKED and PROPOSED. Include exact paths and relevant decision IDs.

@@ -1,9 +1,9 @@
 ---
 name: session-handoff
-description: Write an actionable coding session handoff.
+description: Save accurate state across sessions
 ---
-# Procedure
-Collect git status/diff summary, changed files, decisions, actual tests and next task. Write docs/session-handoff.md without secrets; do not commit unless asked.
+# Workflow
+Inspect git diff and executed test logs. Update docs/SESSION_HANDOFF.md with issue, baseline commit, changed files, architecture decisions, verified commands/outcomes, blockers, migrations and next 3 actions. No credentials or real customer data. Include prompt: Read CLAUDE.md and SESSION_HANDOFF.md, inspect git status, then work on next issue only. Do not claim work was saved until file exists.
 
-## Output
-Record assumptions, work performed, actual test commands/outcomes, security concerns and next suggested task. Follow `CLAUDE.md` and `.claude/rules/`.
+## Required result
+Separate VERIFIED, NOT RUN, BLOCKED and PROPOSED. Include exact paths and relevant decision IDs.

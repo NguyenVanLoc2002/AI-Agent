@@ -1,9 +1,9 @@
 ---
 name: implement-issue
-description: Implement a scoped backlog issue with tests and review.
+description: Implement one issue with proof and rollback
 ---
-# Procedure
-Read issue/requirements; list impacted files, risks and acceptance criteria; implement minimal vertical slice; run focused tests and report actual results. Do not auto-commit.
+# Workflow
+Inputs: issue ID, BRD link, acceptance examples, branch. Read git status, relevant source, tests and contracts first. Plan changed modules, security risks, fixtures, migrations and rollback. Implement a minimal vertical slice; add positive, negative, permission and failure tests. Run actual checks, record exact command and exit code. Review diff for secrets and scope creep. Output: issue, changed files, verified tests, review findings, unresolved risk, next issue. No autonomous commit/push.
 
-## Output
-Record assumptions, work performed, actual test commands/outcomes, security concerns and next suggested task. Follow `CLAUDE.md` and `.claude/rules/`.
+## Required result
+Separate VERIFIED, NOT RUN, BLOCKED and PROPOSED. Include exact paths and relevant decision IDs.
