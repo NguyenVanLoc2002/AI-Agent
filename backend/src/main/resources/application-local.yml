@@ -1,0 +1,26 @@
+# Profile "local": developer machine only, synthetic data only (CLAUDE.md).
+# Database is the Postgres container from backend/compose.yaml, bound to 127.0.0.1.
+# The password is NOT stored in the repository: export APP_DB_PASSWORD before starting
+# (same value as used for `docker compose up`).
+spring:
+  datasource:
+    url: ${APP_DB_URL:jdbc:postgresql://127.0.0.1:5432/secure_erp_agent}
+    username: ${APP_DB_USERNAME:secure_erp_agent}
+    password: ${APP_DB_PASSWORD}
+
+server:
+  address: 127.0.0.1
+  port: ${APP_HTTP_PORT:8080}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+
+logging:
+  structured:
+    format:
+      console: ""
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

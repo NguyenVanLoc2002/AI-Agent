@@ -1,0 +1,8 @@
+target/
+!.mvn/wrapper/maven-wrapper.properties
+*.log
+.idea/
+*.iml
+.vscode/
+.env
+.env.*
