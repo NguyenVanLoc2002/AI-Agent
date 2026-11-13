@@ -1,0 +1,24 @@
+# Local development database only (profile "local"). Synthetic data only.
+# Security: bound to 127.0.0.1; the password must be provided via the APP_DB_PASSWORD
+# environment variable and is never committed. Do not point this at production data.
+name: secure-erp-agent-local
+
+services:
+  postgres:
+    image: postgres:17.12-alpine
+    environment:
+      POSTGRES_DB: secure_erp_agent
+      POSTGRES_USER: secure_erp_agent
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD before running docker compose}
+    ports:
+      - "127.0.0.1:${APP_DB_PORT:-5432}:5432"
+    volumes:
+      - secure-erp-agent-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secure_erp_agent -d secure_erp_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  secure-erp-agent-pgdata:
