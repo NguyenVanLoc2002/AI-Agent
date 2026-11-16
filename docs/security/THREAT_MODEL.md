@@ -10,7 +10,7 @@ Giá vốn/margin, giá theo khách, công nợ, danh tính khách, danh bạ, l
 |---|---|---|
 | TB-1 | Browser ↔ backend | input untrusted |
 | TB-2 | Backend ↔ LLM provider | **egress** + output untrusted |
-| TB-3 | Backend ↔ Mock/Arito ERP | dữ liệu R vào; ghi đơn ra |
+| TB-3 | Backend ↔ Mock ERP / ERP đích thật | dữ liệu R vào; ghi đơn ra |
 | TB-4 | Module agent/tools ↔ quote/order | nội bộ, cưỡng chế bằng ArchUnit |
 | TB-5 | Ứng dụng ↔ log/audit/test artifacts | egress gián tiếp |
 
@@ -48,7 +48,7 @@ Giá vốn/margin, giá theo khách, công nợ, danh tính khách, danh bạ, l
 ## 4. Rủi ro không giảm được bằng ứng dụng
 - Retention/ZDR của provider, region xử lý: hợp đồng/cấu hình ngoài (D-07).
 - Network egress production: firewall/proxy ngoài repo (rule 10).
-- Quyền tài khoản tích hợp Arito: D-02.
+- Quyền tài khoản tích hợp ERP đích: D-02.
 
 ## 5. Reason codes handoff (DESIGN PROPOSAL)
 `AI_DISABLED`, `DLP_INBOUND`, `DLP_EGRESS`, `PROMPT_INJECTION`, `TOOL_REJECTED_REPEATED`, `PROVIDER_ERROR`, `PROVIDER_AUTH`, `CATALOG_UNAVAILABLE`, `VIN_AMBIGUOUS`, `OE_AMBIGUOUS`, `QUOTE_NOT_ISSUED` (chi tiết nội bộ: `INELIGIBLE`, `OUT_OF_STOCK`, `NEEDS_REVIEW`, `PRICE_MISSING`), `QUOTE_REPRICED`, `QUOTE_LIMIT`, `ERP_UNKNOWN`, `CUSTOMER_REQUEST`, `UNSURE`, `OUT_OF_SCOPE`. Chi tiết nội bộ chỉ hiển thị cho SALES, không tới model.

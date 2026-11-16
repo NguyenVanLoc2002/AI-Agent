@@ -20,7 +20,7 @@
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
 | platform | KillSwitch, Clock, correlation ID, error mapping | `KillSwitch`, `Clock` | — |
-| erp | **Leaf adapter:** Mock Arito (PoC), Arito thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
+| erp | **Leaf adapter:** Mock ERP (PoC), ERP thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
 | bootstrap | Ứng dụng Spring Boot + wiring; module duy nhất được phụ thuộc mọi module | — | — |
 
 ## 2. Hướng phụ thuộc cho phép

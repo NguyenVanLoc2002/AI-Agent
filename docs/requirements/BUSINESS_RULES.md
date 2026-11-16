@@ -24,7 +24,7 @@
 | BR-17 | Idempotency key = quoteId-version, unique trong DB; key do server sinh, không nhận từ client | SOURCE FACT (key) / DESIGN PROPOSAL (server-derived) | BRD §06 | UC-04 | order (UNIQUE) | T-SEC04-PARALLEL |
 | BR-18 | Gửi idempotency key sang ERP chỉ khi ERP hỗ trợ | OPEN (D-03) | rule 40 | UC-04 | order/DraftOrderPort capability | T-SEC04-* (cả 2 chế độ mock) |
 | BR-19 | Timeout không rõ kết quả → UNKNOWN, đối soát; không tạo lại mù quáng | SOURCE FACT | BRD §06 | UC-04 | order | T-SEC04-UNKNOWN |
-| BR-20 | Agent không phê duyệt đơn; phê duyệt bởi người trong Arito | SOURCE FACT | BRD §06 | UC-04 | (không có API) | T-SEC03-APPROVE |
+| BR-20 | Agent không phê duyệt đơn; phê duyệt bởi người trong ERP | SOURCE FACT | BRD §06 | UC-04 | (không có API) | T-SEC03-APPROVE |
 | BR-21 | AI không sửa giá, đọc giá vốn, tạo khách, liệt kê hàng loạt khách/sản phẩm, override nhân viên | SOURCE FACT | CLAUDE.md | tất cả | tools registry | T-SEC03-* |
 | BR-22 | Handoff có reason code; LLM ngừng trả lời tới khi nhân viên mở khóa | SOURCE FACT | BRD §07 | UC-05 | handoff, conversation | T-UC05-LOCK |
 | BR-23 | Notification handoff không chứa dữ liệu nhạy cảm | SOURCE FACT | BRD §07 | UC-05 | handoff | T-SEC05-* |

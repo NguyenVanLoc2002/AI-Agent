@@ -3,7 +3,7 @@
 > 2026-11-13 (v0.2 sau architecture + security review cùng ngày). Backlog gốc: `docs/04_Implementation_Backlog.md@af2d09f` — EP-01..EP-12 là SOURCE FACT và **giữ nguyên nghĩa**; issue mới dùng ID mới (G0-x, EP-00, SEC-01a/b, ACC-01). Thứ tự và tách issue: DESIGN PROPOSAL. **Trạng thái mọi test: NOT RUN** (chưa có mã).
 
 ## 1. Gates (SOURCE FACT BRD §14)
-G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 → G2 quote + idempotency → G3 SEC-01..07 PASS → G4 xác nhận Arito/catalog/Zalo/legal → G5 UAT/go-live.
+G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 → G2 quote + idempotency → G3 SEC-01..07 PASS → G4 xác nhận ERP đích/catalog/Zalo/legal → G5 UAT/go-live.
 
 ## 2. Backlog theo thứ tự dependency
 | # | Issue | Epic gốc | Gate | Phụ thuộc | Đầu vào | Đầu ra | Test chính | DoD bổ sung |
@@ -11,7 +11,7 @@ G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 �
 | 1 | G0-1 Chuẩn hóa tài liệu kỹ thuật (issue này) | — | G0 | — | BRD@af2d09f, rules | docs + ADR PROPOSED | — | review architecture-reviewer + security-auditor (đã chạy 2026-11-13) |
 | 2 | G0-2 Phê duyệt ADR + A-01..A-15 | — | G0 | 1 | ADR PROPOSED | ADR ACCEPTED/REJECTED | — | owner ký trong ADR |
 | 3 | EP-00 Bootstrap backend (= **POC-001**, đã triển khai 2026-11-13; ARCH-05/06/08 hoãn sang SEC-01a) | — | G1 | 2 | ADR-001/002 | build, skeleton, Flyway baseline, Testcontainers, Modulith + ARCH-01..13 | `ModuleStructureTest`, `ArchitectureRulesTest` (+ fixture vi phạm cố ý) | không entity nghiệp vụ, không secrets |
-| 4 | **SEC-01a** Egress guard — mức gateway | EP-01, EP-02 | G1 | 3 | AI_GATEWAY, DATA_CLASSIFICATION, ERP_CONNECTOR | identity tối thiểu; Mock Arito sentinel + fault injection; catalog spi + adapter mapping; policy; gateway + Fake/WireMock + proxy local; harness dựng `ModelRequest` trực tiếp | T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200; T-ERP-01..03 | ghi "gateway-level evidence", **chưa** đánh dấu SEC-01 VERIFIED |
+| 4 | **SEC-01a** Egress guard — mức gateway | EP-01, EP-02 | G1 | 3 | AI_GATEWAY, DATA_CLASSIFICATION, ERP_CONNECTOR | identity tối thiểu; Mock ERP sentinel + fault injection; catalog spi + adapter mapping; policy; gateway + Fake/WireMock + proxy local; harness dựng `ModelRequest` trực tiếp | T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200; T-ERP-01..03 | ghi "gateway-level evidence", **chưa** đánh dấu SEC-01 VERIFIED |
 | 5 | EP-03 Tool registry & per-call authz | EP-03 | G1 | 4 | TOOL_CONTRACTS | ToolManager, schema strict, quota conversation + principal | T-TOOL-01..08, 11..13 | |
 | 6 | EP-05 Catalog + VIN server-side + provenance | EP-05 | G1 | 5 | BR-04..07, BR-37 | VinValidator trong policy, `searchVerifiedProduct`, `AvailabilityBucketPort` | T-UC02-* | không báo giá non-verified |
 | 7 | EP-06 Quote service + handle + render | EP-06 | G2 | 6 | BR-08..13, BR-35 | quote versioned, Money, handle, QuoteCard, `requestQuote` | T-UC03-*, T-SEC01-QUOTE, T-TOOL-09/10, T-AUTH-02 | backend-reviewer |
@@ -22,7 +22,7 @@ G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 �
 | 12 | EP-09 Audit, log policy, kill switch, key revocation, inspector API | EP-09 | G3 | 9 | ADR-012/013 | | T-SEC05*, T-SEC06, T-SEC07, T-UC07-RBAC | |
 | 13 | EP-10 Frontend React/TS | EP-10 | G3 | 9–12 + wireflow duyệt | UI@af2d09f | 5 view | E2E, a11y, forbidden/expired/stale | ux-workflow-reviewer |
 | 14 | ACC-01 Acceptance SEC-01..07 + evidence | — | G3 | tất cả | skill `acceptance-sec` | báo cáo VERIFIED/NOT RUN/BLOCKED | toàn bộ SEC | qa-gatekeeper |
-| 15 | EP-11 Arito adapter thật (gated) | EP-11 | G4 | D-01..D-03 | API docs đã duyệt | adapter + cấu hình capability | T-ERP-01..06 + contract | |
+| 15 | EP-11 Adapter ERP thật (tên mục tiêu `RealErpConnector`, gated) | EP-11 | G4 | D-01..D-03 | API docs đã duyệt | adapter + cấu hình capability | T-ERP-01..06 + contract | |
 | 16 | EP-12 Zalo/VIN provider (gated) | EP-12 | G4 | D-05..D-07, D-11 | | ChannelPort Zalo | T-UC01-WEBHOOK-REPLAY, UAT | |
 
 **DoD chung (SOURCE FACT rule 00, backlog gốc):** liên kết truy vết; threat review khi liên quan; test happy + negative + permission + replay/timeout; schema validation; 0 egress nhạy cảm; 0 secrets trong log; diff được duyệt; lệnh test + exit code; docs/decisions cập nhật; rollback mô tả; không thao tác production.
@@ -45,7 +45,7 @@ FR: SOURCE FACT BRD §09. UC/BR: `docs/requirements/`. Trạng thái test: **NOT
 | FR-011 | Audit | tất cả | BR-23 | audit | T-SEC05, T-SEC05-INSPECTOR | SEC-05 | 12 |
 | FR-012 | Kill switch | UC-08 | BR-26, BR-27 | platform, gateway | T-SEC06, T-SEC07 | SEC-06, SEC-07 | 12 |
 | FR-013 | RBAC | UC-06, UC-07 | BR-24, BR-25 | identity, RBAC | T-RBAC-MATRIX, T-RBAC-AFTER-RESOLVE, T-UC06-OPS, T-UC07-RBAC | SEC-02 | 11, 12 |
-| FR-014 | Mock ERP | — | — | erp Mock Arito | T-ERP-01..06 | SEC-01, SEC-04 | 4, 8 |
+| FR-014 | Mock ERP | — | — | erp Mock ERP | T-ERP-01..06 | SEC-01, SEC-04 | 4, 8 |
 | FR-015 | Kiểm thử security | — | — | toàn bộ | SEC-01..07 | tất cả | 14 |
 | FR-016 | VIN/OE | UC-02 | BR-04, BR-30, BR-37 | policy, catalog | T-UC02-VIN, T-SEC01-VIN, T-TOOL-13 | — | 6 |
 | FR-017 | Tích hợp Zalo (tùy gate) | UC-01 | BR-02 | ChannelPort (MVP) | T-UC01-WEBHOOK-REPLAY — **chưa có trong PoC**, OPEN D-06 | — | 16 |
@@ -109,7 +109,7 @@ FR: SOURCE FACT BRD §09. UC/BR: `docs/requirements/`. Trạng thái test: **NOT
 ## 5. Issue đầu tiên — SEC-01a Egress guard (mức gateway)
 - **Branch đề xuất:** `feat/SEC-01-egress-guard` (rule 70) — quy ước tên OPEN A-13.
 - **Nguồn:** SECURITY_TEST_MATRIX SEC-01; BRD §08; rule 30; FR-003, FR-014, FR-015.
-- **In scope:** identity tối thiểu; policy (normalizer, honeytoken registry, scanner, VIN extractor); gateway (`ModelRequest`, `SafeMessage`, `TechnicalContext`, `ToolResultDto`, `ToolSpec`, EgressGuard, adapter HTTP + interceptor, Fake provider qua WireMock, proxy local); erp Mock Arito (`VerifiedProductPort`, `AvailabilityBucketPort`, seed sentinel, fault injection); harness 200 hội thoại scripted dựng `ModelRequest` trực tiếp; audit `EgressDecision`; Flyway migration chỉ thêm bảng.
+- **In scope:** identity tối thiểu; policy (normalizer, honeytoken registry, scanner, VIN extractor); gateway (`ModelRequest`, `SafeMessage`, `TechnicalContext`, `ToolResultDto`, `ToolSpec`, EgressGuard, adapter HTTP + interceptor, Fake provider qua WireMock, proxy local); erp Mock ERP (`VerifiedProductPort`, `AvailabilityBucketPort`, seed sentinel, fault injection); harness 200 hội thoại scripted dựng `ModelRequest` trực tiếp; audit `EgressDecision`; Flyway migration chỉ thêm bảng.
 - **Out of scope:** ToolManager, agent loop, quote/order, UI, provider thật, Zalo, ảnh.
 - **Tests:** T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -GW200, -USERMONEY, -VIN; T-ERP-01..03.
 - **DoD:** test chạy thực tế, ghi lệnh + exit code; review security-auditor + architecture-reviewer; SECURITY_TEST_MATRIX ghi "SEC-01: gateway-level evidence only — chưa gồm tool loop, quote, history, staff handoff" (VERIFIED đầy đủ chỉ sau SEC-01b); SESSION_HANDOFF cập nhật.
@@ -117,4 +117,4 @@ FR: SOURCE FACT BRD §09. UC/BR: `docs/requirements/`. Trạng thái test: **NOT
 - **Giới hạn:** không chứng minh network egress production hay retention của provider thật.
 
 ## 6. Rủi ro (tóm tắt — chi tiết THREAT_MODEL)
-Arito API không như giả định (D-01..03); DLP regex bỏ sót (giảm bằng type gate); credit/stock oracle qua tool (giảm bằng `NOT_QUOTED` chung); tin nhân viên vào history; replay handle; VIN pháp lý; injection; race đơn; log/inspector rò; tài liệu BRD bị xóa (A-01); scope creep do demo.
+API ERP đích không như giả định (D-01..03); DLP regex bỏ sót (giảm bằng type gate); credit/stock oracle qua tool (giảm bằng `NOT_QUOTED` chung); tin nhân viên vào history; replay handle; VIN pháp lý; injection; race đơn; log/inspector rò; tài liệu BRD bị xóa (A-01); scope creep do demo.

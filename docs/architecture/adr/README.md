@@ -2,6 +2,8 @@
 
 Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ khi owner ký trong file. Tất cả ADR dưới đây được tạo 2026-11-13 ở trạng thái **PROPOSED** (DESIGN PROPOSAL). ADR đã ACCEPTED thắng văn xuôi (CLAUDE.md).
 
+2026-11-16, Independent demo rebranding (AutoParts Agent Sandbox): ADR-005, ADR-007 và ADR-009 chỉ đổi tên ERP vendor thành "ERP đích". Không ADR nào đổi quyết định hay trạng thái. Xem `docs/REBRANDING_REPORT.md`.
+
 | ADR | Tiêu đề | Trạng thái | Quyết định cần duyệt |
 |---|---|---|---|
 | [001](ADR-001-modular-monolith.md) | Modular monolith & enforcement ranh giới | PROPOSED | A-02 |
