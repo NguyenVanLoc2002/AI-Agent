@@ -1,13 +1,13 @@
-# Use cases — Secure ERP AI Agent (PoC → MVP)
+# Use cases — AutoParts Agent Sandbox (APAS) (PoC → MVP)
 
 > Trạng thái: DRAFT, chưa được stakeholder phê duyệt. Ngày: 2026-11-13.
-> Nguồn: `BRD` = `docs/01_BRD_SRS_Security.md` tại commit `af2d09f` (file đang bị xóa trong working tree — xem OPEN A-01; đọc bằng `git show af2d09f:docs/01_BRD_SRS_Security.md`). `UI` = `docs/03_UI_UX_Stitch.md@af2d09f`. Đề xuất khách hàng 15 trang (14/10/2026) **không có trong repo**; BRD là bản tóm tắt của nó.
+> Nguồn: `BRD` = `docs/01_BRD_SRS_Security.md` tại commit `af2d09f` (file đang bị xóa trong working tree — xem OPEN A-01; đọc bằng `git show af2d09f:docs/01_BRD_SRS_Security.md`). `UI` = `docs/03_UI_UX_Stitch.md@af2d09f`. Tài liệu đề xuất tham chiếu gốc (private, NEEDS_REVIEW về quyền sử dụng) **không có trong repo**. BRD là bản tóm tắt của tài liệu đó. Không có khách hàng hay ERP vendor nào đặt hàng hoặc phê duyệt dự án này.
 
 ## Nhãn bằng chứng
-- **SOURCE FACT** — có trong BRD/UI@af2d09f hoặc tài liệu gốc; không đảm bảo hành vi của Arito/provider.
+- **SOURCE FACT** — có trong BRD/UI@af2d09f hoặc tài liệu gốc; không đảm bảo hành vi của ERP/provider.
 - **DESIGN PROPOSAL** — đề xuất kỹ thuật của nhóm, chưa phê duyệt.
 - **VERIFIED** — đã chứng minh bằng lệnh/test/log trên môi trường xác định. *Hiện chưa có mục nào VERIFIED (chưa có mã).*
-- **OPEN** — cần Arito/business/security/legal xác nhận; tham chiếu `docs/DECISIONS_REQUIRED.md`.
+- **OPEN** — cần ERP vendor/business/security/legal xác nhận; tham chiếu `docs/DECISIONS_REQUIRED.md`.
 
 ## Actors
 | ID | Actor | Nhãn | Ghi chú |
@@ -19,7 +19,7 @@
 | OPS | Quản trị hệ thống | SOURCE FACT (BRD §02) | Cấu hình kỹ thuật; mặc định **không** đọc giá/chat |
 | SECREV | Security reviewer | SOURCE FACT (UI persona 3) | Xem trace đã redaction, dashboard SEC |
 | AGENT | Agent service account | SOURCE FACT (BRD §02) | Không phê duyệt, không sửa giá |
-| ERP | Arito ERP (PoC: Mock Arito) | SOURCE FACT tồn tại; API **OPEN** (D-01..D-03) | |
+| ERP | ERP đích vendor-neutral (PoC: Mock ERP) | SOURCE FACT: có một ERP (BRD nêu một vendor cụ thể; dự án giữ vendor-neutral, REVIEW_REQUIRED); API **OPEN** (D-01..D-03) | |
 | LLM | Model provider | SOURCE FACT (BRD §01) | Untrusted; PoC dùng Fake provider (DESIGN PROPOSAL, A-05) |
 
 ## Danh sách use case
@@ -82,7 +82,7 @@
 - **Before write:** còn hạn, đúng trạng thái/khách/version; kiểm tra lại giá, tồn, công nợ; giá đổi → version mới, xác nhận lại.
 - **Idempotency:** key = quoteId-version, unique trong DB (SOURCE FACT). Gửi key sang ERP **chỉ nếu ERP hỗ trợ** (OPEN D-03).
 - **Unknown outcome:** timeout → UNKNOWN, đối soát; không tạo lần hai mù quáng (SOURCE FACT).
-- **Human approval:** trong Arito; agent không phê duyệt (SOURCE FACT).
+- **Human approval:** trong ERP; agent không phê duyệt (SOURCE FACT).
 - **Acceptance:**
   - AC-04.1 10 xác nhận song song → đúng 1 draft. → T-SEC04-PARALLEL
   - AC-04.2 Version cũ → 409; hết hạn → 410; khách khác → 404; cập nhật đồng thời → optimistic lock, một bên thất bại có mã lỗi. → T-UC04-GUARDS, T-UC04-OPTLOCK

@@ -14,7 +14,7 @@
 | 6 | Gọi provider | gateway.adapter | bytes → provider | egress proxy; timeout; breaker | 401/403 → `PROVIDER_AUTH`; timeout → `PROVIDER_ERROR` |
 | 7 | Model output | gateway → agent | `ModelResponse` (untrusted) | parse strict: text hoặc `ToolProposal` | parse lỗi → handoff |
 | 8 | Tool proposal | tools | `ToolProposal` → `ToolInvocation` | allowlist; schema strict; size/depth; authz + ownership; quota conversation + principal | `TOOL_REJECTED`; lặp → handoff |
-| 9a | `searchVerifiedProduct` | catalog → `VerifiedProductPort`, `AvailabilityBucketPort` (Mock Arito) | query (T) → `ProductCandidate` + bucket enum (T) | ≤5 kết quả; regex cho sku/oe; strip field R/I tại adapter; bucket không phụ thuộc qty | `CATALOG_UNAVAILABLE` |
+| 9a | `searchVerifiedProduct` | catalog → `VerifiedProductPort`, `AvailabilityBucketPort` (Mock ERP) | query (T) → `ProductCandidate` + bucket enum (T) | ≤5 kết quả; regex cho sku/oe; strip field R/I tại adapter; bucket không phụ thuộc qty | `CATALOG_UNAVAILABLE` |
 | 9b | `requestQuote` | quote | productRef + qty (T) → nội bộ `quote.spi` (R/I) → Quote v1 → `{status, handle?}` (T) | chỉ VERIFIED; qty>0; ≤ giới hạn dòng; mọi lý do không báo giá → `NOT_QUOTED` duy nhất + handoff với reason nội bộ | handoff `QUOTE_NOT_ISSUED` |
 | 10 | Tool result → model | tools → gateway | `ToolResultDto` typed (T) | **đi lại qua bước 5** | như bước 5 |
 | 11 | Final output | agent | text (untrusted) | `OutputValidator`: không số tiền, số tồn, OE ngoài tool result lượt này, URL, handle lạ, "đã duyệt đơn" | câu trả lời an toàn mặc định/handoff |
@@ -46,7 +46,7 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → `HandoffApi.
 | audit_event / egress_record | có | field names, honeytoken ID/policy code, length; không HMAC theo giá trị | SEC-05, T-SEC05-INSPECTOR |
 | Test artifacts | có | fixture synthetic; scan | SEC-05 |
 | APM/tracing | tắt trong PoC | — | OPEN trước khi bật |
-| Zalo, VIN service, Arito thật | không | MVP | skill `privacy-egress-review` |
+| Zalo, VIN service, ERP thật | không | MVP | skill `privacy-egress-review` |
 
 ## 5. Lưu trữ (DESIGN PROPOSAL; retention OPEN D-09)
 | Bảng | Module | Lớp | Ràng buộc chính |

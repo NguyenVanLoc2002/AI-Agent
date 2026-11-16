@@ -24,7 +24,7 @@ Viết tắt dùng trong các tài liệu khác: CUST = CUSTOMER, OPS = OPERATOR
 | Xem quote (có giá) | ✔ của mình | ✔ conversation được giao | ✘ | ✘ | ✘ (chỉ handle) |
 | Xác nhận quote | ✔ của mình, version hiện hành | ✘ | ✘ | ✘ | ✘ |
 | Tạo draft order | gián tiếp qua xác nhận | ✘ | ✘ | ✘ | ✘ |
-| Phê duyệt đơn | ✘ | trong Arito (ngoài hệ thống) | ✘ | ✘ | ✘ |
+| Phê duyệt đơn | ✘ | trong ERP đích (ngoài hệ thống) | ✘ | ✘ | ✘ |
 | Sửa giá / chiết khấu | ✘ | ✘ trong PoC (OPEN BRD §15) | ✘ | ✘ | ✘ |
 | Danh sách handoff | ✘ | ✔ team mình | ✘ | ✘ | ✘ |
 | Claim/resolve handoff | ✘ | ✔ team mình | ✘ | ✘ | ✘ |

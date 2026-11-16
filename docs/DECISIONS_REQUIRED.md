@@ -1,9 +1,9 @@
 # Decision register — do not silently guess
 | ID | Open decision | Owner | Impact until resolved | Safe PoC default |
 |---|---|---|---|---|
-| D-01 | Arito has six required API operations, auth, sandbox, limits? | Arito/IT | Real integration blocked | Mock connector only |
-| D-02 | Can Arito principal exclude cost and approve-order? | Arito/IT | Need connector+network compensating controls | Never connect live |
-| D-03 | Supports idempotency/external order lookup? | Arito | Unknown-outcome retry dangerous | mark UNKNOWN + manual reconcile |
+| D-01 | Does the target ERP (vendor-neutral) provide the six required API operations, auth, sandbox and limits? | ERP vendor / integration owner | Real integration blocked | Mock connector only |
+| D-02 | Can the target-ERP integration principal be denied cost access and approve-order? | ERP vendor / integration owner | Need connector+network compensating controls | Never connect live |
+| D-03 | Does the target ERP support idempotency/external order lookup? | ERP vendor | Unknown-outcome retry dangerous | mark UNKNOWN + manual reconcile |
 | D-04 | Pricing for newly unlinked customer and quote expiry? | Sales | Quote rules ambiguous | no automatic quotes |
 | D-05 | Product/VIN/OE catalog license and provenance? | Purchasing | Automated matching unavailable | synthetic catalog only |
 | D-06 | Zalo OA message/consent/webhook contract? | Business/Legal | Live channel blocked | local chat simulator |
@@ -33,4 +33,5 @@ Engineering decisions awaiting the project owner. Details: `docs/architecture/ad
 | A-12 | Quantity-independent stock bucket design (`AvailabilityBucketPort`) | D-12, ADR-005 |
 | A-13 | Branch naming for first slice: `feat/SEC-01-egress-guard` (rule 70) vs issue-ID based | rule 70 |
 | A-14 | Bot never tells the customer *why* a quote was not issued (single `NOT_QUOTED` + staff handoff) — business acceptance of this UX consequence | ADR-006, BR-35 |
-| A-15 | SALES access after handoff resolved (proposed PoC default: content access ends at resolve) and SALES manual recording of staff approve/reject (no Arito read-back) | D-08, D-01, ADR-007 |
+| A-16 | Independent demo rebranding to AutoParts Agent Sandbox (APAS), 2026-11-16 (PROPOSED). Confirm: (a) project identity and disclaimer; (b) the reference BRD/proposal stay private and reference-only (NEEDS_REVIEW for usage rights); (c) git history still contains the reference customer/vendor names, and the GitHub repository is already public (checked 2026-11-16), so the owner must decide how to handle it, e.g. make it private or get legal review (history was **not** rewritten); (d) a separate code issue renames the remaining vendor names in code/config | `docs/REBRANDING_REPORT.md` |
+| A-15 | SALES access after handoff resolved (proposed PoC default: content access ends at resolve) and SALES manual recording of staff approve/reject (no ERP read-back) | D-08, D-01, ADR-007 |

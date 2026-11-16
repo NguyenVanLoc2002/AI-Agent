@@ -1,8 +1,11 @@
-# secure-erp-agent backend (POC-001 bootstrap)
+# APAS backend — `secure-erp-agent` artifact (POC-001 bootstrap)
+
+Part of **AutoParts Agent Sandbox (APAS)**, an independent technical demo (see the disclaimer in the root `README.md`).
+The 2026-11-16 rebranding changed documentation only. The Maven artifact, the Java packages (`com.secureerp.agent`) and the runtime names are unchanged.
 
 Security-first PoC backend: Java 21, Spring Boot 4.1.2, Maven, PostgreSQL 17, Flyway, JUnit 5,
 Testcontainers, Spring Modulith 2.1.2, ArchUnit 1.5.1.
-**Skeleton only:** no business logic, no Arito connection, no LLM provider, synthetic data only.
+**Skeleton only:** no business logic, no real ERP connection, no LLM provider, synthetic data only.
 Design: `../docs/architecture/` (ADRs are still PROPOSED).
 
 ## Layout
@@ -47,7 +50,7 @@ PowerShell: set variables with `$env:APP_DB_PASSWORD = '...'`, and use `.\mvnw.c
 
 ## Not here yet
 Auth/session (ADR-010), demo endpoints (ADR-015), business tables, gateway/egress guard (SEC-01a),
-Mock Arito. ARCH-05/06/08 are added with SEC-01a, when their marker types exist.
+Mock ERP connector. ARCH-05/06/08 are added with SEC-01a, when their marker types exist.
 
 ## Rules for the next issues
 - When adding `api`/`spi` sub-packages, annotate their `package-info.java` with `@NamedInterface`

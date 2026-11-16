@@ -1,4 +1,14 @@
-# Session handoff
+# Session handoff — AutoParts Agent Sandbox (APAS)
+
+## Current: Independent demo rebranding (docs only), 2026-11-16
+- Branch `docs/APAS-00-independent-demo-rebranding`, created from `origin/main` `4d283db` (POC-001 merged via PR #1). Committed and pushed for a PR into `main`. The owner's earlier uncommitted deletions/modifications are still local and were not committed.
+- Project is now **AutoParts Agent Sandbox (APAS)**, an independent technical demo with no customer and a vendor-neutral ERP connector. Disclaimer is in README and CLAUDE.md. Full record: `docs/REBRANDING_REPORT.md`. Approval A-16 is PROPOSED.
+- Changed: 24 project-authored doc and `.claude` text files plus the new report. No code, config, settings, ADR decision or status changed. The owner's earlier deletions and modifications were left untouched.
+- Validation: `rg` residual search, `git diff --check` (exit 0) and a markdown link/path check were run. Backend tests NOT RUN, because no executable file changed.
+- Open: (1) git history still contains the reference customer and vendor names, and the GitHub repo is already public. The owner must decide (A-16c). (2) Follow-up code issue for the remaining vendor names in `pom.xml`, `application.yml`, `erp/package-info.java` and the `MockAritoAdapter` fixture. Keep the `ConfigurationPolicyTest` domain guard. (3) Sync the ChatGPT Project documents manually. (4) Inventory Staff role is not added; it is OPEN under D-08.
+- Next actions: owner reviews and merges the rebranding PR and decides A-16 → SEC-01a egress guard.
+
+## Previous: POC-001 (historical record; branch/commit facts corrected 2026-11-16: POC-001 was committed as `2b10755` on `feat/POC-001-project-bootstrap`)
 - Issue: **POC-001 Project Bootstrap** (= backlog EP-00), implemented 2026-11-13. Previous issue G0-1 (docs) is complete; ADRs still PROPOSED; approvals A-01..A-15 are pending, except A-04, where the owner instruction chose Maven.
 - Baseline commit: af2d09f. Working tree uncommitted. Pre-existing user deletions and modifications to the BRD/UI/backlog docs and the old kit files were left untouched.
 - Branch: none created (still on `main`). No commit, no push. Suggested branch if committing: `feat/POC-001-project-bootstrap`.

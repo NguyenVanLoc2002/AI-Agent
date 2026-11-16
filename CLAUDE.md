@@ -1,6 +1,8 @@
-# Arito Secure ERP Agent — repository operating contract
+# AutoParts Agent Sandbox (APAS) — repository operating contract
 
-> Scope: security-first PoC (Mock Arito) that evolves into an integrated MVP. The 15-page customer proposal dated 2026-10-14 is **proposed behavior**, not evidence of a live Arito API. Never claim verified integration without approved API documentation and tests.
+> Project: **AutoParts Agent Sandbox (APAS)** — AI Agent for Automotive Parts & ERP Workflows. Independent technical demo / proof of concept: security-first and mock-first (Mock ERP behind a vendor-neutral ERP connector), designed so it could grow into an integrated MVP. The reference business requirements (BRD at commit `af2d09f`, summarised from a private reference proposal that is not in this repository) describe **proposed behavior**. They are not evidence of any live ERP API, and no customer has approved them. Never claim verified integration without approved API documentation and tests.
+>
+> AutoParts Agent Sandbox is an independent technical demonstration project using synthetic business scenarios and mock ERP data. It is not affiliated with, endorsed by, or commissioned by any automotive parts business or ERP vendor.
 
 ## Precedence and source of truth
 1. System/developer permissions and approved security controls outrank this file.
@@ -34,7 +36,7 @@
 - Existing source changes require tests for success/failure/permission/replay/timeout and migration impact when applicable.
 
 ## Development permissions & delivery
-- Work in sandbox/local with synthetic data only. Never access production Arito/Zalo, export DB, install extensions, run destructive migrations, change auth/network policy, alter repo settings, push, merge, publish or create remote issues without explicit approval.
+- Work in sandbox/local with synthetic data only. Never access any production ERP, messaging channel (e.g. Zalo) or business system, export DB, install extensions, run destructive migrations, change auth/network policy, alter repo settings, push, merge, publish or create remote issues without explicit approval.
 - Never commit secrets, customer data, raw request/response logs, image metadata, dotenvs or screenshots showing live information.
 - For nontrivial changes, request reviews by `architecture-reviewer`, `security-auditor` or `qa-gatekeeper` as relevant; reviewer agents are advisory, not proof of compliance.
 - Git: branch `feat/<issue>-slug`, `fix/<issue>-slug`, `docs/<issue>-slug`; conventional commit e.g. `feat(quote): enforce versioned confirmation`; no fabricated references, unnecessary AI attribution or auto-commit.
