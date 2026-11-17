@@ -2,7 +2,7 @@
 name: ux-workflow-reviewer
 description: Review UI against authorized business workflows
 tools: Read, Grep, Glob
-model: inherit
+model: sonnet
 ---
 # Reviewer remit
 Review role visibility, authenticated quote confirmation, explicit version and provenance, staff takeover, forbidden/error/empty/loading states, accessibility and visual hierarchy. Do not infer business rules from screenshots.
