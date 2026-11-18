@@ -398,4 +398,17 @@ class DefaultAiGatewayTest {
             return replies.isEmpty() ? new ProviderReply(200, OK_RESPONSE) : replies.poll();
         }
     }
+
+    /** Third review L-1/L-3: a long repetitive or encoded text is refused or sent, never unaudited. */
+    @Test
+    void longRepetitiveTextIsAlwaysAudited() {
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+        for (String unit : List.of("AB ", "AB-")) {
+            published.clear();
+            GatewayResult result = gateway().complete(EgressFixtures.request(unit.repeat(SafeMessage.MAX_TEXT_CHARS / 3)));
+            assertThat(result).isNotNull();
+            assertThat(published).isNotEmpty();
+        }
+    }
 }

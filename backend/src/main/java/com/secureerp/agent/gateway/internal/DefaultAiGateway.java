@@ -77,7 +77,8 @@ public class DefaultAiGateway implements AiGateway {
                 fieldNames = structure.get().fieldNames();
                 verdict = Objects.requireNonNull(policy.inspect(structure.get().payload()), "verdict");
             }
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | StackOverflowError e) {
+            // A stack overflow in a pattern scan is a refusal with an audit row too (third review L-1).
             log.warn("gateway.egress decision=BLOCK policy=MALFORMED_PAYLOAD traceId={} exception={}",
                     request.traceId(), e.getClass().getSimpleName());
             return audit(request, EgressVerdict.block(PolicyCode.MALFORMED_PAYLOAD, null, "$"), List.of(), 0, 0)

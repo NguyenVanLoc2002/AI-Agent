@@ -12,8 +12,10 @@ import java.util.regex.Pattern;
  * (review F9).
  *
  * <p>A BLOCK has {@code attempt = 0} (nothing sent). A PASS is recorded once per send attempt
- * ({@code attempt = 1}, and {@code 2} for the retry), so the PASS rows match the requests the
- * provider received (ADR-016 a=b; second review M3/L3).
+ * ({@code attempt = 1}, and {@code 2} for the retry), written before that attempt: every request
+ * the provider receives is preceded by a PASS row (second review M3/L3). An attempt that fails before
+ * leaving the adapter (not configured, connection refused) still has its row, so rows may exceed
+ * requests, never the reverse (third review L1).
  *
  * <p>Every string is validated against a narrow format, so a value cannot be smuggled into the
  * audit table by mistake. Defined in {@code audit} so that audit depends on no business module

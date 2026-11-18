@@ -135,4 +135,13 @@ class EgressDtoValidationTest {
                 List.of(new SafeMessage(SafeMessage.Role.CUSTOMER, "xin chao")), null, List.of(),
                 List.of(), EgressFixtures.request("xin chao").budget())).isInstanceOf(IllegalArgumentException.class);
     }
+
+    /** Third review L-2: a phone number split by base64url separators does not fit a server token. */
+    @Test
+    void serverTokenRejectsSeparatedDigitRuns() {
+        assertThatThrownBy(() -> new ProductRef("pr_090-123-4567-AbCdEfGh", "SKU-BRK-PAD-A", null, "Ma phanh",
+                Provenance.VERIFIED, AvailabilityBucket.CON_HANG)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new TechnicalContext(null, "vin_AbCdEfGhIjKl_098_765_43", null, null, null,
+                List.of(), null)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

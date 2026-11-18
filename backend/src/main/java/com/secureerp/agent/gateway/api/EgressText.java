@@ -21,7 +21,10 @@ public final class EgressText {
      */
     static final Pattern CATEGORY_LABEL = Pattern.compile("^\\p{L}+(?: \\p{L}+){0,15}$");
 
-    /** Seven or more digits in a row: phone numbers, money, honeytokens, VIN serials. */
+    /**
+     * Seven or more digits in a row, ignoring the base64url separators "-" and "_" (third review
+     * L-2: "pr_090-123-4567-..." would otherwise fit): phone numbers, money, honeytokens, VIN serials.
+     */
     private static final Pattern DIGIT_RUN = Pattern.compile("\\d{7,}");
 
     /** Length of the random part of a server token: 22 base64url characters = 128 bits (ADR-008). */
@@ -42,7 +45,7 @@ public final class EgressText {
         Objects.requireNonNull(value, field);
         if (!value.startsWith(prefix) || value.length() != prefix.length() + SERVER_TOKEN_CHARS
                 || !value.substring(prefix.length()).chars().allMatch(EgressText::isBase64Url)
-                || DIGIT_RUN.matcher(value).find()) {
+                || DIGIT_RUN.matcher(value.replace("-", "").replace("_", "")).find()) {
             throw invalid(field);
         }
         return value;
