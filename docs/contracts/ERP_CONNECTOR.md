@@ -38,6 +38,7 @@
 - `List<ProductCandidate> search(ExactProductQuery q)` — q gồm đúng một trong: VIN (đã validate), OE, (category + model xe); `maxResults ≤ 5` (DESIGN PROPOSAL).
 - `ProductCandidate`: sku, oe, category, `Provenance` (`AI_RECOGNIZED / CATALOG_LOOKUP / VERIFIED`), sourceRef. Không giá, không tồn số.
 - **OPEN D-05:** "VERIFIED" trong PoC = catalog synthetic; không suy ra ERP/catalog thật đã xác minh.
+- **EP-05 (2026-11-18):** `ExactProductQuery.ByVin(Vin)` — `catalog.spi.Vin` đã validate (BR-04), `toString()` chỉ in WMI + mask. Chỉ `catalog` tạo truy vấn này từ VIN đã lưu của conversation; không bao giờ từ output của model. Kết quả tìm theo VIN (fitment: VIN → model xe → sản phẩm) mang provenance `CATALOG_LOOKUP` ("Dữ liệu tra cứu", BR-06), **không** `VERIFIED`: model xe chỉ thu hẹp catalog, không xác định đúng mã phụ tùng; theo BR-07 kết quả này không được báo giá tự động (DESIGN PROPOSAL).
 
 ### 3.3 `PricingPort` (quote)
 - `PriceQuote priceFor(AuthenticatedCustomerRef c, Sku s)` → `Money unitPrice`, `PriceSource`, `revision`.
@@ -66,6 +67,7 @@
 - Fault injection có cấu hình: timeout trước/sau commit, lỗi với message chứa sentinel, trả field thừa (để chứng minh strip tại biên), duplicate response.
 - Adapter phải **strip field nhạy cảm tại biên** trước khi persist/log (rule 20).
 - **SEC-01a (2026-11-18):** `erp.internal.MockErpConnector` hiện thực `VerifiedProductPort` + `AvailabilityBucketPort` trên backend giả **in-memory** (trả JSON thô có field thừa và sentinel); schema `mock_erp` chưa tạo (cần khi có draft order, EP-07). Fault mode: `ERROR_WITH_SENTINEL`, `TIMEOUT`, `DUPLICATE_RESPONSE`, `MALFORMED_ROWS` (chỉ test đặt; không có trong cấu hình chung). Provenance do adapter gán từ cấu hình, **không** đọc từ nội dung dòng ERP (review M7). Backend giả trả toàn bộ dòng rồi adapter lọc: đây là giả định của Mock, adapter thật **không** được liệt kê toàn bộ catalog. Ngưỡng bucket (≥3 CON_HANG, 1–2 CAN_KIEM_TRA, 0 HET_HANG): DESIGN PROPOSAL, D-12 OPEN. T-ERP-01..03 đã chạy.
+- **EP-05 (2026-11-18):** backend giả có bảng fitment VIN synthetic (WMI `5ZZ`/`RLZ`, không phải xe thật) trả dòng thô kèm tên chủ xe, số điện thoại và công nợ sentinel; adapter chỉ đọc `vehicleModel` (≤80 ký tự), dòng sai dạng → không fitment (log `erp.vehicle.row_skipped`, không VIN). Lỗi backend → `CatalogUnavailableException` (log `erp.vehicle.unavailable`, tên lớp exception). Đây là giả định của Mock: adapter thật cần API giải mã VIN/fitment đã được duyệt (D-01..D-03, D-05). VIN đầy đủ chỉ được gửi tới nguồn ERP/fitment nội bộ đã duyệt, không đặt trong URL/query string (log proxy), và không gửi tới dịch vụ giải mã VIN công cộng khi chưa được duyệt (EP-05 reviews L7). Tìm theo VIN không có category trả tối đa 5 sản phẩm đầu tiên của model xe: rộng, cần xem lại cùng A-25.
 
 ## 6. Adapter ERP thật (tên mục tiêu `RealErpConnector`) — OPEN, gated G4
 Điều kiện tối thiểu trước khi viết: tài liệu API được ERP vendor/IT phê duyệt (D-01), tài khoản tích hợp không có quyền giá vốn/duyệt đơn hoặc có compensating control (D-02), xác nhận idempotency/lookup (D-03), sandbox, contract tests chạy cùng bộ test của Mock.

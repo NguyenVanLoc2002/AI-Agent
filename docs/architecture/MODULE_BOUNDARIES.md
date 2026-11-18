@@ -11,9 +11,9 @@
 | conversation | Endpoint chat, dedup, trạng thái hội thoại (kể cả `bot_locked`), ghép response | `ChannelPort` | INTERNAL, sanitized text |
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `AgentApi.handleTurn(...)` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
-| policy | DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
+| policy | DLP inbound/outbound, phát hiện VIN để mask/chặn (không validate, không lưu; EP-05 chuyển validate VIN sang catalog), honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
-| catalog | Tra cứu sản phẩm, provenance, bucket tồn thô | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum) | APPROVED_TECHNICAL |
+| catalog | Tra cứu sản phẩm, provenance, bucket tồn thô; validate + lưu VIN hiện tại của conversation (EP-05) | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum), `VehicleContext`, `CatalogSearch` | APPROVED_TECHNICAL; VIN đầy đủ: nhạy cảm theo ngữ cảnh, không ra khỏi catalog/erp |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
 | order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `OrderApi.submit(quoteId, version)` | RESTRICTED, INTERNAL |
 | handoff | Queue, reason code, claim/resolve; publish `HandoffOpened/Resolved` | `HandoffApi` | INTERNAL |
@@ -81,3 +81,9 @@ bootstrap ─► mọi module (wiring)
 - `tools` allowlist: `catalog`, `catalog :: spi`, `gateway :: api` (A-20), `identity`, `platform` (`quote` và `audit` bỏ vì chưa dùng; `quote` thêm lại ở EP-06; khi đó tools đổi productRef → SKU, quote không đọc `product_ref`). EP-04 cần: `agent` thêm `gateway :: api`, `conversation` thêm `tools :: spi`, identity mở API kiểu `CurrentPrincipalProvider` để tạo `PrincipalId`. `tools` không phụ thuộc `conversation` (tránh vòng conversation → agent → tools): quyền truy cập conversation đi qua `tools.spi.ConversationAccessPort` (named interface `tools :: spi`), do `conversation` hiện thực ở EP-04.
 - Kiểu mới: `platform.ConversationId` (shared kernel), `identity.PrincipalId` (pseudonym, chỉ identity tạo được), `identity.Role`, `identity.Channel`, `catalog.CatalogSearch`/`CatalogMatch` (API của catalog), `gateway.api.ToolErrorResult`.
 - `tools` sở hữu bảng `tool_invocation` và `product_ref` (Flyway V4).
+
+## 9. Ghi chú triển khai EP-05 (2026-11-18)
+- Không thêm cạnh phụ thuộc mới. `catalog` sở hữu `catalog.spi.Vin` (BR-04, quy tắc check digit A-27), `ExactProductQuery.ByVin`, API `VehicleContext`/`VinIntake` và `CatalogSearch.searchByConversationVin`, bảng `conversation_vin` (Flyway V5, A-28).
+- `CatalogSearch.search` từ chối `ByVin`: truy vấn VIN chỉ được dựng từ VIN đã lưu của conversation. Kết quả theo VIN bị catalog giới hạn ở `CATALOG_LOOKUP`, không phụ thuộc adapter.
+- `policy` vẫn phát hiện VIN để mask/chặn ở egress và inbound; `catalog.internal.VinExtractor` dùng cùng quy tắc nhóm ký tự (parity kiểm ở `VinSearchIT`). Hai bộ phát hiện song song là nợ kỹ thuật: hợp nhất thành một span finder dùng chung là đề xuất mở (xem A-29).
+- Người gọi `VehicleContext.register` lúc nhận tin là EP-04 (A-29): `conversation` cần thêm `catalog` vào allowlist, đề xuất một named interface hẹp (`catalog :: intake`, chỉ `VehicleContext` + `VinIntake`) để không lộ `CatalogSearch`.

@@ -21,7 +21,7 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 
 ## 3. Định nghĩa
 ### 3.1 VIN — không phải tool (sửa sau security review 2026-11-13)
-- VIN được trích và validate **server-side khi tin nhắn đến** (policy/catalog `VinValidator`: 17 ký tự, không I/O/Q, check digit khi áp dụng — điều kiện áp dụng OPEN, BRD §04). VIN đầy đủ lưu trong state conversation; model chỉ thấy WMI/mask và tham chiếu `vinRef`.
+- VIN được trích và validate **server-side khi tin nhắn đến** (`catalog.VehicleContext`, `catalog.spi.Vin`: 17 ký tự, không I/O/Q; check digit bắt buộc khi ký tự đầu là 1–5 (Bắc Mỹ), vùng khác chỉ kiểm định dạng — A-27 APPROVED 2026-11-18). VIN đầy đủ lưu ở bảng `conversation_vin` (một VIN hiện tại/conversation, TTL 2 h, A-28); model chỉ thấy WMI/mask và gọi tool với hằng `{"vinRef":"current"}` (không có token VIN, A-26).
 - Lý do: tool nhận VIN đầy đủ làm tham số sẽ buộc VIN đầy đủ ra provider, mâu thuẫn A-11/D-11.
 
 ### 3.2 `searchVerifiedProduct`
@@ -71,7 +71,7 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 - Catalog: `catalog.CatalogSearch` (API mới) trên `VerifiedProductPort` + `AvailabilityBucketPort`. Ứng viên có SKU/OE ngoài `^[A-Z0-9-]{3,30}$`, có VIN đầy đủ (kể cả nằm trong chuỗi dài hơn), có dãy ≥7 chữ số, hoặc không qua được kiểm tra của `ProductRef` (kể cả category không phải nhãn chữ cái) bị loại riêng dòng đó, không cấp token, và ghi `CATALOG_FIELD_REJECTED`.
 - Review EP-03 vòng 2 (architecture-reviewer 0H/0M/6L, security-auditor 0H/0M/4L): đã sửa — pattern `oe`/`vehicleModel` khớp kiểu query catalog (lỗi còn lại của kiểu query → `TOOL_SCHEMA`), port trả `null` = không sở hữu, đúng một port (kể cả có `@Primary`) mới được dùng, ánh xạ enum lỗi chỉ loại riêng dòng đó, `tools` bỏ `audit` khỏi allowlist. Ghi nhận, chưa sửa: token đã cấp có thể mồ côi nếu lỗi giữa chừng (hết hạn sau 2 h); mỗi lần vượt quota vẫn thêm một dòng (giới hạn tốc độ ở HTTP và retention D-09 thuộc EP-04/EP-09).
 - Review EP-03 (architecture-reviewer 0H/3M/6L, security-auditor 0H/2M/3L+): đã sửa tất cả, có test (`ToolRegistryIT` 9 test, `DefaultToolManagerTest`, `ArgumentParserTest`). Schema quảng bá cho model khai báo mọi khóa ở `properties` cấp gốc. `tools` bỏ `quote` khỏi allowlist; ở EP-06 tools sẽ đổi productRef → SKU và chỉ chuyển SKU cho quote (quote không đọc `product_ref`).
-- Chưa có executor (validate đầy đủ rồi trả `TOOL_UNAVAILABLE`): tìm theo `vinRef` (EP-05), `requestQuote` (EP-06, ownership `productRef` đã kiểm), `requestHandoff` (EP-08, kèm `handoffRequired`).
+- Chưa có executor (validate đầy đủ rồi trả `TOOL_UNAVAILABLE`): ~~tìm theo `vinRef` (EP-05)~~ (đã có, xem §7), `requestQuote` (EP-06, ownership `productRef` đã kiểm), `requestHandoff` (EP-08, kèm `handoffRequired`).
 - Giới hạn còn lại: category chỉ gồm chữ cái và khoảng trắng vẫn có thể chứa câu chỉ dẫn (A-25, taxonomy đóng); principal và conversation chưa đến từ phiên đăng nhập thật (ADR-010, EP-04).
 
 | ID | Trạng thái | Bằng chứng |
@@ -88,3 +88,18 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 | T-TOOL-11 | VERIFIED (unit) | `DefaultToolManagerTest.catalogInjectionIsDroppedAndAudited` |
 | T-TOOL-12 | VERIFIED (PostgreSQL) | `ToolRegistryIT.principalQuotaStopsEnumerationAcrossConversations` |
 | T-TOOL-13 | VERIFIED (unit) | `ArgumentParserTest.fullVinInAnyArgumentIsRejected` |
+
+## 7. Triển khai EP-05 (2026-11-18)
+- Quyết định owner 2026-11-18: A-27 (check digit chỉ bắt buộc với ký tự đầu 1–5), A-26 phần `vinRef` (không token, hằng `"current"`), A-28 (bảng `conversation_vin`, TTL 2 h, tối đa 24 h), A-30 (thiếu VIN → `TOOL_UNAVAILABLE`, không thêm mã), A-25 ngoài phạm vi.
+- Luồng: tin nhắn đến → `catalog.VehicleContext.register` (người gọi: EP-04, A-29) → `VinIntake` `None`/`Accepted(maskedVin)`/`Invalid`/`Multiple`/`Unavailable`; `Accepted` lưu VIN, `Invalid`/`Multiple` xóa VIN hiện tại, lỗi store → `Unavailable` (thử xóa VIN cũ, log chỉ tên lớp exception), mỗi lần gọi xóa các dòng đã hết hạn. Tool `{"vinRef":"current"}` → `CatalogSearch.searchByConversationVin(conversation)` → `ExactProductQuery.ByVin` → adapter; VIN không đi qua `tools`.
+- Kết quả theo VIN: provenance tối đa `CATALOG_LOOKUP` (catalog giới hạn, không phụ thuộc adapter), nên `requestQuote` trả `FORBIDDEN_RESOURCE`. Tìm lại bằng OE hoặc category + model vẫn ra `VERIFIED` cho cùng SKU: A-31 OPEN.
+- Phát hiện VIN ở intake dùng cùng quy tắc nhóm ký tự với sanitizer (parity: `VinSearchIT.whenTheSanitizerMasksAVinIntakeSeesOne`). Chuỗi chữ + số 15–19 ký tự không có gạch được coi là VIN gõ sai (A-32).
+- Review (advisory) EP-05: security-auditor 0H/2M/5L(+1 info), architecture-reviewer 0H/5M/7L. Đã sửa có test: parity intake/sanitizer (sec M-1, arch M3), giới hạn provenance trong catalog (arch M1), `search(ByVin)` bị từ chối (arch M2), `TechnicalContext.vinRef`/AI_GATEWAY ghi rõ (arch M4, chưa đổi code gateway), tài liệu (arch M5), `Unavailable` + log không VIN (sec L-2/L-6, arch L2), purge dòng hết hạn (sec L-4, arch L5), TTL ≤24 h (arch L6), ghi chú VIN tới ERP thật (arch L7). Ghi nhận, chưa sửa: A-31 (sec M-2), ràng buộc ownership ở người gọi (sec L-1, arch L1 → A-29), `"current"` chưa gắn với lượt (sec L-3), false positive (sec L-5, arch L4 → A-32), kiểu trả về `Optional<List>` (arch L3).
+
+| ID | Trạng thái | Bằng chứng |
+|---|---|---|
+| T-UC02-VIN | VERIFIED (unit + PostgreSQL), phần validate/intake | `VinTest`, `VinExtractorTest`, `DefaultVehicleContextTest`, `VinSearchIT.invalidOrAmbiguousVinClearsTheCurrentVin`; "không gọi model" thuộc EP-04: NOT RUN |
+| T-UC02-PROVENANCE | VERIFIED ở mức tool (mỗi ứng viên đúng một nhãn) | `VinSearchIT.vinFromIntakeDrivesTheVinRefSearch`, `DefaultCatalogSearchTest`, `MockErpConnectorTest.vinSearchReturnsFitmentAsCatalogLookup`; hiển thị UI (EP-10): NOT RUN |
+| T-UC02-OE-FABRICATED | NOT RUN | cần OutputValidator (EP-04) |
+| T-UC02-AMBIG | NOT RUN | từ chối báo giá thuộc EP-06 |
+| T-TOOL-13 (end to end) | VERIFIED (PostgreSQL) | `VinSearchIT.theModelCannotPassAVinAsAnArgument` |
