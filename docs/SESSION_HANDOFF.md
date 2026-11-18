@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: EP-03 tool registry and per-call authorization, 2026-11-18
+## Current: EP-05 catalog + server-side VIN + provenance, 2026-11-18
+- Branch `feat/EP-05-catalog-vin` from `origin/main` `f53060f` (EP-03 merged as PR #8). **Uncommitted; nothing committed or pushed.**
+- Owner decisions for this issue: A-27 (VIN check digit required only when the first character is 1–5), A-26 vinRef part (no token, constant `"current"`), A-28 (`conversation_vin`, 2 h TTL), A-30 (no VIN → `TOOL_UNAVAILABLE`, no new code); A-25 out of scope.
+- Implemented: `catalog.spi.Vin`, `ExactProductQuery.ByVin`, `catalog.VehicleContext`/`VinIntake`, `CatalogSearch.searchByConversationVin` (VIN results capped at CATALOG_LOOKUP, `search(ByVin)` refused), `catalog.internal` extractor/store/properties, Flyway `V5__conversation_vin.sql` (additive), Mock ERP VIN fitment (synthetic WMI `5ZZ`/`RLZ`), vinRef executor in `DefaultToolManager`. Details: `docs/contracts/TOOL_CONTRACTS.md` §7.
+- Tests (VERIFIED 2026-11-18, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B clean verify` → exit 0; surefire 736, failsafe 47, 0 failures, 0 skipped (before EP-05: 662 + 24); GW200 unchanged (125 passed, 75 blocked, 150 = 150). Synthetic VINs: 0 hits in the build log and surefire/failsafe reports. Mutation checks (sources restored byte-identical): check digit off → `VinTest` exit 1; catalog provenance cap off → `DefaultCatalogSearchTest` exit 1; grouped-VIN detection off → `VinExtractorTest` exit 1. `ApplicationBootstrapIT` table/version allowlist extended for V5 (same pattern as V4).
+- Reviews (advisory): security-auditor 0H/2M/5L, architecture-reviewer 0H/5M/7L; fixed with tests or recorded (TOOL_CONTRACTS §7). Second review on the fixes: NOT RUN.
+- Open: A-31 (OE/category re-search returns VERIFIED for a VIN-found SKU; decide before EP-06), A-29 (intake caller + ownership, EP-04), A-32 (VIN typo false positives), `"current"` not bound to the turn, two parallel VIN detectors (policy/catalog), `TechnicalContext.vinRef` unused. T-UC02-OE-FABRICATED (EP-04), T-UC02-AMBIG (EP-06), UI provenance (EP-10): NOT RUN.
+- Rollback: discard the branch (nothing committed). If merged later: revert; V5 only adds `conversation_vin` (local: `docker compose down -v`).
+- Next 3 actions: (1) owner reviews the diff and approves commits/PR; (2) decide A-31 before EP-06 and A-19/A-21/A-29/ADR-010 for EP-04; (3) EP-06 quote service or EP-04 chat API.
+
+## Previous: EP-03 tool registry and per-call authorization, 2026-11-18 — MERGED (PR #8)
 - Branch `feat/EP-03-tool-registry` from `main` `3686ad7` (SEC-01a merged as PR #6); includes the cherry-picked handoff commit of `docs/SEC-01a-handoff` (PR #7). Committed per slice with owner approval.
 - Owner approvals for this issue: ADR-006 → ACCEPTED; D-10 restrictive defaults, A-20 (tools maps to `gateway.api`) → APPROVED; A-26 approved for productRef (registry in EP-03); quota/audit in PostgreSQL.
 - Implemented: `tools.ToolManager` (conversation access port → admit/quota → exact name + role/channel → strict arguments → productRef ownership → execute → `gateway.api` result), `ArgumentParser`, `tool_invocation` + `product_ref` (Flyway `V4__tool_registry.sql`, additive), `catalog.CatalogSearch`, `gateway.api.ToolErrorResult`, `identity.PrincipalId/Role/Channel`, `platform.ConversationId`, `tools.spi.ConversationAccessPort` (no implementation yet: every call FORBIDDEN_RESOURCE until EP-04). Details and per-test status: `docs/contracts/TOOL_CONTRACTS.md` §6.

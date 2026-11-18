@@ -7,6 +7,7 @@ import com.secureerp.agent.catalog.spi.ExactProductQuery;
 import com.secureerp.agent.catalog.spi.ProductCandidate;
 import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
+import com.secureerp.agent.catalog.spi.Vin;
 import com.secureerp.agent.catalog.spi.VerifiedProductPort;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -44,12 +45,23 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
     /** Bucket threshold: DESIGN PROPOSAL (A-12); not derived from any real ERP. */
     static final int LOW_STOCK_THRESHOLD = 3;
 
+    private static final int MAX_VEHICLE_MODEL = 80;
+
     /**
      * Provenance is a property of the source, assigned by the adapter from its configuration, never
      * read from row content (architecture review M7): the synthetic Mock catalog is the PoC's
      * verified source. Whether a real catalog counts as VERIFIED is OPEN (D-05).
      */
     static final Provenance SOURCE_PROVENANCE = Provenance.VERIFIED;
+
+    /**
+     * Products found through a VIN decode / fitment table are "Dữ liệu tra cứu" (BR-06), never
+     * VERIFIED: the vehicle model narrows the catalog, it does not identify the exact part. DESIGN
+     * PROPOSAL (EP-05); {@code catalog} caps VIN results at CATALOG_LOOKUP as well. The label belongs
+     * to the query, not the SKU: an exact OE search for the same SKU still answers VERIFIED, so
+     * whether a VIN-found part may be quoted after an OE re-search is OPEN (A-31).
+     */
+    static final Provenance FITMENT_PROVENANCE = Provenance.CATALOG_LOOKUP;
 
     private final MockErpBackend backend;
     private final JsonMapper mapper = JsonMapper.builder().build();
@@ -60,6 +72,9 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
 
     @Override
     public List<ProductCandidate> search(ExactProductQuery query) {
+        if (query instanceof ExactProductQuery.ByVin byVin) {
+            return searchByVin(byVin.vin());
+        }
         Map<String, ProductCandidate> unique = new LinkedHashMap<>();
         for (ErpRow row : rows()) {
             if (unique.size() < ExactProductQuery.MAX_RESULTS && matches(row, query)) {
@@ -67,6 +82,50 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
             }
         }
         return List.copyOf(unique.values());
+    }
+
+    /** Vehicle model from the fitment row (only that key is read), then the products fitting it. */
+    private List<ProductCandidate> searchByVin(Vin vin) {
+        Optional<String> vehicleModel = vehicleModel(vin);
+        if (vehicleModel.isEmpty()) {
+            return List.of();
+        }
+        String model = normalize(vehicleModel.get());
+        Map<String, ProductCandidate> unique = new LinkedHashMap<>();
+        for (ErpRow row : rows()) {
+            if (unique.size() < ExactProductQuery.MAX_RESULTS && row.vehicleModel() != null
+                    && model.equals(normalize(row.vehicleModel()))) {
+                ProductCandidate c = row.candidate();
+                unique.putIfAbsent(c.sku().value(),
+                        new ProductCandidate(c.sku(), c.oe(), c.category(), FITMENT_PROVENANCE, c.sourceRef()));
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private Optional<String> vehicleModel(Vin vin) {
+        Optional<String> raw;
+        try {
+            raw = backend.fetchVehicleRow(vin.value());
+        } catch (RuntimeException e) {
+            log.warn("erp.vehicle.unavailable code=SERVICE_UNAVAILABLE exception={}", e.getClass().getSimpleName());
+            throw new CatalogUnavailableException();
+        }
+        if (raw.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode node = mapper.readTree(raw.get());
+            String model = node != null && node.isObject() ? string(node, "vehicleModel") : null;
+            if (model == null || model.isBlank() || model.length() > MAX_VEHICLE_MODEL) {
+                throw new IllegalArgumentException("invalid vehicle model");
+            }
+            return Optional.of(model);
+        } catch (JacksonException | IllegalArgumentException e) {
+            // Never the VIN or the row: a malformed fitment row means "no fitment".
+            log.warn("erp.vehicle.row_skipped");
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -149,6 +208,7 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
                     normalize(byCategory.category()).equals(normalize(row.candidate().category()))
                             && row.vehicleModel() != null
                             && normalize(byCategory.vehicleModel()).equals(normalize(row.vehicleModel()));
+            case ExactProductQuery.ByVin byVin -> false;
         };
     }
 
