@@ -16,28 +16,38 @@ class EgressDecisionEventTest {
     @Test
     void passAndBlockShapesAreAccepted() {
         assertThatCode(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.PASS, null, null, null,
-                List.of("messages", "text"), 120, NOW)).doesNotThrowAnyException();
+                List.of("messages", "text"), 120, NOW, 1)).doesNotThrowAnyException();
         assertThatCode(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.BLOCK, "HONEYTOKEN",
-                "HT-COST-01", "$.messages[0].text", List.of("messages"), 120, NOW)).doesNotThrowAnyException();
+                "HT-COST-01", "$.messages[0].text", List.of("messages"), 120, NOW, 0)).doesNotThrowAnyException();
     }
 
     @Test
     void valuesCannotBeSmuggledIntoMetadataFields() {
         assertThatThrownBy(() -> new EgressDecisionEvent("987654321", EgressDecisionEvent.Decision.PASS, null, null,
-                null, List.of(), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                null, List.of(), 0, NOW, 1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.BLOCK, "HONEYTOKEN",
-                null, "$.messages[0].text=987654321", List.of(), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                null, "$.messages[0].text=987654321", List.of(), 0, NOW, 0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.BLOCK, "cost 987654321",
-                null, "$", List.of(), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                null, "$", List.of(), 0, NOW, 0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.PASS, null, null, null,
-                List.of("gia von 987654321"), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                List.of("gia von 987654321"), 0, NOW, 1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.BLOCK, "HONEYTOKEN",
-                "987654321", "$", List.of(), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                "987654321", "$", List.of(), 0, NOW, 0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void attemptMatchesDecision() {
+        assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.PASS, null, null, null,
+                List.of(), 0, NOW, 0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.BLOCK, "MONEY", null,
+                "$", List.of(), 0, NOW, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.PASS, null, null, null,
+                List.of(), 0, NOW, EgressDecisionEvent.MAX_ATTEMPT + 1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void passCannotCarryAFinding() {
         assertThatThrownBy(() -> new EgressDecisionEvent(TRACE, EgressDecisionEvent.Decision.PASS, "MONEY", null,
-                null, List.of(), 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+                null, List.of(), 0, NOW, 1)).isInstanceOf(IllegalArgumentException.class);
     }
 }

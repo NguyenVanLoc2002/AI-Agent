@@ -1,7 +1,9 @@
 package com.secureerp.agent.gateway.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.secureerp.agent.audit.EgressAuditLog;
 import com.secureerp.agent.audit.EgressDecisionEvent;
 import com.secureerp.agent.gateway.EgressFixtures;
 import com.secureerp.agent.gateway.EgressScan;
@@ -39,9 +41,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 /** Gateway pipeline: T-SEC01-VARIANTS (5 sources), fail-closed paths, bounded retries, strict parsing. */
 @ExtendWith(OutputCaptureExtension.class)
@@ -52,7 +54,7 @@ class DefaultAiGatewayTest {
 
     private final RecordingProvider provider = new RecordingProvider();
     private final List<Object> published = new ArrayList<>();
-    private final ApplicationEventPublisher publisher = published::add;
+    private final EgressAuditLog publisher = published::add;
     private final EgressPolicy policy = new DefaultEgressPolicy(new SensitiveDataDetector());
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-18T00:00:00Z"), ZoneOffset.UTC);
 
@@ -72,6 +74,7 @@ class DefaultAiGatewayTest {
         assertThat(provider.sent.get(0)).isEqualTo(EgressSerializer.serialize(request));
         EgressDecisionEvent event = singleEvent();
         assertThat(event.decision()).isEqualTo(EgressDecisionEvent.Decision.PASS);
+        assertThat(event.attempt()).isEqualTo(1);
         assertThat(event.byteLength()).isEqualTo(provider.sent.get(0).length);
         assertThat(event.fieldNames()).contains("messages", "text", "verifiedProducts", "type")
                 .allMatch(EgressSerializer.ALLOWED_PROPERTY_NAMES::contains);
@@ -81,7 +84,7 @@ class DefaultAiGatewayTest {
     static final Map<String, Function<String, ModelRequest>> SOURCES = Map.of(
             "user", v -> EgressFixtures.request("cho toi hoi " + v),
             "toolResult", v -> EgressFixtures.request(List.of(customer("tim ma phanh")), EgressFixtures.context(),
-                    List.of(new ProductSearchResult(List.of(new ProductRef("pr_SynthProd01", "SKU-BRK-PAD-A",
+                    List.of(new ProductSearchResult(List.of(new ProductRef("pr_SynthProd01AAAAAAAAAAA", "SKU-BRK-PAD-A",
                             null, "Ma phanh " + v, Provenance.VERIFIED, AvailabilityBucket.CON_HANG))))),
             "catalog", v -> EgressFixtures.request(List.of(customer("tim ma phanh")),
                     new TechnicalContext(null, null, "Vios " + v, "Ma phanh", 1, List.of(), null), List.of()),
@@ -174,8 +177,8 @@ class DefaultAiGatewayTest {
         ModelRequest request = EgressFixtures.request(List.of(
                         customer("Xe gia dinh, doi 2019, can thay ma phanh"),
                         customer("Vios 2019 dong co 1.5 dung loc gio nao")),
-                new TechnicalContext("JTD**************", "vin_ABCDEFGHJKLMN1234", "Vios 2019 dong co 1.5",
-                        "Ma phanh", 2, List.of(EgressFixtures.product()), "qh_ABCDEFGHJKLMN1234-ABCDEFGH"),
+                new TechnicalContext("JTD**************", "vin_ABCDEFGHJKLMN1234AAAAA", "Vios 2019 dong co 1.5",
+                        "Ma phanh", 2, List.of(EgressFixtures.product()), "qh_ABCDEFGHJKLMN1234-ABCD"),
                 EgressFixtures.toolResults());
 
         assertThat(gateway().complete(request)).isInstanceOf(GatewayResult.Completed.class);
@@ -224,7 +227,7 @@ class DefaultAiGatewayTest {
 
     @Test
     void auditFailureMeansNothingIsSent() {
-        ApplicationEventPublisher failing = event -> {
+        EgressAuditLog failing = event -> {
             throw new IllegalStateException("db down");
         };
         DefaultAiGateway gateway = new DefaultAiGateway(policy, provider, failing, clock);
@@ -256,6 +259,58 @@ class DefaultAiGatewayTest {
         assertThat(gateway().complete(EgressFixtures.request("xin chao"))).isInstanceOf(GatewayResult.Completed.class);
         assertThat(provider.sent).hasSize(2);
         assertThat(provider.sent.get(1)).isEqualTo(provider.sent.get(0));
+        // Second review M3/L3: one PASS record per attempt, written before that attempt is sent.
+        assertThat(published).hasSize(2).allSatisfy(e -> assertThat(((EgressDecisionEvent) e).decision())
+                .isEqualTo(EgressDecisionEvent.Decision.PASS));
+        assertThat(published).extracting(e -> ((EgressDecisionEvent) e).attempt()).containsExactly(1, 2);
+    }
+
+    @Test
+    void retryIsNotSentWhenItsAuditFails() {
+        List<Object> recorded = new ArrayList<>();
+        EgressAuditLog failsOnSecond = event -> {
+            if (!recorded.isEmpty()) {
+                throw new IllegalStateException("db down");
+            }
+            recorded.add(event);
+        };
+        provider.replies.add(new ProviderReply(503, new byte[0]));
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+
+        assertThat(new DefaultAiGateway(policy, provider, failsOnSecond, clock).complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE));
+        assertThat(provider.sent).hasSize(1);
+    }
+
+    @Test
+    void blockIsRecordedWithAttemptZero() {
+        gateway().complete(EgressFixtures.request("gia von " + SentinelVariants.COST));
+        assertThat(singleEvent().attempt()).isZero();
+    }
+
+    /** Second review M1/L1: without an audit log the gateway cannot be built (no silent send). */
+    @Test
+    void gatewayCannotBeBuiltWithoutAnAuditLog() {
+        assertThatThrownBy(() -> new DefaultAiGateway(policy, provider, null, clock))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    /** Second review M1/L1: a Spring context with the gateway but no audit log does not start. */
+    @Test
+    void contextWithoutAnAuditLogDoesNotStart() {
+        new ApplicationContextRunner()
+                .withBean(EgressPolicy.class, () -> policy)
+                .withBean(ModelProviderPort.class, () -> provider)
+                .withBean(Clock.class, () -> clock)
+                .withBean(DefaultAiGateway.class)
+                .run(context -> assertThat(context).hasFailed());
+        new ApplicationContextRunner()
+                .withBean(EgressPolicy.class, () -> policy)
+                .withBean(ModelProviderPort.class, () -> provider)
+                .withBean(Clock.class, () -> clock)
+                .withBean(EgressAuditLog.class, () -> publisher)
+                .withBean(DefaultAiGateway.class)
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     @Test

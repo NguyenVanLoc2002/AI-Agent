@@ -41,7 +41,7 @@ class ApplicationBootstrapIT {
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1", "2");
+        assertThat(applied).containsExactly("1", "2", "3");
     }
 
     @Test

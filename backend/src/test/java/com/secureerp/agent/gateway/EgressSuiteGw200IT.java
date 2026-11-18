@@ -10,6 +10,7 @@ import com.secureerp.agent.catalog.spi.VerifiedProductPort;
 import com.secureerp.agent.erp.internal.MockErpConnector;
 import com.secureerp.agent.erp.internal.MockErpFaultMode;
 import com.secureerp.agent.gateway.api.AvailabilityBucket;
+import com.secureerp.agent.gateway.api.EgressText;
 import com.secureerp.agent.gateway.api.ModelRequest;
 import com.secureerp.agent.gateway.api.ProductRef;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
@@ -94,7 +95,10 @@ class EgressSuiteGw200IT extends FakeProviderEnvironment {
         List<String> auditRows = jdbc.queryForList(
                 "select concat_ws('|', trace_id, decision, policy_code, honeytoken_id, blocked_field_path, field_names)"
                         + " from egress_record", String.class);
-        assertThat(auditRows).hasSize(counters.gatewayCalls);
+        // One BLOCK row per refusal, one PASS row per send attempt (retries included): audit = capture.
+        assertThat(auditRows).hasSize(counters.blocked + adapter.size());
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'PASS'", Integer.class))
+                .isEqualTo(provider.size());
         assertThat(auditRows).noneMatch(EgressScan::containsSentinel);
         assertThat(EgressScan.containsSentinel(output.getAll())).as("log output").isFalse();
 
@@ -169,7 +173,7 @@ class EgressSuiteGw200IT extends FakeProviderEnvironment {
             case 5 -> {
                 mustNotLeave.add(spelled);
                 expectBlock(counters, request(traceId, customer("Tim ma phanh"), List.of(new ProductSearchResult(
-                        List.of(new ProductRef("pr_SynthPoison", "SKU-BRK-PAD-A", null, poisoned(spelled, 80),
+                        List.of(new ProductRef("pr_SynthPoisonAAAAAAAAAAA", "SKU-BRK-PAD-A", null, poisoned(spelled, 80),
                                 Provenance.CATALOG_LOOKUP, AvailabilityBucket.CAN_KIEM_TRA))))));
             }
             case 6 -> mustNotLeaveThenBlock(counters, variant, new ModelRequest(traceId, "apas.customer-chat.v1", List.of(
@@ -211,9 +215,23 @@ class EgressSuiteGw200IT extends FakeProviderEnvironment {
         return List.of(new ProductSearchResult(refs));
     }
 
+    /**
+     * Opaque ref as an issuer would make it: 22 token characters, not derived from the SKU text
+     * (second review M4: "pr_" + sku put an ERP value into an unscanned field).
+     */
+    private static String syntheticProductRef(String sku) {
+        StringBuilder token = new StringBuilder("Synth");
+        int seed = Math.abs(sku.hashCode() % 1_000_000);
+        while (token.length() < EgressText.SERVER_TOKEN_CHARS) {
+            token.append((char) ('A' + seed % 26));
+            seed = seed / 26 + 7;
+        }
+        return ProductRef.PRODUCT_REF_PREFIX + token;
+    }
+
     /** Test-side mapping catalog → egress DTO (the real mapping belongs to tools, EP-03). */
     private ProductRef toEgress(ProductCandidate candidate) {
-        return new ProductRef("pr_" + candidate.sku().value().replace("-", ""), candidate.sku().value(),
+        return new ProductRef(syntheticProductRef(candidate.sku().value()), candidate.sku().value(),
                 candidate.oe(), candidate.category(), Provenance.valueOf(candidate.provenance().name()),
                 AvailabilityBucket.valueOf(availability.bucket(candidate.sku()).name()));
     }

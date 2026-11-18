@@ -25,12 +25,12 @@ public record TechnicalContext(
     public static final int MAX_QUANTITY = 9999;
 
     static final Pattern MASKED_VIN = Pattern.compile("^[A-HJ-NPR-Z0-9]{3}\\*{14}$");
-    static final Pattern VIN_REF = Pattern.compile("^vin_[A-Za-z0-9]{16,32}$");
-    static final Pattern QUOTE_HANDLE = Pattern.compile("^qh_[A-Za-z0-9_-]{22,43}$");
+    public static final String VIN_REF_PREFIX = "vin_";
+    public static final String QUOTE_HANDLE_PREFIX = "qh_";
 
     public TechnicalContext {
         EgressText.optionalMatching(maskedVin, "maskedVin", MASKED_VIN);
-        EgressText.optionalMatching(vinRef, "vinRef", VIN_REF);
+        EgressText.optionalServerToken(vinRef, "vinRef", VIN_REF_PREFIX);
         EgressText.optionalText(vehicleModel, "vehicleModel", 80);
         if (partCategory != null) {
             EgressText.categoryLabel(partCategory, "partCategory");
@@ -39,6 +39,6 @@ public record TechnicalContext(
             throw EgressText.invalid("requestedQuantity");
         }
         verifiedProducts = EgressText.list(verifiedProducts, "verifiedProducts", MAX_PRODUCTS);
-        EgressText.optionalMatching(quoteHandle, "quoteHandle", QUOTE_HANDLE);
+        EgressText.optionalServerToken(quoteHandle, "quoteHandle", QUOTE_HANDLE_PREFIX);
     }
 }

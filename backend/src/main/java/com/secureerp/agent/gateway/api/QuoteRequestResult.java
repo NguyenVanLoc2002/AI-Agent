@@ -21,7 +21,7 @@ public record QuoteRequestResult(Status status, String quoteHandle, Integer line
 
     public QuoteRequestResult {
         Objects.requireNonNull(status, "status");
-        EgressText.optionalMatching(quoteHandle, "quoteHandle", TechnicalContext.QUOTE_HANDLE);
+        EgressText.optionalServerToken(quoteHandle, "quoteHandle", TechnicalContext.QUOTE_HANDLE_PREFIX);
         if (lineCount != null && (lineCount < 0 || lineCount > MAX_LINES)) {
             throw EgressText.invalid("lineCount");
         }

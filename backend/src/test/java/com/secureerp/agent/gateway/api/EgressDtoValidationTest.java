@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.function.Executable;
 
 /**
@@ -52,9 +53,9 @@ class EgressDtoValidationTest {
                         TechnicalContext.MAX_QUANTITY + 1, null, null)),
                 Arguments.of("malformed quote handle", (Executable) () -> new TechnicalContext(null, null, null, null,
                         null, null, "quote-42")),
-                Arguments.of("lowercase SKU injection", (Executable) () -> new ProductRef("pr_SynthProd01",
+                Arguments.of("lowercase SKU injection", (Executable) () -> new ProductRef("pr_SynthProd01AAAAAAAAAAA",
                         "sku; drop", null, "Ma phanh", Provenance.VERIFIED, AvailabilityBucket.CON_HANG)),
-                Arguments.of("digits in category label", (Executable) () -> new ProductRef("pr_SynthProd01",
+                Arguments.of("digits in category label", (Executable) () -> new ProductRef("pr_SynthProd01AAAAAAAAAAA",
                         "SKU-BRK-PAD-A", null, "Ma phanh " + SENTINEL_FREE_MARKER + " 1250000", Provenance.VERIFIED,
                         AvailabilityBucket.CON_HANG)),
                 Arguments.of("punctuation in part category", (Executable) () -> new TechnicalContext(null, null, null,
@@ -99,5 +100,39 @@ class EgressDtoValidationTest {
         list.add(ok);
         list.add(null);
         return list;
+    }
+
+    /**
+     * Second review M4: the opaque-ref fields get the honeytoken check only, so their format must
+     * not fit a business value: exactly 22 token characters, no run of 7+ digits.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"vin_JTDBT923X71234567", "vin_JTDBT923X71234567AAAAA", "vin_AAAAAAAAAAAA0912345678",
+        "vin_AAAAAAAAAAAAAAAAAAAAA", "vin_AAAAAAAAAAAAAAAAAAAAAAA", "vin_AAAAAAAAAAAAAAAAAAAA!A"})
+    void vinRefThatCouldCarryAValueIsRejected(String vinRef) {
+        assertThatThrownBy(() -> new TechnicalContext(null, vinRef, null, null, null, List.of(), null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void productRefAndQuoteHandleRejectDerivedValues() {
+        assertThatThrownBy(() -> new ProductRef("pr_SKUBRKPADA", "SKU-BRK-PAD-A", null, "Ma phanh",
+                Provenance.VERIFIED, AvailabilityBucket.CON_HANG)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProductRef("pr_AAAAAAAAAAAA0912345678", "SKU-BRK-PAD-A", null, "Ma phanh",
+                Provenance.VERIFIED, AvailabilityBucket.CON_HANG)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, "qh_987654321AAAAAAAAAAAAA", 1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatCode(() -> new TechnicalContext(null, "vin_Ab3-_x9ZqLm0Pw1Rt5Yu7K", null, null, null, List.of(),
+                "qh_Ab3-_x9ZqLm0Pw1Rt5Yu7K")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void promptIdCannotCarryADigitRun() {
+        assertThatCode(() -> new ModelRequest(EgressFixtures.TRACE_ID, "apas.chat.v1",
+                List.of(new SafeMessage(SafeMessage.Role.CUSTOMER, "xin chao")), null, List.of(),
+                List.of(), EgressFixtures.request("xin chao").budget())).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new ModelRequest(EgressFixtures.TRACE_ID, "p0912345678",
+                List.of(new SafeMessage(SafeMessage.Role.CUSTOMER, "xin chao")), null, List.of(),
+                List.of(), EgressFixtures.request("xin chao").budget())).isInstanceOf(IllegalArgumentException.class);
     }
 }

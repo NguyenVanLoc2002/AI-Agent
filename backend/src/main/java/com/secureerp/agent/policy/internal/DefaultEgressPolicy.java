@@ -19,6 +19,10 @@ import org.springframework.stereotype.Component;
  * refs produced FULL_VIN / PHONE / split-digit false positives). SKU and OE remain fully scanned
  * because their content comes from the ERP.
  *
+ * <p>The exemption is keyed by field name, so it is safe only while every egress field with one of
+ * these names is strictly validated: ARCH-05d allows them only on approved {@code Type.field} pairs,
+ * and the opaque refs must be 22-character tokens without digit runs (second review M2/M4).
+ *
  * <p>Not implemented in SEC-01a: the per-conversation sliding window across separate requests. It
  * needs a conversation key that only exists with the agent loop (EP-04); recorded for SEC-01b.
  */
@@ -28,7 +32,7 @@ public class DefaultEgressPolicy implements EgressPolicy {
     /** Upper bound of a provider request body (DESIGN PROPOSAL, SEC-01a). */
     public static final int MAX_PAYLOAD_BYTES = 64 * 1024;
 
-    static final Set<String> SERVER_IDENTIFIER_FIELDS =
+    public static final Set<String> SERVER_IDENTIFIER_FIELDS =
             Set.of("traceId", "systemPromptId", "productRef", "vinRef", "quoteHandle", "maskedVin");
 
     private final SensitiveDataDetector detector;

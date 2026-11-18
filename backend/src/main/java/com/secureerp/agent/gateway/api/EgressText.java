@@ -21,7 +21,48 @@ public final class EgressText {
      */
     static final Pattern CATEGORY_LABEL = Pattern.compile("^\\p{L}+(?: \\p{L}+){0,15}$");
 
+    /** Seven or more digits in a row: phone numbers, money, honeytokens, VIN serials. */
+    private static final Pattern DIGIT_RUN = Pattern.compile("\\d{7,}");
+
+    /** Length of the random part of a server token: 22 base64url characters = 128 bits (ADR-008). */
+    public static final int SERVER_TOKEN_CHARS = 22;
+
     private EgressText() {
+    }
+
+    /**
+     * Opaque server-issued token ({@code productRef}, {@code vinRef}, {@code quoteHandle}): the
+     * prefix plus exactly {@value #SERVER_TOKEN_CHARS} base64url characters, with no run of 7+
+     * digits. The egress policy gives these fields the honeytoken check only, so the format must
+     * leave no room for a business value (second review M4): {@code "pr_" + sku} or
+     * {@code "vin_" + fullVin} do not fit. Issuers must generate random tokens (and draw again in
+     * the rare case of a digit run). The format cannot prove where a token came from; see A-26.
+     */
+    public static String serverToken(String value, String field, String prefix) {
+        Objects.requireNonNull(value, field);
+        if (!value.startsWith(prefix) || value.length() != prefix.length() + SERVER_TOKEN_CHARS
+                || !value.substring(prefix.length()).chars().allMatch(EgressText::isBase64Url)
+                || DIGIT_RUN.matcher(value).find()) {
+            throw invalid(field);
+        }
+        return value;
+    }
+
+    public static String optionalServerToken(String value, String field, String prefix) {
+        return value == null ? null : serverToken(value, field, prefix);
+    }
+
+    /** Server-chosen identifier (e.g. a prompt template ID): format plus no run of 7+ digits. */
+    public static String serverIdentifier(String value, String field, Pattern pattern) {
+        matching(value, field, pattern);
+        if (DIGIT_RUN.matcher(value).find()) {
+            throw invalid(field);
+        }
+        return value;
+    }
+
+    private static boolean isBase64Url(int c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
     }
 
     public static String categoryLabel(String value, String field) {

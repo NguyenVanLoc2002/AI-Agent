@@ -36,7 +36,7 @@ public record ModelRequest(
 
     public ModelRequest {
         EgressText.matching(traceId, "traceId", TRACE_ID);
-        EgressText.matching(systemPromptId, "systemPromptId", PROMPT_ID);
+        EgressText.serverIdentifier(systemPromptId, "systemPromptId", PROMPT_ID);
         messages = EgressText.list(messages, "messages", MAX_MESSAGES);
         if (messages.isEmpty()) {
             throw EgressText.invalid("messages");

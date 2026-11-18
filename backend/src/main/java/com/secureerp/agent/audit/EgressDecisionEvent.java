@@ -6,9 +6,14 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * One egress decision, published by the gateway before any byte is sent (AI_GATEWAY §2.5, ADR-012
- * ACCEPTED 2026-11-18). Metadata only: trace ID, decision, policy code, honeytoken ID, structural
- * field names/path and byte length. No values and no per-value hash or HMAC (review F9).
+ * One egress decision, recorded through {@link EgressAuditLog} before any byte is sent (AI_GATEWAY
+ * §2.5, ADR-012 ACCEPTED 2026-11-18). Metadata only: trace ID, decision, send attempt, policy code,
+ * honeytoken ID, structural field names/path and byte length. No values and no per-value hash or HMAC
+ * (review F9).
+ *
+ * <p>A BLOCK has {@code attempt = 0} (nothing sent). A PASS is recorded once per send attempt
+ * ({@code attempt = 1}, and {@code 2} for the retry), so the PASS rows match the requests the
+ * provider received (ADR-016 a=b; second review M3/L3).
  *
  * <p>Every string is validated against a narrow format, so a value cannot be smuggled into the
  * audit table by mistake. Defined in {@code audit} so that audit depends on no business module
@@ -22,7 +27,8 @@ public record EgressDecisionEvent(
         String blockedFieldPath,
         List<String> fieldNames,
         int byteLength,
-        Instant occurredAt) {
+        Instant occurredAt,
+        int attempt) {
 
     public enum Decision {
         PASS,
@@ -36,6 +42,8 @@ public record EgressDecisionEvent(
     private static final Pattern FIELD_NAME = Pattern.compile("^[A-Za-z][A-Za-z0-9_]{0,63}$");
     private static final Pattern FIELD_PATH = Pattern.compile("^\\$(?:\\.[A-Za-z][A-Za-z0-9_]{0,63}|\\[\\d{1,4}\\]){0,16}$");
     private static final int MAX_FIELD_NAMES = 64;
+    /** Upper bound of send attempts per decision; the gateway uses 2 (one retry). */
+    public static final int MAX_ATTEMPT = 9;
 
     public EgressDecisionEvent {
         require(traceId, TRACE_ID, "traceId");
@@ -50,10 +58,16 @@ public record EgressDecisionEvent(
             throw new IllegalArgumentException("byteLength");
         }
         if (decision == Decision.PASS) {
+            if (attempt < 1 || attempt > MAX_ATTEMPT) {
+                throw new IllegalArgumentException("invalid audit field: attempt");
+            }
             if (policyCode != null || honeytokenId != null || blockedFieldPath != null) {
                 throw new IllegalArgumentException("a pass has no finding");
             }
         } else {
+            if (attempt != 0) {
+                throw new IllegalArgumentException("invalid audit field: attempt");
+            }
             require(policyCode, CODE, "policyCode");
             require(blockedFieldPath, FIELD_PATH, "blockedFieldPath");
             if (honeytokenId != null) {

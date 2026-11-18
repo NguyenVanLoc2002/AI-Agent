@@ -18,7 +18,7 @@ class ProviderEndpointPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"http://127.0.0.1:8089", "http://localhost:9000/", "http://[::1]:8089"})
+    @ValueSource(strings = {"http://127.0.0.1:8089", "http://127.0.0.1:9000/", "http://[::1]:8089"})
     void loopbackEndpointsAreAccepted(String url) {
         assertThat(ProviderEndpointPolicy.baseUri(url)).isPresent();
     }
@@ -27,7 +27,7 @@ class ProviderEndpointPolicyTest {
     @ValueSource(strings = {
         "https://api.provider.example", "http://10.0.0.5:8080", "http://127.0.0.1.nip.io:80",
         "http://user:pass@127.0.0.1:8089", "http://127.0.0.1:8089/?key=abc", "ftp://127.0.0.1",
-        "https://127.0.0.1:8443", "not a url"
+        "https://127.0.0.1:8443", "not a url", "http://localhost:9000/", "http://LOCALHOST:8089"
     })
     void anyOtherEndpointFailsStartup(String url) {
         assertThatThrownBy(() -> ProviderEndpointPolicy.baseUri(url)).isInstanceOf(IllegalStateException.class)
@@ -35,7 +35,8 @@ class ProviderEndpointPolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"proxy.corp.example:3128", "10.0.0.1:3128", "127.0.0.1", "127.0.0.1:0", "127.0.0.1:x"})
+    @ValueSource(strings = {"proxy.corp.example:3128", "10.0.0.1:3128", "127.0.0.1", "127.0.0.1:0", "127.0.0.1:x",
+        "localhost:18080"})
     void nonLoopbackOrMalformedProxyFailsStartup(String proxy) {
         assertThatThrownBy(() -> ProviderEndpointPolicy.proxy(proxy)).isInstanceOf(IllegalStateException.class);
     }

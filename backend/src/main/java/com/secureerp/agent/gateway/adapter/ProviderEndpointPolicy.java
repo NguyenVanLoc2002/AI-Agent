@@ -14,7 +14,12 @@ import java.util.Set;
  */
 final class ProviderEndpointPolicy {
 
-    private static final Set<String> LOOPBACK_HOSTS = Set.of("127.0.0.1", "localhost", "[::1]", "::1");
+    /**
+     * Literal loopback addresses only. A host name such as {@code localhost} is resolved by the
+     * HTTP client at request time, and a hosts-file or resolver override could point it elsewhere
+     * (second review L2).
+     */
+    private static final Set<String> LOOPBACK_HOSTS = Set.of("127.0.0.1", "[::1]", "::1");
 
     private ProviderEndpointPolicy() {
     }

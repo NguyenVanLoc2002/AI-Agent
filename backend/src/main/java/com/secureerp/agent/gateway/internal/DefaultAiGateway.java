@@ -1,5 +1,6 @@
 package com.secureerp.agent.gateway.internal;
 
+import com.secureerp.agent.audit.EgressAuditLog;
 import com.secureerp.agent.audit.EgressDecisionEvent;
 import com.secureerp.agent.gateway.AiGateway;
 import com.secureerp.agent.gateway.GatewayResult;
@@ -18,7 +19,6 @@ import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,12 +28,17 @@ import org.springframework.stereotype.Service;
  *   <li>serialize with the gateway-private mapper;</li>
  *   <li>structure check: every property name must be allowlisted;</li>
  *   <li>final-bytes scan by {@link EgressPolicy};</li>
- *   <li>audit the decision ({@link EgressDecisionEvent}); if the audit fails, nothing is sent;</li>
+ *   <li>audit the decision through {@link EgressAuditLog} (a direct call, not an event: a missing
+ *       audit bean fails startup); if the audit fails, nothing is sent;</li>
  *   <li>PASS only: send the exact scanned bytes; retry at most once on timeout/I-O/5xx, with the
- *       same byte array (no re-serialization, so a retry cannot carry different content).</li>
+ *       same byte array (no re-serialization, so a retry cannot carry different content). Every
+ *       attempt, the retry included, is audited before it is sent.</li>
  * </ol>
  * Fail-closed throughout: any exception before sending is a refusal. Logs carry trace ID, decision,
  * policy code, field path and lengths only.
+ *
+ * <p>Call it outside a database transaction: the audit write uses its own transaction and needs a
+ * second pooled connection otherwise (second review L6).
  *
  * <p>Not in SEC-01a: kill switch and circuit breaker (ADR-013, EP-09); quotas (EP-03).
  */
@@ -47,15 +52,14 @@ public class DefaultAiGateway implements AiGateway {
 
     private final EgressPolicy policy;
     private final ModelProviderPort provider;
-    private final ApplicationEventPublisher events;
+    private final EgressAuditLog auditLog;
     private final Clock clock;
 
-    public DefaultAiGateway(EgressPolicy policy, ModelProviderPort provider, ApplicationEventPublisher events,
-            Clock clock) {
-        this.policy = policy;
-        this.provider = provider;
-        this.events = events;
-        this.clock = clock;
+    public DefaultAiGateway(EgressPolicy policy, ModelProviderPort provider, EgressAuditLog auditLog, Clock clock) {
+        this.policy = Objects.requireNonNull(policy, "policy");
+        this.provider = Objects.requireNonNull(provider, "provider");
+        this.auditLog = Objects.requireNonNull(auditLog, "auditLog");
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
@@ -76,30 +80,31 @@ public class DefaultAiGateway implements AiGateway {
         } catch (RuntimeException e) {
             log.warn("gateway.egress decision=BLOCK policy=MALFORMED_PAYLOAD traceId={} exception={}",
                     request.traceId(), e.getClass().getSimpleName());
-            return audit(request, EgressVerdict.block(PolicyCode.MALFORMED_PAYLOAD, null, "$"), List.of(), 0)
+            return audit(request, EgressVerdict.block(PolicyCode.MALFORMED_PAYLOAD, null, "$"), List.of(), 0, 0)
                     ? new GatewayResult.Refused(RefusalReason.DLP_EGRESS)
                     : new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE);
         }
 
-        if (!audit(request, verdict, fieldNames, body.length)) {
-            return new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE);
-        }
         if (!verdict.allowed()) {
+            if (!audit(request, verdict, fieldNames, body.length, 0)) {
+                return new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE);
+            }
             log.warn("gateway.egress decision=BLOCK policy={} field={} traceId={} bytes={}",
                     verdict.policyCode(), verdict.fieldPath(), request.traceId(), body.length);
             return new GatewayResult.Refused(RefusalReason.DLP_EGRESS);
         }
         log.info("gateway.egress decision=PASS traceId={} bytes={} fields={}", request.traceId(), body.length,
                 fieldNames.size());
-        return send(request, body);
+        return send(request, body, verdict, fieldNames);
     }
 
-    private boolean audit(ModelRequest request, EgressVerdict verdict, List<String> fieldNames, int length) {
+    private boolean audit(ModelRequest request, EgressVerdict verdict, List<String> fieldNames, int length,
+            int attempt) {
         try {
-            events.publishEvent(new EgressDecisionEvent(request.traceId(),
+            auditLog.record(new EgressDecisionEvent(request.traceId(),
                     verdict.allowed() ? EgressDecisionEvent.Decision.PASS : EgressDecisionEvent.Decision.BLOCK,
                     verdict.allowed() ? null : verdict.policyCode().name(), verdict.honeytokenId(),
-                    verdict.fieldPath(), fieldNames, length, clock.instant()));
+                    verdict.fieldPath(), fieldNames, length, clock.instant(), attempt));
             return true;
         } catch (RuntimeException e) {
             log.error("gateway.egress audit_failed traceId={} exception={}", request.traceId(),
@@ -108,8 +113,11 @@ public class DefaultAiGateway implements AiGateway {
         }
     }
 
-    private GatewayResult send(ModelRequest request, byte[] body) {
+    private GatewayResult send(ModelRequest request, byte[] body, EgressVerdict verdict, List<String> fieldNames) {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            if (!audit(request, verdict, fieldNames, body.length, attempt)) {
+                return new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE);
+            }
             try {
                 ProviderReply reply = provider.send(body, request.budget());
                 int status = reply.status();

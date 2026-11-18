@@ -2,6 +2,7 @@ package com.secureerp.agent.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.secureerp.agent.audit.EgressAuditLog;
 import com.secureerp.agent.audit.EgressDecisionEvent;
 import com.secureerp.agent.catalog.spi.CatalogUnavailableException;
 import com.secureerp.agent.catalog.spi.ExactProductQuery;
@@ -20,7 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationContext;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -68,8 +69,11 @@ class GatewayEgressIT extends FakeProviderEnvironment {
         assertThat(EgressScan.countWithSentinel(provider.stream())).isZero();
         assertThat(provider).allSatisfy(body -> assertThat(EgressSerializer.structure(body)).isPresent());
 
-        assertThat(jdbc.queryForList("select decision from egress_record order by id", String.class))
-                .containsExactly("PASS", "PASS", "BLOCK");
+        // Second review M3/L3: one PASS row per attempt, so the retry has its own row (attempt 2).
+        assertThat(jdbc.queryForList("select decision || ':' || attempt from egress_record order by id", String.class))
+                .containsExactly("PASS:1", "PASS:1", "PASS:2", "BLOCK:0");
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'PASS'", Integer.class))
+                .isEqualTo(provider.size());
     }
 
     @Test
@@ -112,7 +116,10 @@ class GatewayEgressIT extends FakeProviderEnvironment {
     PlatformTransactionManager transactionManager;
 
     @Autowired
-    ApplicationEventPublisher events;
+    EgressAuditLog auditLog;
+
+    @Autowired
+    ApplicationContext context;
 
     /** Review H2/M1: a real insert failure in PostgreSQL means nothing is sent anywhere. */
     @Test
@@ -150,13 +157,14 @@ class GatewayEgressIT extends FakeProviderEnvironment {
         assertThat(providerBodies()).hasSize(1);
     }
 
-    /** Review H2: exactly one synchronous writer is registered (one row, written before publish returns). */
+    /** Review H2, second review M1: exactly one audit log bean; the row exists when record returns. */
     @Test
     void exactlyOneSynchronousAuditWriter() {
+        assertThat(context.getBeansOfType(EgressAuditLog.class)).hasSize(1);
         String traceId = EgressFixtures.traceId(22);
-        events.publishEvent(new EgressDecisionEvent(traceId,
+        auditLog.record(new EgressDecisionEvent(traceId,
                 EgressDecisionEvent.Decision.PASS, null, null, null, List.of("text"), 10,
-                Instant.parse("2026-11-18T00:00:00Z")));
+                Instant.parse("2026-11-18T00:00:00Z"), 1));
 
         assertThat(jdbc.queryForObject("select count(*) from egress_record where trace_id = ?", Integer.class, traceId))
                 .isEqualTo(1);

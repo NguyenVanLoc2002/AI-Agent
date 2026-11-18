@@ -19,18 +19,18 @@ import java.util.UUID;
 public final class EgressFixtures {
 
     public static final String TRACE_ID = "0b6c3a52-4f7e-4c1d-9a8b-2e5f6d7c8b9a";
-    public static final String QUOTE_HANDLE = "qh_SyntheticHandleAAAAAAAAAAAA";
+    public static final String QUOTE_HANDLE = "qh_SyntheticHandleAAAAAAA";
 
     private EgressFixtures() {
     }
 
     public static ProductRef product() {
-        return new ProductRef("pr_SynthProd01", "SKU-BRK-PAD-A", "04465-0K290", "Ma phanh truoc",
+        return new ProductRef("pr_SynthProd01AAAAAAAAAAA", "SKU-BRK-PAD-A", "04465-0K290", "Ma phanh truoc",
                 Provenance.VERIFIED, AvailabilityBucket.CON_HANG);
     }
 
     public static TechnicalContext context() {
-        return new TechnicalContext("JTD**************", "vin_SyntheticVinRef01", "Vios 2019", "Ma phanh",
+        return new TechnicalContext("JTD**************", "vin_SyntheticVinRef01AAAAA", "Vios 2019", "Ma phanh",
                 2, List.of(product()), null);
     }
 

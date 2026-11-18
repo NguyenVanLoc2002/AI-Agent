@@ -15,12 +15,12 @@ public record ProductRef(
         Provenance provenance,
         AvailabilityBucket availabilityBucket) {
 
-    static final Pattern PRODUCT_REF = Pattern.compile("^pr_[A-Za-z0-9]{8,32}$");
+    public static final String PRODUCT_REF_PREFIX = "pr_";
     static final Pattern SKU = Pattern.compile("^[A-Z0-9][A-Z0-9-]{2,31}$");
     static final Pattern OE = Pattern.compile("^[A-Z0-9][A-Z0-9.-]{2,31}$");
 
     public ProductRef {
-        EgressText.matching(productRef, "productRef", PRODUCT_REF);
+        EgressText.serverToken(productRef, "productRef", PRODUCT_REF_PREFIX);
         EgressText.matching(sku, "sku", SKU);
         EgressText.optionalMatching(oe, "oe", OE);
         EgressText.categoryLabel(category, "category");
