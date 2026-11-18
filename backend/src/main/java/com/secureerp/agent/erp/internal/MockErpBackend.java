@@ -4,7 +4,9 @@ import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Simulated remote ERP returning raw JSON rows, as an ERP API would. Synthetic data only. Rows carry
@@ -35,14 +37,49 @@ class MockErpBackend {
             "{\"sku\":\"SKU-BAD-ROW\",\"oe\":\"04465-0K290\",\"category\":\"Ma phanh truoc\","
                     + "\"provenance\":\"VERIFIED\"}");
 
+    /**
+     * Synthetic VIN decode / fitment rows (EP-05). Not real vehicles: WMI {@code 5ZZ}/{@code 1ZZ}/
+     * {@code RLZ} are not assigned to a real manufacturer here. Rows carry an owner name, phone and
+     * credit balance sentinel the adapter must drop.
+     */
+    static final String NA_VIN = "5ZZAPAS11RA000001";
+    static final String ASIA_VIN = "RLZAPAS20RA000002";
+    private static final String VEHICLE = "{\"vin\":\"%s\",\"vehicleModel\":\"%s\",\"registeredOwner\":\"ZZHoney CustomerA\","
+            + "\"ownerPhone\":\"0399000111\",\"creditBalance\":123456789}";
+    private static final Map<String, String> VEHICLES = Map.of(
+            NA_VIN, VEHICLE.formatted(NA_VIN, "Vios 2019"),
+            ASIA_VIN, VEHICLE.formatted(ASIA_VIN, "Innova 2020"));
+    private static final String MALFORMED_VEHICLE = "{\"vehicleModel\":987654321,\"registeredOwner\":\"ZZHoney CustomerA\"}";
+
     private final MockErpFaultMode faultMode;
 
     MockErpBackend(MockErpFaultMode faultMode) {
         this.faultMode = Objects.requireNonNull(faultMode, "faultMode");
     }
 
+    /** The raw vehicle row for an exact VIN, if the synthetic fitment table knows it. */
+    Optional<String> fetchVehicleRow(String vin) {
+        failIfConfigured();
+        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+            return Optional.of(MALFORMED_VEHICLE);
+        }
+        return Optional.ofNullable(VEHICLES.get(vin));
+    }
+
     /** All product rows. A real backend would filter server-side; the adapter filters here. */
     List<String> fetchProductRows() {
+        failIfConfigured();
+        List<String> rows = new ArrayList<>(PRODUCTS);
+        if (faultMode == MockErpFaultMode.DUPLICATE_RESPONSE) {
+            rows.addAll(PRODUCTS);
+        }
+        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+            rows.addAll(MALFORMED);
+        }
+        return rows;
+    }
+
+    private void failIfConfigured() {
         switch (faultMode) {
             case ERROR_WITH_SENTINEL -> throw new IllegalStateException(
                     "ERP failure: purchaseCost=987654321 creditBalance=123456789 contact=ZZHoney CustomerA");
@@ -52,13 +89,5 @@ class MockErpBackend {
                 // continue
             }
         }
-        List<String> rows = new ArrayList<>(PRODUCTS);
-        if (faultMode == MockErpFaultMode.DUPLICATE_RESPONSE) {
-            rows.addAll(PRODUCTS);
-        }
-        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
-            rows.addAll(MALFORMED);
-        }
-        return rows;
     }
 }

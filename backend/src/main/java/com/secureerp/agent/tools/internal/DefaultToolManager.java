@@ -52,9 +52,10 @@ import org.springframework.stereotype.Service;
  * </ol>
  * Every failure is a {@link ToolErrorResult} code; logs carry tool name, code and decision only.
  *
- * <p>Executors not in EP-03: {@code vinRef} search (server-side VIN, EP-05), {@code requestQuote}
- * (quote service, EP-06), {@code requestHandoff} (handoff module, EP-08). They are validated in full
- * and then answer {@code TOOL_UNAVAILABLE}; a handoff request also sets {@code handoffRequired}.
+ * <p>{@code vinRef} search uses the conversation's server-side VIN (EP-05). Executors not built yet:
+ * {@code requestQuote} (quote service, EP-06), {@code requestHandoff} (handoff module, EP-08). They are
+ * validated in full and then answer {@code TOOL_UNAVAILABLE}; a handoff request also sets
+ * {@code handoffRequired}.
  */
 @Service
 class DefaultToolManager implements ToolManager {
@@ -164,10 +165,19 @@ class DefaultToolManager implements ToolManager {
         }
         ToolArguments arguments = ArgumentParser.parse(name, proposal.argumentsJson(), limits);
         return switch (arguments) {
-            case SearchByOe byOe -> search(context, query(() -> new ExactProductQuery.ByOe(byOe.oe())), now);
-            case SearchByCategoryAndModel byModel -> search(context, query(() ->
-                    new ExactProductQuery.ByCategoryAndModel(byModel.category(), byModel.vehicleModel())), now);
-            case SearchByVinRef byVin -> throw ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+            case SearchByOe byOe -> {
+                ExactProductQuery query = query(() -> new ExactProductQuery.ByOe(byOe.oe()));
+                yield search(context, () -> catalog.search(query), now);
+            }
+            case SearchByCategoryAndModel byModel -> {
+                ExactProductQuery query = query(() ->
+                        new ExactProductQuery.ByCategoryAndModel(byModel.category(), byModel.vehicleModel()));
+                yield search(context, () -> catalog.search(query), now);
+            }
+            // The VIN never passes through here: catalog resolves the conversation's current VIN
+            // (TOOL_CONTRACTS §3.1). No current VIN: TOOL_UNAVAILABLE (owner decision 2026-11-18).
+            case SearchByVinRef byVin -> search(context, () -> catalog.searchByConversationVin(context.conversation())
+                    .orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE)), now);
             case QuoteLines quote -> {
                 requireOwnedVerifiedProducts(context, quote, now);
                 throw ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE);
@@ -197,10 +207,10 @@ class DefaultToolManager implements ToolManager {
         }
     }
 
-    private ToolResultDto search(ToolCallContext context, ExactProductQuery query, Instant now) {
+    private ToolResultDto search(ToolCallContext context, Supplier<List<CatalogMatch>> lookup, Instant now) {
         List<CatalogMatch> matches;
         try {
-            matches = catalog.search(query);
+            matches = lookup.get();
         } catch (CatalogUnavailableException e) {
             throw ToolRejection.of(ToolErrorResult.Code.CATALOG_UNAVAILABLE);
         }

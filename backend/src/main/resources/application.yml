@@ -92,5 +92,8 @@ apas:
       max-string-chars: 256
       rejections-before-handoff: 3
       product-ref-ttl: 2h
+  # EP-05: lifetime of a conversation's current VIN (owner decision 2026-11-18: 2 h, like a productRef).
+  catalog:
+    vin-ttl: 2h
 # apas.erp.mock.fault-mode is deliberately absent from shared configuration (default NONE in code);
 # fault injection is set only by tests (architecture review M6).

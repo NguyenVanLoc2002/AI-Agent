@@ -6,8 +6,8 @@ import java.util.regex.Pattern;
 
 /**
  * Exactly one search key (ERP_CONNECTOR §3.2): an OE code, or a category plus vehicle model. No
- * free-text, prefix or wildcard search, so the catalog cannot be enumerated. Search by VIN is added
- * with the server-side VIN validator (EP-05).
+ * free-text, prefix or wildcard search, so the catalog cannot be enumerated. Search by VIN uses a
+ * VIN already validated server-side ({@link Vin}, EP-05); it is never built from model output.
  */
 public sealed interface ExactProductQuery {
 
@@ -24,6 +24,14 @@ public sealed interface ExactProductQuery {
             if (!OE.matcher(oe).matches()) {
                 throw new IllegalArgumentException("invalid oe format");
             }
+        }
+    }
+
+    /** Vehicle fitment for a validated VIN. {@code toString()} is masked through {@link Vin}. */
+    record ByVin(Vin vin) implements ExactProductQuery {
+
+        public ByVin {
+            Objects.requireNonNull(vin, "vin");
         }
     }
 

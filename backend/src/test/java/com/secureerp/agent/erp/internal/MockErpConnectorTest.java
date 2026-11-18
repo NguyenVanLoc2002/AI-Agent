@@ -8,8 +8,10 @@ import com.secureerp.agent.catalog.spi.AvailabilityBucketPort;
 import com.secureerp.agent.catalog.spi.CatalogUnavailableException;
 import com.secureerp.agent.catalog.spi.ExactProductQuery;
 import com.secureerp.agent.catalog.spi.ProductCandidate;
+import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.catalog.spi.VerifiedProductPort;
+import com.secureerp.agent.catalog.spi.Vin;
 import com.secureerp.agent.platform.ErrorCode;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -118,6 +120,54 @@ class MockErpConnectorTest {
         assertThat(connector.bucket(new Sku("SKU-UNKNOWN"))).isEqualTo(AvailabilityBucket.CAN_KIEM_TRA);
         assertThat(Stream.of(AvailabilityBucketPort.class.getMethods()).filter(m -> m.getName().equals("bucket")))
                 .allSatisfy(m -> assertThat(m.getParameterTypes()).containsExactly(Sku.class));
+    }
+
+    /**
+     * EP-05: VIN fitment. Only {@code vehicleModel} is read from the vehicle row (owner name, phone
+     * and credit sentinels are dropped); fitment results are CATALOG_LOOKUP, one label each.
+     */
+    @Test
+    void vinSearchReturnsFitmentAsCatalogLookup(CapturedOutput output) {
+        List<ProductCandidate> vios = connector.search(new ExactProductQuery.ByVin(new Vin(MockErpBackend.NA_VIN)));
+        List<ProductCandidate> innova = connector.search(new ExactProductQuery.ByVin(new Vin(MockErpBackend.ASIA_VIN)));
+
+        assertThat(vios).extracting(c -> c.sku().value())
+                .containsExactly("SKU-BRK-PAD-A", "SKU-BRK-PAD-B", "SKU-OIL-FLT-A");
+        assertThat(innova).extracting(c -> c.sku().value()).containsExactly("SKU-AIR-FLT-A");
+        assertThat(Stream.concat(vios.stream(), innova.stream()))
+                .allSatisfy(c -> assertThat(c.provenance()).isEqualTo(Provenance.CATALOG_LOOKUP));
+        assertNoForbidden(vios.toString() + innova);
+        assertThat(vios.toString() + innova).doesNotContain(MockErpBackend.NA_VIN, "0399000111");
+        assertThat(output.getAll()).doesNotContain(MockErpBackend.NA_VIN, MockErpBackend.ASIA_VIN);
+    }
+
+    @Test
+    void unknownVinHasNoFitmentAndOtherQueriesDoNotMatchByVin() {
+        assertThat(connector.search(new ExactProductQuery.ByVin(new Vin("1ZZAPAS16RA000003")))).isEmpty();
+        // OE and category searches still label the synthetic catalog VERIFIED (unchanged, D-05).
+        assertThat(connector.search(new ExactProductQuery.ByOe("04465-0K290")))
+                .extracting(ProductCandidate::provenance).containsExactly(Provenance.VERIFIED);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = MockErpFaultMode.class, names = {"ERROR_WITH_SENTINEL", "TIMEOUT"})
+    void vinSearchBackendErrorBecomesCodeOnly(MockErpFaultMode mode, CapturedOutput output) {
+        MockErpConnector failing = new MockErpConnector(mode);
+
+        assertThatThrownBy(() -> failing.search(new ExactProductQuery.ByVin(new Vin(MockErpBackend.NA_VIN))))
+                .isInstanceOf(CatalogUnavailableException.class)
+                .satisfies(e -> assertNoForbidden(stackTrace(e)));
+        assertNoForbidden(output.getAll());
+        assertThat(output.getAll()).contains("erp.vehicle.unavailable").doesNotContain(MockErpBackend.NA_VIN);
+    }
+
+    @Test
+    void malformedVehicleRowMeansNoFitment(CapturedOutput output) {
+        MockErpConnector malformed = new MockErpConnector(MockErpFaultMode.MALFORMED_ROWS);
+
+        assertThat(malformed.search(new ExactProductQuery.ByVin(new Vin(MockErpBackend.NA_VIN)))).isEmpty();
+        assertThat(output.getAll()).contains("erp.vehicle.row_skipped").doesNotContain(MockErpBackend.NA_VIN);
+        assertNoForbidden(output.getAll());
     }
 
     private static void assertNoForbidden(String text) {
