@@ -18,7 +18,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Evidence for ARCH-01..04, 07, 09..12 (MODULE_BOUNDARIES.md §5): production code passes every
+ * Evidence for ARCH-01..12 (MODULE_BOUNDARIES.md §5; ARCH-05/06/08 added in SEC-01a as part of
+ * T-SEC01-SCHEMA): production code passes every
  * rule, and each rule demonstrably fails on a deliberate-violation fixture
  * ({@code com.secureerp.archfixture}) while not flagging the compliant fixture classes.
  */
@@ -51,6 +52,21 @@ class ArchitectureRulesTest {
                 .noneMatch(name -> name.startsWith(FIXTURE_BASE) || name.endsWith("Test"));
     }
 
+    @Test
+    @DisplayName("ARCH-05/06 are not vacuous: production egress types exist and are checked")
+    void egressRulesCoverProductionTypes() {
+        assertThat(production.stream().map(c -> c.getName()))
+                .contains("com.secureerp.agent.gateway.api.ModelRequest",
+                        "com.secureerp.agent.gateway.api.TechnicalContext",
+                        "com.secureerp.agent.gateway.api.ToolResultDto");
+        long egressFields = production.stream()
+                .filter(c -> c.getPackageName().startsWith("com.secureerp.agent.gateway.api"))
+                .flatMap(c -> c.getFields().stream())
+                .filter(f -> !f.getModifiers().contains(com.tngtech.archunit.core.domain.JavaModifier.STATIC))
+                .count();
+        assertThat(egressFields).isGreaterThanOrEqualTo(20);
+    }
+
     static Stream<Arguments> violations() {
         String f = FIXTURE_BASE + ".";
         return Stream.of(
@@ -67,7 +83,45 @@ class ArchitectureRulesTest {
                 Arguments.of("ARCH-10", f + "audit.internal.AuditReadsQuote", f + "audit.internal.CompliantAuditSink"),
                 Arguments.of("ARCH-11", f + "tools.internal.ReflectiveToolInvoker", f + "tools.internal.TypedToolInvoker"),
                 Arguments.of("ARCH-11", f + "tools.internal.ConstructorToolFactory", f + "tools.internal.TypedToolInvoker"),
-                Arguments.of("ARCH-12", f + "catalog.internal.CatalogUsesStockPort", f + "catalog.internal.CatalogUsesBucket"));
+                Arguments.of("ARCH-12", f + "catalog.internal.CatalogUsesStockPort", f + "catalog.internal.CatalogUsesBucket"),
+                Arguments.of("ARCH-05", f + "gateway.api.LeakyPriceDto.unitPrice", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05", f + "gateway.api.LeakyPriceDto.total", f + "gateway.api.CompliantItem"),
+                Arguments.of("ARCH-05", f + "gateway.api.MapCarrierDto.extra", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05", f + "gateway.api.MapCarrierDto.prices", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05", f + "gateway.api.MapCarrierDto.payload", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05", f + "gateway.api.NestedForeignDto.row", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05", f + "gateway.api.CustomerRefDto.customer", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-06", f + "gateway.api.UnclassifiedDto", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-06", f + "gateway.api.InternalClassifiedDto", f + "gateway.api.CompliantItem"),
+                Arguments.of("ARCH-08a", f + "quote.internal.ForgesCustomerRef", f + "identity.internal.CustomerLinkResolver"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerRefController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerIdController.quote",
+                        f + "conversation.adapter.web.SafeChatController"),
+                // Added after the SEC-01a architecture/security reviews (bypass routes).
+                Arguments.of("ARCH-05", f + "gateway.api.ProductRefLike.quantity", f + "gateway.api.TechnicalContext"),
+                Arguments.of("ARCH-05b", f + "gateway.api.InheritingDto", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-05b", f + "gateway.api.OpenEgressInterface", f + "gateway.api.CompliantStatus"),
+                Arguments.of("ARCH-05b", f + "gateway.api.PlainClassDto", f + "gateway.api.CompliantItem"),
+                Arguments.of("ARCH-05c", f + "gateway.api.JsonPropertyDto", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-06", f + "gateway.api.LookalikeClassifiedDto", f + "gateway.api.CompliantDto"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerHeaderController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.MetaAnnotatedController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08c", f + "conversation.adapter.web.ChatRequest.customer",
+                        f + "conversation.adapter.web.SafeChatRequest"),
+                Arguments.of("ARCH-08c", f + "conversation.adapter.web.ChatRequestWithId.customerId",
+                        f + "conversation.adapter.web.SafeChatRequest"));
+    }
+
+    @Test
+    @DisplayName("review L3: no production class receives captured egress bodies")
+    void noProductionEgressCaptureListener() {
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses()
+                .should().implement("com.secureerp.agent.gateway.adapter.EgressCaptureListener")
+                .as("EgressCaptureListener is a test-only hook (ADR-016 capture a)")
+                .check(production);
     }
 
     @ParameterizedTest(name = "{0} catches {1}")
@@ -85,7 +139,8 @@ class ArchitectureRulesTest {
         // The compliant class may appear as a dependency target, but never as the violating origin.
         assertThat(report)
                 .doesNotContain("Class <" + compliantClass + ">")
-                .doesNotContain("Method <" + compliantClass + ".");
+                .doesNotContain("Method <" + compliantClass + ".")
+                .doesNotContain("Field <" + compliantClass + ".");
         assertThatThrownBy(() -> rule.check(fixtures)).isInstanceOf(AssertionError.class);
     }
 }
