@@ -25,6 +25,7 @@
         <java.version>21</java.version>
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <archunit.version>1.5.1</archunit.version>
+        <wiremock.version>3.13.1</wiremock.version>
     </properties>
 
     <dependencyManagement>
@@ -110,6 +111,14 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- SEC-01a / ADR-016: Fake provider and local proxy capture. Standalone jar shades its own
+             Jetty/Jackson, so it does not change the application's runtime classpath. Test scope only. -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>${wiremock.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
