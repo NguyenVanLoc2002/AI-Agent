@@ -1,6 +1,24 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: G0-2 partial approvals, 2026-11-18
+## Current: SEC-01a egress guard (gateway level), 2026-11-18
+- Branch `feat/SEC-01a-egress-guard` from `origin/main` `a1fa8c2` (G0-2 merged as PR #5). Upstream unset on purpose. **Nothing committed or pushed**; working tree holds the whole change for owner review.
+- Owner approvals given while planning this issue: ADR-005, ADR-012 → ACCEPTED; A-07, A-10, A-11, A-12 → APPROVED; WireMock allowed as a test-scoped dependency; all 5 slices in scope.
+- Implemented:
+  - type gate: `gateway.api` records with `@EgressClassified` (in `platform`); ARCH-05/05b/05c/06/08a/b/c with violation fixtures; `identity.AuthenticatedCustomerRef` (not constructible outside identity, not JSON-deserializable)
+  - policy: normalizer, one-layer decoder, honeytoken registry, `SensitiveDataDetector`, `DefaultEgressPolicy`, `InboundSanitizer` (A-10/A-11)
+  - catalog/ERP: `catalog.spi` ports + `erp.internal.MockErpConnector` with fault injection
+  - gateway: `AiGateway`/`DefaultAiGateway` (serialize → name allowlist → scan → audit → send; 1 bounded retry with identical bytes), `HttpModelProviderAdapter` (loopback only, NO_PROXY default, deadline, capped body)
+  - audit: `EgressDecisionEvent`, `egress_record` via Flyway `V2__egress_record.sql` (additive)
+  - harness: `FakeProviderEnvironment` (adapter → WireMock proxy → WireMock Fake provider), `GatewayEgressIT`, `EgressSuiteGw200IT`
+- Tests (VERIFIED 2026-11-18, Java 21.0.12, Maven wrapper 3.9.11, Docker 28.3.0): `cd backend && ./mvnw -B clean verify` → exit 0; surefire 465 tests, failsafe 15, 0 failures, 0 skipped. GW200: 200 conversations, 200 gateway calls, 125 passed, 75 blocked (25 also blocked at the inbound sanitizer), 25 retries, 150 adapter attempts = 150 proxy = 150 provider requests. Sentinel scan of the build log and all surefire/failsafe reports: 0 hits for every registered sentinel.
+- Negative proofs: planted `BigDecimal` record in `gateway.api` → ARCH-05 fails (exit 1, removed); pass-all policy → 132/147 gateway tests fail (exit 1, restored); automated mutation control `oracleDetectsLeakWhenPolicyIsDisabled`.
+- Evidence label: **SEC-01 = gateway-level evidence only** (`docs/SECURITY_TEST_MATRIX.md`). T-SEC01-ERR is connector-level. No tool loop, quote, history or staff handoff yet; SEC-01 VERIFIED only after SEC-01b.
+- Reviews (advisory): architecture-reviewer 2H/6M/7L, security-auditor 1H/5M/6L. Fixed: proxy bypass, audit transaction/fail-closed (real-DB ITs), ARCH bypasses (inheritance, open interfaces, Jackson annotations, request-body identity, header names), numeric allowlist per field, Jackson deserialization of the customer ref, false positives (UUID/ref/`dong co`/`gia dinh`), category free text, body deadline, cancel/no-retry, runtime-exception mapping, provenance from adapter, independent test oracle, text/phone sentinels. New OPEN decisions A-19..A-25 in `docs/DECISIONS_REQUIRED.md`.
+- Not done / residual: no cross-request sliding window (SEC-01b); kill switch, breaker, quotas (EP-09, EP-03); one-layer decoder gaps (spaced hex, split base64, homoglyphs), no generic secret pattern; flat property-name allowlist; 10-digit OE codes starting `09`/`03` are blocked as PHONE (A-24); a second review pass on the fixes was NOT RUN; no dependency/CVE scan (no scanner installed); no formatter/linter configured.
+- Rollback: discard the branch (nothing committed). If it is merged later: revert the commit; V2 only adds `egress_record` (local: `docker compose down -v`).
+- Next 3 actions: (1) owner reviews the diff and decides on commits (suggested: one conventional commit per slice, e.g. `feat(gateway): add SEC-01a egress guard`) and a PR; (2) decide A-20 and A-21, then EP-03 tool registry; (3) optionally run a second security-auditor pass on the review fixes.
+
+## Previous: G0-2 partial approvals, 2026-11-18
 - PR #4 (A-16c) merged into `main` (`0af580e`). Branch `docs/G0-2-adr-approvals`.
 - Owner approved the set blocking SEC-01a: ADR-001, ADR-002 (Maven, as amended by POC-001), ADR-003, ADR-004, ADR-016 → ACCEPTED; A-04, A-05, A-09, A-13 → APPROVED. Recorded in each ADR, `docs/architecture/adr/README.md`, `docs/DECISIONS_REQUIRED.md`, `docs/backlog/IMPLEMENTATION_PLAN.md`.
 - Still PROPOSED/OPEN: ADR-005..015, A-01..A-03, A-06..A-08, A-10..A-12, A-14..A-18, D-01..D-13, UX-01..UX-18.

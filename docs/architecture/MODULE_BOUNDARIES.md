@@ -11,7 +11,7 @@
 | conversation | Endpoint chat, dedup, trạng thái hội thoại (kể cả `bot_locked`), ghép response | `ChannelPort` | INTERNAL, sanitized text |
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `AgentApi.handleTurn(...)` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
-| policy | Phân loại, DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
+| policy | DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolRegistry`, `ToolAuthorizationPolicy` | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum) | APPROVED_TECHNICAL |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
@@ -19,7 +19,7 @@
 | handoff | Queue, reason code, claim/resolve; publish `HandoffOpened/Resolved` | `HandoffApi` | INTERNAL |
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
-| platform | KillSwitch, Clock, correlation ID, error mapping | `KillSwitch`, `Clock` | — |
+| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | — |
 | erp | **Leaf adapter:** Mock ERP (PoC), ERP thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
 | bootstrap | Ứng dụng Spring Boot + wiring; module duy nhất được phụ thuộc mọi module | — | — |
 
@@ -67,3 +67,12 @@ bootstrap ─► mọi module (wiring)
 - `bootstrap` là root package `com.secureerp.agent`, vì Modulith yêu cầu lớp `@SpringBootApplication` nằm ở root.
 - §2 ghi "mọi module → identity.api…". Để tránh vòng identity ↔ audit, `audit` **không** phụ thuộc `identity`, chỉ phụ thuộc `platform`; actor truyền vào audit dưới dạng chuỗi pseudonymous. Đây là DESIGN PROPOSAL, chờ ký ADR-001.
 - Đã cưỡng chế: allowlist module (Modulith `allowedDependencies`), ARCH-01/02/03/04/07/09/10/11/12/13. Hoãn sang SEC-01a: ARCH-05/06/08.
+
+## 7. Ghi chú triển khai SEC-01a (2026-11-18)
+- ARCH-05/06/08 đã cưỡng chế, mỗi rule có fixture vi phạm cố ý. ARCH-05 viết dạng **allowlist** (chặt hơn bảng §3): field egress chỉ được là String, boolean, enum/record trong package egress, List/Set/Optional của các kiểu đó, hoặc `int/Integer` có tên trong allowlist số; generic argument được kiểm tra đệ quy.
+- `@EgressClassified` và `DataClassification` nằm ở `platform` (không phải `policy`) để `tools.api.dto` dùng được mà không thêm phụ thuộc `tools → policy`. DESIGN PROPOSAL.
+- Named interface Modulith (review M2): `catalog :: spi`, `gateway :: api`. `erp` được phép `catalog :: spi`. Khi `agent` dùng `gateway.api` (EP-04) cần thêm `gateway :: api` vào allowlist của `agent`.
+- `gateway` phụ thuộc `audit` chỉ để publish `audit.EgressDecisionEvent` (event định nghĩa trong audit vì ARCH-10).
+- Sau review SEC-01a: `gateway` bỏ `identity` khỏi allowlist (không dùng); `erp` chỉ còn `catalog :: spi` (bỏ `catalog` thường). Các mục `quote`/`order`/`identity` của `erp` sẽ không phủ named interface `:: spi` tương lai, cần thêm khi tạo.
+- Rule bổ sung: ARCH-05b (kiểu egress chỉ là record, enum, sealed interface hoặc utility final chỉ-static; chặn kế thừa, interface mở, class thường), ARCH-05c (không annotation Jackson trừ `@JsonTypeInfo`/`@JsonSubTypes`), ARCH-06 khớp tên đầy đủ `platform.EgressClassified`, ARCH-08b dùng meta-annotation + regex rộng (header `X-Customer-Id`, `custId`, `customerCode`), ARCH-08c (type trong `..adapter.web..` không có field `AuthenticatedCustomerRef`/`customerId`). Allowlist số theo cặp `Type.field`: `TechnicalContext.requestedQuantity`, `QuoteRequestResult.lineCount` (bỏ `quantity` trần).
+- `EgressCaptureListener` là hook chỉ dành cho test; `ArchitectureRulesTest` cấm class production hiện thực nó.

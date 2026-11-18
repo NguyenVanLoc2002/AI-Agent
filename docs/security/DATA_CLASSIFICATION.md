@@ -55,5 +55,5 @@
 | API key giả có prefix nhận diện | secrets | DESIGN PROPOSAL |
 Biến thể bắt buộc phát hiện: xem `docs/contracts/AI_GATEWAY.md` §2.3.
 
-## 5. Inbound (khách tự gõ) — DESIGN PROPOSAL, OPEN A-10
+## 5. Inbound (khách tự gõ) — A-10 APPROVED 2026-11-18 (triển khai SEC-01a: `policy.InboundSanitizer`)
 Số tiền/SĐT/email trong tin khách → redact + gắn cờ; trùng honeytoken → chặn + handoff. Trường hợp khách nhắc lại giá đã báo (không phải sentinel) chỉ bị chặn nhờ pattern tiền tệ — có test riêng (T-SEC01-USERMONEY với giá không phải sentinel). Nhắc: regex masking không đảm bảo ẩn danh (SOURCE FACT BRD §08).
