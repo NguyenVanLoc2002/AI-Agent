@@ -1,7 +1,7 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC-01a egress guard (gateway level), 2026-11-18
-- Branch `feat/SEC-01a-egress-guard` from `origin/main` `a1fa8c2` (G0-2 merged as PR #5). Upstream unset on purpose. Committed locally with owner approval (one commit per slice + a style commit + review-2 fix commits); **nothing pushed**, no PR.
+## Current: SEC-01a egress guard (gateway level), 2026-11-18 — MERGED
+- Branch `feat/SEC-01a-egress-guard` from `origin/main` `a1fa8c2`; 16 commits (one per slice, a style commit, review-2 and review-3 fix commits). Owner pushed it and merged **PR #6** on 2026-11-18 (merge commit `3686ad7`).
 - Owner approvals given while planning this issue: ADR-005, ADR-012 → ACCEPTED; A-07, A-10, A-11, A-12 → APPROVED; WireMock allowed as a test-scoped dependency; all 5 slices in scope.
 - Implemented:
   - type gate: `gateway.api` records with `@EgressClassified` (in `platform`); ARCH-05/05b/05c/06/08a/b/c with violation fixtures; `identity.AuthenticatedCustomerRef` (not constructible outside identity, not JSON-deserializable)
@@ -19,7 +19,7 @@
 - Convention added by the owner: imports instead of inline fully qualified names (`.claude/rules/20-java-backend.md`); applied across `backend/src`.
 - Not done / residual: no cross-request sliding window (SEC-01b); kill switch, breaker, quotas (EP-09, EP-03); one-layer decoder gaps (spaced hex, split base64, homoglyphs), no generic secret pattern; flat property-name allowlist; 10-digit OE codes starting `09`/`03` are blocked as PHONE (A-24); lower-case split VINs and phones with >3 separators between digits are not detected; opaque-ref provenance (A-26); a fourth review on the review-3 fixes NOT RUN; no dependency/CVE scan (no scanner installed); no formatter/linter configured.
 - Rollback: discard the branch (nothing pushed). If it is merged later: revert the commits; V2 adds `egress_record`, V3 adds column `attempt` (forward-only; local: `docker compose down -v`).
-- Next 3 actions: (1) owner reviews the commits and decides on push + PR; (2) decide A-20, A-21 and A-26, then EP-03 tool registry; (3) SEC-01b (agent-level evidence, sliding window).
+- Next 3 actions: (1) decide A-20, A-21 and A-26 (EP-03 plan in progress); (2) EP-03 tool registry and per-call authorization on `feat/EP-03-tool-registry`; (3) SEC-01b (agent-level evidence, sliding window) once the agent loop exists.
 
 ## Previous: G0-2 partial approvals, 2026-11-18
 - PR #4 (A-16c) merged into `main` (`0af580e`). Branch `docs/G0-2-adr-approvals`.
