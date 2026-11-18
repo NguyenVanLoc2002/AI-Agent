@@ -96,6 +96,7 @@ Project Instructions · Project Charter · Decision Register · Roadmap · Curre
 
 ## 10. Risks and next actions
 1. **HIGH, owner action:** git history (4 commits) contains the customer and vendor names and the near-verbatim BRD summary. The GitHub `origin` repository is **already public**: on 2026-11-16 an unauthenticated GitHub API request returned 200, and `main` already contains those commits. This rebranding removes the names from the current documents only, not from the published history. The owner decides (A-16c): e.g. make the repository private, get legal advice, or publish a fresh history-free export instead. Rewriting history needs explicit approval, and it does not remove existing forks, clones or caches.
+   - **Update 2026-11-18 (A-16c decided):** the owner made the repository private (GitHub API 404 without authentication). The owner states that the sample data (customers, prices, phone numbers, emails, orders, VINs in prototypes, design-system bundle and fixtures) is fake/synthetic; this statement does **not** cover the reference company name, the ERP vendor name or the reference proposal content in git history. History is unchanged; a later return to public needs a history-free export or an approved history rewrite.
 2. NEEDS_REVIEW: usage rights to the reference BRD/UI/backlog content that the project docs derive from.
 3. Owner approves A-16 and the follow-up code issue (§7).
 4. Sync the ChatGPT Project documents (§8).

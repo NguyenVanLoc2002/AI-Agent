@@ -1,7 +1,13 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: Claude Design integration (docs only), 2026-11-17
-- Branch `docs/APAS-01-claude-design-integration` (from `docs/APAS-00-independent-demo-rebranding`). Not committed. The owner's earlier uncommitted deletions/modifications are still untouched.
+## Current: A-16c decision recorded (docs only), 2026-11-18
+- PR #3 (Claude Design integration) merged into `main` (`3e2a528`). This branch: `docs/APAS-02-a16-repo-private`.
+- A-16c decided: the owner made the GitHub repository private; verified 2026-11-18 (unauthenticated GitHub API → 404). The owner states that the sample data (customers, prices, phone numbers, emails, orders, VINs in prototypes, design-system bundle and fixtures) is fake/synthetic; this statement does **not** cover the reference company name, the ERP vendor name or the reference proposal content in git history. Recorded in `docs/DECISIONS_REQUIRED.md` A-16 and `docs/REBRANDING_REPORT.md` §10.
+- Still open: A-16 (a), (b), (d); git history not rewritten; G0-2 ADR approvals; UX-01..UX-18, A-17, A-18.
+- Next actions: owner approves the ADRs and approvals that block SEC-01a → `feat/SEC-01a-egress-guard`.
+
+## Previous: Claude Design integration (docs only), 2026-11-17
+- Branch `docs/APAS-01-claude-design-integration` (from `docs/APAS-00-independent-demo-rebranding`), merged as PR #3. The owner's earlier uncommitted deletions/modifications are still untouched.
 - The owner added `design-system/` and `docs/design/` (Claude Design export). Claude Design replaces the Stitch plan (A-18).
 - Done: vendor/customer/proposal identifiers neutralised in `docs/design/**` (.md, .dc.html, canvas.json; 411 replacements, 41 files); nested `docs/design/CLAUDE.md` replaced by `docs/design/DESIGN_GUIDE.md` (reference only, no precedence); root `CLAUDE.md`, rule 50, skill `ui-from-stitch` → `ui-from-claude-design`, TRACEABILITY, USE_CASES pointer updated; `DECISIONS_REQUIRED.md` gained A-17 (logo), A-18 (Claude Design export) and §UX (UX-01..UX-18 design-vs-ADR/contract/RBAC conflicts); screen→UC mapping in `docs/design/specs/90`; `design-system/` README export banner, EXPORT-NOTES caveats, OFL/ISC licenses; `_ds_bundle.js` and `archived/` removed from the export; root `.gitignore` excludes `docs/design/evidence/`.
 - Not changed: ADRs, contracts, RBAC_MATRIX, security rules, settings, code. Conflicts are recorded, not resolved.
