@@ -22,16 +22,16 @@ Engineering decisions awaiting the project owner. Details: `docs/architecture/ad
 | A-01 | Were `docs/01_BRD_SRS_Security.md`, `03_UI_UX_Stitch.md`, `04_Implementation_Backlog.md` deleted intentionally? They remain the cited source at commit `af2d09f`. Should the 15-page original proposal be added to the repo? | all docs |
 | A-02 | PoC/MVP scope and backlog order (`docs/backlog/IMPLEMENTATION_PLAN.md`) | ADR-001 |
 | A-03 | Canonical quote state names (proposed: rule 40 + ORDER_SUBMITTING/ORDER_OUTCOME_UNKNOWN/ORDER_FAILED) | ADR-007 |
-| A-04 | Build tool: POC-001 instruction chose **Maven** + Spring Boot 4.1.2 + Spring Modulith 2.1.2 + ArchUnit 1.5.1 (2026-11-13). Remaining: owner signs ADR-002 | ADR-002 |
-| A-05 | PoC uses only Fake/WireMock LLM provider until D-07 resolved | ADR-004 |
+| A-04 | Build tool: POC-001 instruction chose **Maven** + Spring Boot 4.1.2 + Spring Modulith 2.1.2 + ArchUnit 1.5.1 (2026-11-13). Remaining: owner signs ADR-002 **APPROVED 2026-11-18: owner signed ADR-002 (Maven).** | ADR-002 |
+| A-05 | PoC uses only Fake/WireMock LLM provider until D-07 resolved **APPROVED 2026-11-18 (ADR-004 ACCEPTED); D-07 still OPEN.** | ADR-004 |
 | A-06 | Demo auth: form login + session cookie + synthetic users | ADR-010 |
 | A-07 | Split ERP ports instead of single BRD `ErpConnector` | ADR-005 |
 | A-08 | Provisional limits: 20 lines/quote, quote TTL, tool quotas | D-04, D-10, ADR-006 |
-| A-09 | Allow branch creation, `backend/` + `frontend/` directories, local Docker/Testcontainers | ADR-002 |
+| A-09 | Allow branch creation, `backend/` + `frontend/` directories, local Docker/Testcontainers **APPROVED 2026-11-18.** | ADR-002 |
 | A-10 | Customer-typed money/phone: redact + flag; honeytoken → block + handoff | DATA_CLASSIFICATION §5 |
 | A-11 | Masked/WMI-only VIN and no images to provider in PoC | D-11 |
 | A-12 | Quantity-independent stock bucket design (`AvailabilityBucketPort`) | D-12, ADR-005 |
-| A-13 | Branch naming for first slice: `feat/SEC-01-egress-guard` (rule 70) vs issue-ID based | rule 70 |
+| A-13 | Branch naming for first slice: `feat/SEC-01-egress-guard` (rule 70) vs issue-ID based **APPROVED 2026-11-18: rule-70 style with slice suffix; first slice `feat/SEC-01a-egress-guard`.** | rule 70 |
 | A-14 | Bot never tells the customer *why* a quote was not issued (single `NOT_QUOTED` + staff handoff) — business acceptance of this UX consequence | ADR-006, BR-35 |
 | A-16 | Independent demo rebranding to AutoParts Agent Sandbox (APAS), 2026-11-16 (PROPOSED). Confirm: (a) project identity and disclaimer; (b) the reference BRD/proposal stay private and reference-only (NEEDS_REVIEW for usage rights); (c) git history still contains the reference customer/vendor names, and the GitHub repository is already public (checked 2026-11-16), so the owner must decide how to handle it, e.g. make it private or get legal review (history was **not** rewritten). **(c) DECIDED 2026-11-18:** the owner made the GitHub repository **private** (unauthenticated GitHub API returned 404 on 2026-11-18). The owner states that the sample data (customers, prices, phone numbers, emails, orders, VINs in prototypes, design-system bundle and fixtures) is fake/synthetic; this statement does **not** cover the reference company name, the ERP vendor name or the reference proposal content in git history. History is still not rewritten; copies cloned, forked or cached while it was public cannot be recalled. Before any return to public: decide between a history-free export and a history rewrite, and finish (d) first; (d) a separate code issue renames the remaining vendor names in code/config | `docs/REBRANDING_REPORT.md` |
 | A-17 | Proposed logo (`design-system/assets/logo/`, option A) vs design-system README "No logo exists". It also uses AI-violet, which the README reserves for AI provenance. Trademark search not done | `docs/design/specs/95-logo-phuong-an.md`, `96-logo-su-dung.md` |

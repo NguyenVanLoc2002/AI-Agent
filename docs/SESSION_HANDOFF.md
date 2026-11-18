@@ -1,6 +1,12 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: A-16c decision recorded (docs only), 2026-11-18
+## Current: G0-2 partial approvals, 2026-11-18
+- PR #4 (A-16c) merged into `main` (`0af580e`). Branch `docs/G0-2-adr-approvals`.
+- Owner approved the set blocking SEC-01a: ADR-001, ADR-002 (Maven, as amended by POC-001), ADR-003, ADR-004, ADR-016 → ACCEPTED; A-04, A-05, A-09, A-13 → APPROVED. Recorded in each ADR, `docs/architecture/adr/README.md`, `docs/DECISIONS_REQUIRED.md`, `docs/backlog/IMPLEMENTATION_PLAN.md`.
+- Still PROPOSED/OPEN: ADR-005..015, A-01..A-03, A-06..A-08, A-10..A-12, A-14..A-18, D-01..D-13, UX-01..UX-18.
+- Next: SEC-01a egress guard on `feat/SEC-01a-egress-guard` (plan first, owner approval, then code).
+
+## Previous: A-16c decision recorded (docs only), 2026-11-18
 - PR #3 (Claude Design integration) merged into `main` (`3e2a528`). This branch: `docs/APAS-02-a16-repo-private`.
 - A-16c decided: the owner made the GitHub repository private; verified 2026-11-18 (unauthenticated GitHub API → 404). The owner states that the sample data (customers, prices, phone numbers, emails, orders, VINs in prototypes, design-system bundle and fixtures) is fake/synthetic; this statement does **not** cover the reference company name, the ERP vendor name or the reference proposal content in git history. Recorded in `docs/DECISIONS_REQUIRED.md` A-16 and `docs/REBRANDING_REPORT.md` §10.
 - Still open: A-16 (a), (b), (d); git history not rewritten; G0-2 ADR approvals; UX-01..UX-18, A-17, A-18.

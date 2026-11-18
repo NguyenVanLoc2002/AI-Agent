@@ -9,7 +9,7 @@ G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 �
 | # | Issue | Epic gốc | Gate | Phụ thuộc | Đầu vào | Đầu ra | Test chính | DoD bổ sung |
 |---|---|---|---|---|---|---|---|---|
 | 1 | G0-1 Chuẩn hóa tài liệu kỹ thuật (issue này) | — | G0 | — | BRD@af2d09f, rules | docs + ADR PROPOSED | — | review architecture-reviewer + security-auditor (đã chạy 2026-11-13) |
-| 2 | G0-2 Phê duyệt ADR + A-01..A-15 | — | G0 | 1 | ADR PROPOSED | ADR ACCEPTED/REJECTED | — | owner ký trong ADR |
+| 2 | G0-2 Phê duyệt ADR + A-01..A-15 (**một phần 2026-11-18**: ADR-001/002/003/004/016, A-04/05/09/13 ACCEPTED/APPROVED) | — | G0 | 1 | ADR PROPOSED | ADR ACCEPTED/REJECTED | — | owner ký trong ADR |
 | 3 | EP-00 Bootstrap backend (= **POC-001**, đã triển khai 2026-11-13; ARCH-05/06/08 hoãn sang SEC-01a) | — | G1 | 2 | ADR-001/002 | build, skeleton, Flyway baseline, Testcontainers, Modulith + ARCH-01..13 | `ModuleStructureTest`, `ArchitectureRulesTest` (+ fixture vi phạm cố ý) | không entity nghiệp vụ, không secrets |
 | 4 | **SEC-01a** Egress guard — mức gateway | EP-01, EP-02 | G1 | 3 | AI_GATEWAY, DATA_CLASSIFICATION, ERP_CONNECTOR | identity tối thiểu; Mock ERP sentinel + fault injection; catalog spi + adapter mapping; policy; gateway + Fake/WireMock + proxy local; harness dựng `ModelRequest` trực tiếp | T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200; T-ERP-01..03 | ghi "gateway-level evidence", **chưa** đánh dấu SEC-01 VERIFIED |
 | 5 | EP-03 Tool registry & per-call authz | EP-03 | G1 | 4 | TOOL_CONTRACTS | ToolManager, schema strict, quota conversation + principal | T-TOOL-01..08, 11..13 | |
