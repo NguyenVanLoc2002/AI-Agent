@@ -1,7 +1,14 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: EP-05 catalog + server-side VIN + provenance, 2026-11-18
-- Branch `feat/EP-05-catalog-vin` from `origin/main` `f53060f` (EP-03 merged as PR #8). **Uncommitted; nothing committed or pushed.**
+## Current: G0-3 decisions for EP-04 and EP-06 (docs only), 2026-11-18
+- Branch `docs/G0-3-ep04-ep06-decisions` from `origin/main` `7fcd7bd` (EP-05 merged as PR #9).
+- Owner approved all five proposals: A-31 (VERIFIED = part identity; only exact OE search is VERIFIED, VIN and category + vehicle model are CATALOG_LOOKUP; quote does not claim fitment), A-19 (opaque link result wrapped by identity), A-21 (conversation sanitizes at intake), A-29 (conversation calls `VehicleContext.register` through `catalog :: intake`, no model call on Invalid/Multiple/Unavailable), ADR-010 → ACCEPTED with A-06 and the UX-12 session rules 30 min idle / 8 h max (lockout, warning, ending other sessions stay OPEN).
+- Changed: ADR-010, ADR README, DECISIONS_REQUIRED (A-06, A-19, A-21, A-29, A-31, UX-12), this file. No code. Tests NOT RUN (no executable change).
+- Pending code from A-31: category + vehicle-model results must become CATALOG_LOOKUP (catalog-side cap) before or in EP-06.
+- Next 3 actions: (1) owner reviews/merges this docs branch; (2) EP-04 chat API + agent loop + session (ADR-010) or EP-06 quote service (starting with the A-31 cap); (3) second review round on EP-05 fixes (NOT RUN).
+
+## Previous: EP-05 catalog + server-side VIN + provenance, 2026-11-18 — MERGED (PR #9, `7fcd7bd`)
+- Branch `feat/EP-05-catalog-vin` from `origin/main` `f53060f` (EP-03 merged as PR #8). Committed as `3802e2f` (code) and `3854b72` (docs), pushed by the owner, merged as PR #9.
 - Owner decisions for this issue: A-27 (VIN check digit required only when the first character is 1–5), A-26 vinRef part (no token, constant `"current"`), A-28 (`conversation_vin`, 2 h TTL), A-30 (no VIN → `TOOL_UNAVAILABLE`, no new code); A-25 out of scope.
 - Implemented: `catalog.spi.Vin`, `ExactProductQuery.ByVin`, `catalog.VehicleContext`/`VinIntake`, `CatalogSearch.searchByConversationVin` (VIN results capped at CATALOG_LOOKUP, `search(ByVin)` refused), `catalog.internal` extractor/store/properties, Flyway `V5__conversation_vin.sql` (additive), Mock ERP VIN fitment (synthetic WMI `5ZZ`/`RLZ`), vinRef executor in `DefaultToolManager`. Details: `docs/contracts/TOOL_CONTRACTS.md` §7.
 - Tests (VERIFIED 2026-11-18, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B clean verify` → exit 0; surefire 736, failsafe 47, 0 failures, 0 skipped (before EP-05: 662 + 24); GW200 unchanged (125 passed, 75 blocked, 150 = 150). Synthetic VINs: 0 hits in the build log and surefire/failsafe reports. Mutation checks (sources restored byte-identical): check digit off → `VinTest` exit 1; catalog provenance cap off → `DefaultCatalogSearchTest` exit 1; grouped-VIN detection off → `VinExtractorTest` exit 1. `ApplicationBootstrapIT` table/version allowlist extended for V5 (same pattern as V4).
