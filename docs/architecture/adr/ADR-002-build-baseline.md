@@ -1,5 +1,5 @@
 # ADR-002 Build tool & baseline
-- **Status:** PROPOSED · **Open:** A-04
+- **Status:** ACCEPTED (2026-11-18, project owner) **theo bản cập nhật POC-001**: Maven Wrapper 3.9.11, Spring Boot 4.1.2, Spring Modulith 2.1.2, ArchUnit 1.5.1. Phần "Decision (đề xuất)" Gradle/Boot 3.x bên dưới là SUPERSEDED. A-04, A-09 APPROVED
 - **Context:** SOURCE FACT (CLAUDE.md): Java 21, Spring Boot, Postgres/Flyway, JUnit 5, Testcontainers là preferred; "detect actual build before changing" — repo chưa có build.
 - **Decision (đề xuất):** Gradle Kotlin DSL, một project `backend/` (module nghiệp vụ là package để Modulith kiểm); Spring Boot 3.x bản GA ổn định tại thời điểm EP-00 (pin phiên bản chính xác); task `integrationTest` tách cho Testcontainers; `frontend/` sau (EP-10).
 - **Alternatives:** Maven (tương đương chức năng) — chờ chọn.
