@@ -1,7 +1,7 @@
 # Use cases — AutoParts Agent Sandbox (APAS) (PoC → MVP)
 
 > Trạng thái: DRAFT, chưa được stakeholder phê duyệt. Ngày: 2026-11-13.
-> Nguồn: `BRD` = `docs/01_BRD_SRS_Security.md` tại commit `af2d09f` (file đang bị xóa trong working tree — xem OPEN A-01; đọc bằng `git show af2d09f:docs/01_BRD_SRS_Security.md`). `UI` = `docs/03_UI_UX_Stitch.md@af2d09f`. Tài liệu đề xuất tham chiếu gốc (private, NEEDS_REVIEW về quyền sử dụng) **không có trong repo**. BRD là bản tóm tắt của tài liệu đó. Không có khách hàng hay ERP vendor nào đặt hàng hoặc phê duyệt dự án này.
+> Nguồn: `BRD` = `docs/01_BRD_SRS_Security.md` tại commit `af2d09f` (file đang bị xóa trong working tree — xem OPEN A-01; đọc bằng `git show af2d09f:docs/01_BRD_SRS_Security.md`). `UI` = `docs/03_UI_UX_Stitch.md@af2d09f` (kế hoạch Stitch cũ; thiết kế hiện hành làm bằng Claude Design: `docs/design/DESIGN_GUIDE.md`, DESIGN PROPOSAL, ánh xạ màn hình → UC ở `docs/design/specs/90-danh-muc-man-hinh.md`). Tài liệu đề xuất tham chiếu gốc (private, NEEDS_REVIEW về quyền sử dụng) **không có trong repo**. BRD là bản tóm tắt của tài liệu đó. Không có khách hàng hay ERP vendor nào đặt hàng hoặc phê duyệt dự án này.
 
 ## Nhãn bằng chứng
 - **SOURCE FACT** — có trong BRD/UI@af2d09f hoặc tài liệu gốc; không đảm bảo hành vi của ERP/provider.

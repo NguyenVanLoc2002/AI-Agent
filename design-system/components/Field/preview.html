@@ -1,0 +1,52 @@
+<!-- @dsCard group="Forms" height=126 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Field — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Field
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      maxWidth: 320
+    }
+  }, React.createElement(Field, {
+    label: "Kh\xE1ch h\xE0ng",
+    required: true,
+    error: "Vui l\xF2ng ch\u1ECDn kh\xE1ch h\xE0ng"
+  }, React.createElement("div", {
+    style: {
+      height: 36,
+      border: '1px solid var(--status-error)',
+      borderRadius: 8,
+      padding: '0 12px',
+      display: 'flex',
+      alignItems: 'center',
+      color: 'var(--text-secondary)',
+      font: 'var(--type-body)'
+    }
+  }, "Ch\u1ECDn kh\xE1ch h\xE0ng")));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!-- @dsCard group="Feedback" height=205 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Toast — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Toast
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      maxWidth: 360
+    }
+  }, React.createElement(Toast, {
+    tone: "success",
+    title: "\u0110\xE3 l\u01B0u b\xE1o gi\xE1",
+    description: "BG-2026-0412 \xB7 phi\xEAn b\u1EA3n 3",
+    onClose: () => {},
+    style: {
+      width: '100%'
+    }
+  }), React.createElement(Toast, {
+    tone: "error",
+    title: "G\u1EEDi duy\u1EC7t th\u1EA5t b\u1EA1i",
+    description: "Y\xEAu c\u1EA7u qu\xE1 th\u1EDDi gian. Ch\u01B0a c\xF3 thay \u0111\u1ED5i n\xE0o \u0111\u01B0\u1EE3c ghi.",
+    style: {
+      width: '100%'
+    }
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

@@ -44,6 +44,7 @@
 
 ## Where to read next
 - `docs/TRACEABILITY.md` maps business proposal → controls → test evidence.
-- `docs/DECISIONS_REQUIRED.md` identifies externally unverified dependencies.
+- `docs/DECISIONS_REQUIRED.md` identifies externally unverified dependencies; §UX lists where the Claude Design output conflicts with ADRs/contracts/RBAC.
+- UI design is produced in **Claude Design** (replaces the earlier Stitch plan). `design-system/` holds the exported design system (tokens, components, fonts, icons; read `design-system/EXPORT-NOTES.md` for what the export lacks). `docs/design/DESIGN_GUIDE.md` is the entry point to screen specs, design decisions and prototypes. Both are DESIGN PROPOSAL: they never override ADRs, `docs/contracts/` or `docs/security/RBAC_MATRIX.md`.
 - `.claude/rules/` applies focused engineering requirements; `.claude/skills/` contains operator workflows; `.claude/agents/` contains reviewers.
 - `.claude/settings.json` sets conservative tool permission hints. It is defense in depth; enforce enterprise policies outside the repository.

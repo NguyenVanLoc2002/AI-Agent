@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Khung ứng dụng — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="height: 100vh; min-height: 560px; display: flex; overflow: hidden; font-family: var(--font-sans); color: var(--text-body); background: var(--bg-app); position: relative;">
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sections}}" active-key="lookup" collapsed="{{collapsed}}" on-toggle-collapsed="{{toggleSidebar}}" on-select="{{selectNav}}" footer="{{sidebarFooter}}"></x-import>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" on-search="{{noop}}" search-placeholder="Tìm SKU, mã OE hoặc số VIN" actions="{{headerActions}}" user="{{user}}"></x-import>
+    <div style="flex: 1 1 0; min-height: 0; display: flex;">
+      <main style="flex: 1 1 0; min-width: 0; overflow-y: auto; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 16px;">
+        <sc-if value="{{erpBanner}}" hint-placeholder-val="{{ false }}">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="warning" icon="server-off" title="Không kết nối được ERP" action="{{retryButton}}">Giá bán, tồn kho và các thao tác ghi vào ERP tạm khóa trên mọi màn hình. Bạn vẫn tra cứu được danh mục. Dữ liệu có thể chưa cập nhật.</x-import>
+        </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Vùng làm việc</h1>
+          <p style="margin: 0; font: var(--type-helper); color: var(--text-secondary);">Mỗi luồng (A–E) đặt nội dung của mình vào đây: tiêu đề trang, thao tác chính, rồi nội dung. Drawer 480 px mở đè lên vùng này; Trợ lý AI luôn đẩy nội dung sang trái.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+          <div style="border: 1px dashed var(--border-strong); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface);">
+            <span style="font: var(--type-card-title); color: var(--text-primary);">Header trang</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">PageHeader: tiêu đề 26/700, mô tả, nhãn trạng thái, tối đa một thao tác chính.</span>
+          </div>
+          <div style="border: 1px dashed var(--border-strong); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface);">
+            <span style="font: var(--type-card-title); color: var(--text-primary);">Thông báo trang</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Alert cho trạng thái hệ thống (ERP chậm, gián đoạn, không có quyền) ngay dưới header trang.</span>
+          </div>
+          <div style="border: 1px dashed var(--border-strong); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface);">
+            <span style="font: var(--type-card-title); color: var(--text-primary);">Nội dung</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Card, DataTable, form. Khoảng cách 16 giữa các thẻ, 24 giữa các vùng.</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" size="sm" icon-left="circle-check" on-click="{{showSuccess}}">Xem toast thành công</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" size="sm" icon-left="circle-x" on-click="{{showError}}">Xem toast lỗi</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="ghost" size="sm" icon-left="server-off" on-click="{{toggleErp}}">Bật / tắt băng ERP gián đoạn</x-import>
+        </div>
+      </main>
+      <sc-if value="{{aiOpen}}" hint-placeholder-val="{{ true }}">
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIPanel" context="Tra cứu phụ tùng" status="{{aiStatus}}" on-close="{{closeAi}}" composer="{{composer}}">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Phiên làm việc · 16/11/2026</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" time="09:40">Tôi thấy những gì đang mở trên màn hình của bạn và chỉ dùng các quyền của tài khoản bạn. Tôi không thay đổi giá, tồn kho hay gửi giao dịch thay bạn.</x-import>
+        </x-import>
+      </sc-if>
+    </div>
+  </div>
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToastViewport">
+    <sc-if value="{{toastSuccess}}" hint-placeholder-val="{{ false }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="success" title="Đã lưu báo giá BG-2026-0412" description="Phiên bản 3 · 09:46" on-close="{{closeToast}}"></x-import>
+    </sc-if>
+    <sc-if value="{{toastError}}" hint-placeholder-val="{{ false }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="error" title="Yêu cầu quá thời gian" description="Chưa có thay đổi nào được ghi. Mã tham chiếu: REQ-7F2A" on-close="{{closeToast}}"></x-import>
+    </sc-if>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"aiOpen":{"editor":"boolean","default":true},"collapsed":{"editor":"boolean","default":false},"erpBanner":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { ai: null, col: null, erp: null, toast: null };
+  }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const pick = (s, p, d) => (s !== null && s !== undefined ? s : (p !== undefined ? p : d));
+    const aiOpen = pick(this.state.ai, this.props.aiOpen, true);
+    const collapsed = pick(this.state.col, this.props.collapsed, false);
+    const erpBanner = pick(this.state.erp, this.props.erpBanner, false);
+    const sections = [{ items: [
+      { key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' },
+      { key: 'lookup', label: 'Tra cứu phụ tùng', icon: 'search' },
+      { key: 'quote', label: 'Báo giá', icon: 'file-text' },
+      { key: 'orders', label: 'Đơn hàng nháp', icon: 'package' },
+      { key: 'audit', label: 'Hoạt động', icon: 'history' },
+    ] }];
+    const dot = erpBanner ? ['var(--status-warning)', 'ERP gián đoạn'] : ['var(--status-success)', 'ERP đã kết nối · 09:42'];
+    const sidebarFooter = collapsed ? null : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--text-secondary)' } },
+      h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: dot[0] } }), dot[1]);
+    const headerActions = NS.IconButton ? h(React.Fragment, null,
+      h(NS.IconButton, { icon: 'bell', label: 'Thông báo' }),
+      h(NS.IconButton, { icon: 'circle-help', label: 'Trợ giúp' }),
+      h(NS.IconButton, { icon: 'sparkles', label: aiOpen ? 'Đóng Trợ lý AI' : 'Mở Trợ lý AI', active: aiOpen, onClick: () => this.setState({ ai: !aiOpen }) })) : null;
+    const composer = NS.AIComposer ? h(NS.AIComposer, { busy: erpBanner && false, suggestions: ['Tìm mã thay thế', 'Kiểm tra tồn kho'] }) : null;
+    const retryButton = NS.Button ? h(NS.Button, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw' }, 'Thử lại') : null;
+    return {
+      sections, collapsed, sidebarFooter, headerActions, composer, retryButton, aiOpen, erpBanner,
+      aiStatus: erpBanner ? 'degraded' : 'online',
+      crumbs: [{ label: 'Tra cứu phụ tùng' }],
+      user: { name: 'Nguyễn Minh Anh', role: 'Vai trò: chưa xác định · Long Biên', initials: 'MA' },
+      toastSuccess: this.state.toast === 'success',
+      toastError: this.state.toast === 'error',
+      noop: () => {},
+      toggleSidebar: () => this.setState({ col: !collapsed }),
+      selectNav: () => {},
+      closeAi: () => this.setState({ ai: false }),
+      toggleErp: () => this.setState({ erp: !erpBanner }),
+      showSuccess: () => this.setState({ toast: 'success' }),
+      showError: () => this.setState({ toast: 'error' }),
+      closeToast: () => this.setState({ toast: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@
 - Fail closed on unknown fields/model output, catalog claims, missing source, stale quote, changed pricing/stock, debt status or outage. Human fallback, with reason code.
 - No raw document uploads for vehicle registration; local OCR, structured safe extraction, metadata stripping for allowed part images, retention review.
 - Logs, tracing, APM, exception stack dumps and test snapshots may contain data: record event ID, pseudonymous trace, policy code, field names only. Never raw message bodies, quote prices, debt, secrets.
+- Do not rely on prompts, regex-only sanitization, frontend role checks or UI-only disabling as security boundaries.
+- All write operations require authorization, version checks, idempotency and audit.
 - No guarantees of zero leakage from prompts alone. Validate gateway egress, network routing and provider retention settings separately.
 ## Security acceptance
 - Include SEC-01 (200 chats/honeytokens), SEC-02 (20 cross-customer attempts), SEC-03 (50 adversarial prompts), SEC-04 (10 concurrent confirmations + unknown ERP outcome), SEC-05 (7 days logs), SEC-06 (kill switch <=1 minute), SEC-07 (key revocation and safe fallback).

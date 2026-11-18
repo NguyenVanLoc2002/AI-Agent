@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chi tiết phụ tùng — nội dung</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; width: 100%; display: grid; grid-template-columns: {{cols}}; gap: {{gap}}; align-items: start; font-family: var(--font-sans); color: var(--text-body);">
+  <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+    <sc-if value="{{showRestricted}}" hint-placeholder-val="{{ false }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ERPResult" source="ERP mô phỏng" state="restricted" title="Giá bán &amp; tồn kho">
+        <div style="font: var(--type-helper); color: var(--text-secondary);">{{restrictedText}}</div>
+      </x-import>
+    </sc-if>
+    <sc-if value="{{showLoading}}" hint-placeholder-val="{{ false }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ERPResult" source="ERP mô phỏng" state="loading" title="Giá bán &amp; tồn kho">
+        <div style="font: var(--type-helper); color: var(--text-secondary);">Đang kiểm tra lại với ERP…</div>
+      </x-import>
+    </sc-if>
+    <sc-if value="{{showBlocked}}" hint-placeholder-val="{{ false }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ERPResult" source="ERP mô phỏng" state="error" title="Giá bán &amp; tồn kho" footer="{{retryButton}}">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font: 600 13px/1.4 var(--font-sans); color: var(--text-primary);">{{blockedTitle}}</span>
+          <span style="font: var(--type-helper); color: var(--text-secondary);">{{blockedText}} Mã tham chiếu: REQ-7F2A</span>
+        </div>
+      </x-import>
+    </sc-if>
+    <sc-if value="{{showValues}}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ERPResult" source="ERP mô phỏng" state="{{erpState}}" title="Giá bán &amp; tồn kho" synced-at="{{syncLabel}}" footer="{{valuesFooter}}">
+        <sc-if value="{{isCached}}" hint-placeholder-val="{{ false }}">
+          <div style="font: var(--type-caption); color: var(--status-warning-fg); margin-bottom: 6px;">Bản lưu đồng bộ lúc 08:15, chưa được ERP xác nhận lại. Chỉ để tham khảo — không dùng để chọn hoặc báo giá.</div>
+        </sc-if>
+        <sc-if value="{{canPrice}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+            <span style="font: var(--type-metric); font-variant-numeric: tabular-nums; color: {{priceColor}};">{{p.priceText}}</span>
+            <span style="font: var(--type-helper); color: var(--text-secondary);">/ {{p.unitLower}} · VAT: chưa xác định</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{priceLocked}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 6px; font: var(--type-helper); color: var(--status-restricted-fg);">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Icon" name="lock" size="{{ 14 }}"></x-import>Giá bán: {{priceLockText}}
+          </div>
+        </sc-if>
+        <sc-if value="{{showStockTable}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="font: var(--type-overline); letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); flex: 1 1 0;">Tồn kho trong phạm vi được cấp</span>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" shape="pill" size="sm" tone="{{p.tone}}">{{p.stockLabel}} · Long Biên</x-import>
+            </div>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DataTable" density="compact" columns="{{branchCols}}" rows="{{branches}}" row-key="id" caption="Tồn kho theo chi nhánh trong phạm vi được cấp" sticky-header="{{ false }}" style="border: 0; border-radius: 0;"></x-import>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Chỉ hiển thị chi nhánh trong phạm vi mô phỏng của tài khoản. Chi nhánh khác không được tải về giao diện.</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{stockLocked}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 6px; font: var(--type-helper); color: var(--status-restricted-fg); margin-top: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Icon" name="lock" size="{{ 14 }}"></x-import>Tồn kho: {{stockLockText}}
+          </div>
+        </sc-if>
+      </x-import>
+    </sc-if>
+
+    <sc-if value="{{hasAlts}}" hint-placeholder-val="{{ true }}">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Card" variant="nested" padding="{{ 14 }}">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="font: 600 13px/1.4 var(--font-sans); color: var(--text-primary); flex: 1 1 0;">Mã tương đương</span>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SourceTag" source="ai" label="AI nhận diện"></x-import>
+        </div>
+        <div style="font: var(--type-caption); color: var(--text-secondary); margin-bottom: 6px;">Trợ lý AI đề xuất dựa trên thông số danh mục. Không phải dữ liệu ERP; cần kiểm tra trên ERP trước khi dùng.</div>
+        <sc-for list="{{alts}}" as="a" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-default); flex-wrap: wrap;">
+            <div style="flex: 1 1 160px; line-height: 1.35;">
+              <div style="font: 500 13px/1.4 var(--font-sans); color: var(--text-primary);">{{a.label}} <span class="ap-code" style="font-weight: 400; color: var(--text-secondary); font-size: 12px;">{{a.sku}}</span></div>
+              <div style="font: var(--type-caption); color: var(--text-secondary);">{{a.note}}</div>
+            </div>
+            <sc-if value="{{a.done}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="text-align: right; line-height: 1.35;">
+                  <span style="display: block; font: 500 13px/1.4 var(--font-sans); font-variant-numeric: tabular-nums; color: var(--text-primary);">{{a.priceText}}</span>
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SourceTag" variant="inline" source="lookup" label="Dữ liệu tra cứu" time="09:46"></x-import>
+                </span>
+                <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" shape="pill" size="sm" tone="{{a.tone}}">{{a.stockLabel}}</x-import>
+              </div>
+            </sc-if>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" size="sm" variant="{{a.btnVariant}}" icon-left="{{a.btnIcon}}" icon-right="{{a.btnIconRight}}" disabled="{{a.btnDisabled}}" restricted="{{a.btnRestricted}}" restricted-reason="{{a.reason}}" loading="{{a.checking}}" on-click="{{a.act}}">{{a.btnLabel}}</x-import>
+          </div>
+        </sc-for>
+      </x-import>
+    </sc-if>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0; background: {{rightBg}}; border: {{rightBorder}}; border-radius: 10px; padding: {{rightPad}};">
+    <div>
+      <h3 style="font: var(--type-overline); letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 10px;">Thông số kỹ thuật</h3>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DescriptionList" columns="{{ 2 }}" items="{{specs}}"></x-import>
+    </div>
+    <div>
+      <h3 style="font: var(--type-overline); letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 10px;">Xe tương thích</h3>
+      <sc-for list="{{fitment}}" as="f" hint-placeholder-count="3">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font: var(--type-table);">
+          <span style="display: inline-flex; gap: 6px; align-items: center;">{{f.model}}<sc-if value="{{f.current}}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" size="sm" tone="info" icon="car">Xe đang tra</x-import></sc-if></span>
+          <span style="color: var(--text-secondary);">{{f.years}}</span>
+          <span class="ap-code" style="font-weight: 400;">{{f.engine}}</span>
+        </div>
+      </sc-for>
+      <div style="font: var(--type-helper); color: var(--text-secondary); margin-top: 8px;">Mã OE tham chiếu: <span class="ap-code" style="color: var(--text-primary);">04465-0D130, 04465-0D131, 04465-52260</span></div>
+      <div style="font: var(--type-caption); color: var(--text-secondary); margin-top: 4px;">Xe tương thích lấy từ danh mục mẫu, không do AI suy luận.</div>
+    </div>
+    <div>
+      <h3 style="font: var(--type-overline); letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 10px;">Nguồn dữ liệu</h3>
+      <sc-for list="{{provenance}}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font: var(--type-table);">
+          <span>{{r.k}}</span>
+          <span style="display: inline-flex; gap: 4px; align-items: center; font: var(--type-caption); color: {{r.color}}; text-align: right;">{{r.text}}</span>
+        </div>
+      </sc-for>
+      <div style="font: var(--type-caption); color: var(--text-secondary); margin-top: 8px;">Toàn bộ dữ liệu trong bản mẫu là dữ liệu mô phỏng, không lấy từ ERP thật.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"sku":{"editor":"enum","options":["BP-1042","BP-1043","BP-2210A","BD-0771","BP-3318T","BS-0402","BF-0118","BC-2050"],"default":"BP-1042"},"erp":{"editor":"enum","options":["fresh","cached","stale","unverified","timeout","down"],"default":"fresh"},"capPrice":{"editor":"enum","options":["granted","denied","unknown"],"default":"granted"},"capStock":{"editor":"enum","options":["granted","denied","unknown"],"default":"granted"},"branchScope":{"editor":"enum","options":["own","own-plus","unknown"],"default":"own"},"layout":{"editor":"enum","options":["drawer","page"],"default":"drawer"},"retrying":{"editor":"boolean","default":false},"confirmedAt":{"editor":null},"onRetry":{"editor":null},"onOpenSku":{"editor":null},"$preview":{"width":480,"height":1500}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { alt: {} }; }
+  componentDidUpdate(prev) { if (prev.sku !== this.props.sku && Object.keys(this.state.alt).length) this.setState({ alt: {} }); }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const P = [
+      { sku: 'BP-1042', price: 1250000, stock: 24, reserved: 4, unit: 'Bộ', status: 'ok', alts: ['BP-2210A', 'BP-3318T'] },
+      { sku: 'BP-1043', price: 1390000, stock: 6, reserved: 2, unit: 'Bộ', status: 'low', alts: ['BP-2210A'] },
+      { sku: 'BP-2210A', price: 890000, stock: 41, reserved: 0, unit: 'Bộ', status: 'ok', alts: ['BP-1042'] },
+      { sku: 'BD-0771', price: 1720000, stock: 0, reserved: 0, unit: 'Cái', status: 'out', alts: ['BD-0771B'] },
+      { sku: 'BP-3318T', price: 760000, stock: 18, reserved: 1, unit: 'Bộ', status: 'ok', alts: ['BP-1042'] },
+      { sku: 'BS-0402', price: 215000, stock: 3, reserved: 0, unit: 'Bộ', status: 'low', alts: [] },
+      { sku: 'BF-0118', price: 185000, stock: 62, reserved: 6, unit: 'Chai', status: 'ok', alts: [] },
+      { sku: 'BC-2050', price: 3480000, stock: 2, reserved: 1, unit: 'Cái', status: 'low', alts: [] },
+    ];
+    const ALT = {
+      'BP-2210A': { label: 'Akebono AN-2210', note: 'Cùng kích thước, vật liệu ceramic' },
+      'BP-3318T': { label: 'TRW TR-3318', note: 'Chỉ khớp đời 2014–2018' },
+      'BP-1042': { label: 'Toyota 04465-0D130', note: 'Hàng chính hãng cùng vị trí lắp' },
+      'BD-0771B': { label: 'Brembo 09.C771.11', note: 'Cùng đường kính 255 mm' },
+    };
+    const SM = { ok: ['success', 'Còn hàng'], low: ['warning', 'Sắp hết'], out: ['error', 'Hết hàng'] };
+    const vnd = (n) => n.toLocaleString('vi-VN') + ' ₫';
+    const find = (s) => P.find((x) => x.sku === s);
+    const raw = find(this.props.sku || 'BP-1042') || P[0];
+    const erp = this.props.erp || 'fresh';
+    const capPrice = this.props.capPrice || 'granted', capStock = this.props.capStock || 'granted', scope = this.props.branchScope || 'own';
+    const retrying = !!this.props.retrying;
+    const conf = this.props.confirmedAt || '09:42';
+    const page = (this.props.layout || 'drawer') === 'page';
+    const canPrice = capPrice === 'granted', canStock = capStock === 'granted';
+    const lockText = (c) => c === 'unknown' ? 'chưa xác định quyền' : 'bạn không có quyền xem';
+    const valuesErp = erp === 'fresh' || erp === 'cached';
+    const p = { ...raw, priceText: vnd(raw.price), unitLower: raw.unit.toLowerCase(), tone: SM[raw.status][0], stockLabel: SM[raw.status][1] };
+    const allBranches = [
+      { id: 'HN-LB', bname: 'Hà Nội — Long Biên', stock: raw.stock, reserved: raw.reserved, incoming: raw.status === 'out' ? '—' : '40 · 20/11' },
+      { id: 'HN-CG', bname: 'Hà Nội — Cầu Giấy', stock: Math.max(0, Math.round(raw.stock / 3)), reserved: 0, incoming: '—' },
+    ];
+    const branches = scope === 'own-plus' ? allBranches : allBranches.slice(0, 1);
+    const branchCols = [
+      { key: 'bname', header: 'Chi nhánh' },
+      { key: 'stock', header: 'Khả dụng', align: 'right', render: (b) => h('b', { style: { fontWeight: 500 } }, b.stock) },
+      { key: 'reserved', header: 'Đã giữ', align: 'right' },
+      { key: 'incoming', header: 'Đang về', align: 'right' },
+    ];
+    const blockedMap = {
+      stale: ['Dữ liệu đã cũ — đã ẩn', 'Bản lưu gần nhất đồng bộ lúc 17:30 ngày 15/11, quá ngưỡng hiệu lực (ngưỡng chưa được xác nhận). Giá và tồn kho bị ẩn để tránh dùng số liệu cũ.'],
+      unverified: ['Chưa được xác nhận', 'ERP chưa xác nhận giá và tồn kho cho sản phẩm này. Không hiển thị số liệu chưa được xác nhận.'],
+      timeout: ['Yêu cầu quá thời gian', 'ERP chưa phản hồi. Giá và tồn kho bị ẩn. Chưa có thay đổi nào được ghi.'],
+      down: ['ERP không khả dụng', 'Không kết nối được ERP. Giá và tồn kho bị ẩn để tránh hiển thị số liệu chưa được xác nhận.'],
+    };
+    const neither = !canPrice && !canStock;
+    const showBlocked = !neither && !retrying && !valuesErp;
+    const canCheck = erp === 'fresh' && !retrying && canPrice;
+    const alts = raw.alts.map((s) => {
+      const st = this.state.alt[s] || 'idle'; const hit = find(s);
+      const done = st === 'done' && !!hit;
+      const base = { sku: s, label: ALT[s].label, note: ALT[s].note, done, checking: st === 'checking',
+        priceText: hit ? vnd(hit.price) : '', tone: hit ? SM[hit.status][0] : 'neutral', stockLabel: hit ? SM[hit.status][1] : '',
+        btnRestricted: false, btnDisabled: false, btnVariant: 'secondary', btnIcon: 'database', btnIconRight: undefined, reason: '' };
+      if (done) return { ...base, btnLabel: 'Xem', btnVariant: 'ghost', btnIcon: undefined, btnIconRight: 'chevron-right', act: () => this.props.onOpenSku && this.props.onOpenSku(s) };
+      if (st === 'done') return { ...base, btnLabel: 'Không có trong danh mục ERP mẫu', btnVariant: 'ghost', btnIcon: 'circle-alert', btnDisabled: true, act: () => {} };
+      if (st === 'checking') return { ...base, btnLabel: 'Đang kiểm tra…', act: () => {} };
+      if (!canPrice) return { ...base, btnLabel: 'Kiểm tra ERP', btnIcon: undefined, btnRestricted: true, reason: capPrice === 'unknown' ? 'Chưa xác định quyền xem giá bán' : 'Cần quyền xem giá bán', act: () => {} };
+      return { ...base, btnLabel: 'Kiểm tra ERP', btnDisabled: !canCheck, act: () => {
+        this.setState({ alt: { ...this.state.alt, [s]: 'checking' } });
+        setTimeout(() => this.setState({ alt: { ...this.state.alt, [s]: 'done' } }), 1100);
+      } };
+    });
+    const erpRow = (can, c) => {
+      if (!can) return { text: c === 'unknown' ? 'Chưa xác định quyền' : 'Hạn chế', color: 'var(--status-restricted-fg)' };
+      if (retrying) return { text: 'Đang kiểm tra lại…', color: 'var(--text-secondary)' };
+      return {
+        fresh: { text: 'ERP mô phỏng · đã xác nhận ' + conf, color: 'var(--source-erp-fg)' },
+        cached: { text: 'Bản lưu · đồng bộ 08:15 · chưa xác nhận lại', color: 'var(--status-warning-fg)' },
+        stale: { text: 'Dữ liệu cũ · đã ẩn', color: 'var(--status-warning-fg)' },
+        unverified: { text: 'Chưa được xác nhận', color: 'var(--status-warning-fg)' },
+        timeout: { text: 'ERP quá thời gian', color: 'var(--status-warning-fg)' },
+        down: { text: 'ERP không khả dụng', color: 'var(--status-warning-fg)' },
+      }[erp];
+    };
+    const cat = { text: 'Danh mục mẫu · 12/11/2026', color: 'var(--status-neutral-fg)' };
+    const scopeKnown = scope !== 'unknown';
+    const provenance = [
+      { k: 'Thông số kỹ thuật', ...cat }, { k: 'Xe tương thích', ...cat }, { k: 'Mã OE tham chiếu', ...cat },
+      { k: 'Giá bán', ...erpRow(canPrice, capPrice) },
+      { k: 'Tồn kho', ...(canStock && !scopeKnown ? { text: 'Chưa xác định phạm vi chi nhánh', color: 'var(--status-restricted-fg)' } : erpRow(canStock, capStock)) },
+      { k: 'Mã tương đương', text: 'AI nhận diện · cần kiểm tra', color: 'var(--source-ai-fg)' },
+    ];
+    const retryButton = NS.Button ? h(NS.Button, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.props.onRetry && this.props.onRetry() }, 'Thử lại') : null;
+    const restrictedText = capPrice === 'unknown' || capStock === 'unknown'
+      ? 'Quyền xem giá bán và tồn kho của tài khoản chưa được xác định. Giá và tồn kho không được tải về giao diện.'
+      : 'Bạn không có quyền xem giá bán và tồn kho. Liên hệ quản trị viên để được cấp quyền.';
+    return {
+      p, branches, branchCols, alts, provenance, retryButton, restrictedText,
+      hasAlts: raw.alts.length > 0,
+      showRestricted: neither,
+      showLoading: !neither && retrying,
+      showBlocked,
+      blockedTitle: showBlocked ? blockedMap[erp][0] : '',
+      blockedText: showBlocked ? blockedMap[erp][1] : '',
+      showValues: !neither && !retrying && valuesErp,
+      isCached: erp === 'cached',
+      erpState: erp === 'cached' ? 'stale' : 'lookup',
+      syncLabel: erp === 'cached' ? 'Bản lưu · 08:15' : 'Tra cứu lúc ' + conf + ' (hệ thống ghi)',
+      valuesFooter: erp === 'cached' ? retryButton : null,
+      priceColor: erp === 'cached' ? 'var(--text-secondary)' : 'var(--text-primary)',
+      canPrice, priceLocked: !canPrice, priceLockText: lockText(capPrice),
+      showStockTable: canStock && scopeKnown,
+      stockLocked: !canStock || !scopeKnown,
+      stockLockText: !canStock ? lockText(capStock) : 'chưa xác định phạm vi chi nhánh được xem',
+      specs: [
+        { label: 'Vị trí lắp', value: 'Trục trước' }, { label: 'Vật liệu', value: 'Bán kim loại' },
+        { label: 'Kích thước', value: '131,2 × 52,6 × 17,0 mm' }, { label: 'Cảm biến mòn', value: 'Có' },
+        { label: 'Quy cách', value: '1 bộ / 4 má' }, { label: 'Khối lượng', value: '1,4 kg' },
+      ],
+      fitment: [
+        { model: 'Toyota Vios 1.5E', years: '2014–2022', engine: '2NR-FE', current: false },
+        { model: 'Toyota Vios 1.5G', years: '2016–2022', engine: '2NR-FE', current: true },
+        { model: 'Toyota Yaris 1.5G', years: '2014–2020', engine: '2NR-FE', current: false },
+      ],
+      cols: page ? 'minmax(0, 1.2fr) minmax(0, 1fr)' : 'minmax(0, 1fr)',
+      gap: page ? '16px' : '20px',
+      rightBg: page ? 'var(--bg-surface)' : 'transparent',
+      rightBorder: page ? '1px solid var(--border-card)' : '0',
+      rightPad: page ? '20px' : '0',
+    };
+  }
+}
+</script>
+</body>
+</html>

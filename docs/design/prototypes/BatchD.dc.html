@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Batch D · Đơn hàng nháp — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+.bb-tbl{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+.bb-tbl th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:6px 10px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap}
+.bb-tbl td{padding:7px 10px;border-bottom:1px solid var(--border-subtle)}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="height: 100vh; min-height: 560px; display: flex; overflow: hidden; font-family: var(--font-sans); color: var(--text-body); background: var(--bg-app); position: relative;">
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sections}}" active-key="{{navKey}}" collapsed="{{collapsed}}" on-toggle-collapsed="{{toggleSidebar}}" on-select="{{selectNav}}" footer="{{sidebarFooter}}"></x-import>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" on-search="{{headerSearch}}" search-placeholder="Tìm SKU, mã OE hoặc số VIN" actions="{{headerActions}}" user="{{user}}"></x-import>
+    <div style="flex: 1 1 0; min-height: 0; display: flex; position: relative;">
+      <main style="flex: 1 1 0; min-width: 0; overflow-y: auto; padding: 16px 24px 40px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">{{simBanner}}{{mainNode}}</div>
+      </main>
+      <sc-if value="{{panelOpen}}" hint-placeholder-val="{{ false }}">
+        <div onKeyDown="{{panelKey}}" style="position: {{panelPos}}; top: 0; right: 0; bottom: 0; z-index: 30; box-shadow: {{panelShadow}}; display: flex; height: 100%;">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIPanel" context="{{panelContext}}" status="{{aiStatus}}" on-close="{{closePanel}}" composer="{{composerNode}}" style="height: 100%;">{{threadNode}}</x-import>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToastViewport">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="{{t.tone}}" title="{{t.title}}" description="{{t.description}}" on-close="{{t.close}}"></x-import>
+    </sc-for>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"start": {"editor": "enum", "options": ["list", "list-orders", "list-team", "list-empty", "review", "review-checking", "review-ok", "review-pricechange", "review-stock", "review-credit", "review-expired", "confirm", "creating", "create-unknown", "create-error", "duplicate", "created", "order-pending", "order-approved", "order-rejected", "order-syncdown", "ai-create", "ai-approve", "review-expired-renewed", "reconcile-notfound", "review-acting", "review-reassigned", "notify"], "default": "list", "section": "Màn hình"}, "precheck": {"editor": "enum", "options": ["ok", "pricechange", "stock", "credit"], "default": "ok", "section": "Dịch vụ mô phỏng"}, "erpOrder": {"editor": "enum", "options": ["ok", "timeout", "error"], "default": "ok", "section": "Dịch vụ mô phỏng"}, "erpOrderNext": {"editor": "enum", "options": ["none", "approved", "rejected"], "default": "none", "section": "Dịch vụ mô phỏng"}, "reconcile": {"editor": "enum", "options": ["found", "notfound"], "default": "found", "section": "Dịch vụ mô phỏng"}, "erp": {"editor": "enum", "options": ["fresh", "down"], "default": "fresh", "section": "Dịch vụ mô phỏng"}, "persona": {"editor": "enum", "options": ["sales", "restricted", "supervisor", "admin"], "default": "sales", "section": "Quyền mô phỏng"}, "capOrder": {"editor": "enum", "options": ["granted", "denied", "unknown"], "default": "granted", "section": "Quyền mô phỏng"}, "capPrice": {"editor": "enum", "options": ["granted", "denied"], "default": "granted", "section": "Quyền mô phỏng"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.rootRef = React.createRef();
+    this.timers = [];
+    this.state = { w: 1440, col: null, panel: null, ...this.initial(props) };
+  }
+  static P() {
+    return {
+      'BP-1042': { pname: 'Má phanh trước', brand: 'Toyota' }, 'BS-0402': { pname: 'Bộ lò xo má phanh', brand: 'Toyota' },
+      'BD-0771': { pname: 'Đĩa phanh trước', brand: 'Toyota' }, 'BF-0118': { pname: 'Dầu phanh DOT 3 · 1 lít', brand: 'Toyota' },
+      'BP-2210A': { pname: 'Má phanh trước ceramic', brand: 'Akebono' }, 'FO-2210': { pname: 'Lọc dầu động cơ', brand: 'Toyota' },
+    };
+  }
+  // Báo giá khách đã xác nhận — nguồn để tạo đơn nháp (dữ liệu từ Batch C)
+  static QUOTES() {
+    const L = (sku, qty, price) => ({ sku, qty, price });
+    return {
+      'BG-2026-0418': { id: 'BG-2026-0418', v: 2, cust: 'Garage Minh Phát', custCode: 'KH-00321', owner: 'Nguyễn Minh Anh', mine: true, confirmedAt: '17/11 10:05', expiresAt: '20/11 09:50', expired: false, check: 'ok', lines: [L('BP-1042', 2, 1250000), L('BS-0402', 2, 215000)] },
+      'BG-2026-0420': { id: 'BG-2026-0420', v: 1, cust: 'Công ty Vận tải An Phú', custCode: 'KH-00410', owner: 'Nguyễn Minh Anh', mine: true, confirmedAt: '17/11 09:30', expiresAt: '20/11 08:15', expired: false, check: 'credit', lines: [L('FO-2210', 40, 165000), L('BP-1042', 6, 1250000)] },
+      'BG-2026-0416': { id: 'BG-2026-0416', v: 1, cust: 'Gara Hoàng Long', custCode: 'KH-00188', owner: 'Nguyễn Minh Anh', mine: true, confirmedAt: '16/11 17:10', expiresAt: '19/11 16:40', expired: false, check: 'stock', lines: [L('BD-0771', 2, 1720000), L('BP-1042', 1, 1250000)] },
+      'BG-2026-0410': { id: 'BG-2026-0410', v: 1, cust: 'Garage Minh Phát', custCode: 'KH-00321', owner: 'Nguyễn Minh Anh', mine: true, confirmedAt: '14/11 11:20', expiresAt: '17/11 09:00', expired: true, check: 'ok', lines: [L('BS-0402', 4, 215000)] },
+      'BG-2026-0414': { id: 'BG-2026-0414', v: 1, cust: 'Công ty Vận tải An Phú', custCode: 'KH-00410', owner: 'Trần Quốc Bảo', assignee: 'Nguyễn Minh Anh', reassignedBy: 'Võ Thanh Tùng (trưởng bộ phận)', reassignedAt: '17/11 09:00', mine: true, confirmedAt: '17/11 08:50', expiresAt: '20/11 08:20', expired: false, check: 'ok', lines: [L('BP-2210A', 2, 890000)] },
+      'BG-2026-0413': { id: 'BG-2026-0413', v: 1, cust: 'Gara Hoàng Long', custCode: 'KH-00188', owner: 'Trần Quốc Bảo', absent: true, mine: false, confirmedAt: '17/11 08:40', expiresAt: '20/11 08:00', expired: false, check: 'ok', lines: [L('FO-2210', 8, 165000)] },
+    };
+  }
+  static ORDERS() {
+    const L = (sku, qty, price) => ({ sku, qty, price });
+    return {
+      'DN-2026-0236': { id: 'DN-2026-0236', quote: 'BG-2026-0412', v: 1, cust: 'Công ty Vận tải An Phú', custCode: 'KH-00410', owner: 'Nguyễn Minh Anh', mine: true, status: 'pending', createdAt: '17/11 08:12', syncedAt: '17/11 10:15', lines: [L('FO-2210', 12, 165000)],
+        events: [['17/11 08:05', 'Khách hàng · Zalo OA', 'Xác nhận BG-2026-0412 v1'], ['17/11 08:10', 'Backend', 'Kiểm tra lại giá, tồn kho, công nợ: đạt (mô phỏng)'], ['17/11 08:12', 'Nguyễn Minh Anh', 'Tạo đơn nháp trên ERP · khóa chống trùng BG-2026-0412-v1']] },
+      'DN-2026-0233': { id: 'DN-2026-0233', quote: 'BG-2026-0402', v: 1, cust: 'Garage Minh Phát', custCode: 'KH-00321', owner: 'Lê Thu Hà', mine: false, status: 'pending', createdAt: '16/11 15:20', syncedAt: '17/11 10:15', lines: [L('BP-2210A', 1, 890000)],
+        events: [['16/11 15:02', 'Khách hàng · Zalo OA', 'Xác nhận BG-2026-0402 v1'], ['16/11 15:20', 'Lê Thu Hà', 'Tạo đơn nháp trên ERP']] },
+      'DN-2026-0229': { id: 'DN-2026-0229', quote: 'BG-2026-0398', v: 1, cust: 'Gara Hoàng Long', custCode: 'KH-00188', owner: 'Lê Thu Hà', mine: false, status: 'approved', createdAt: '15/11 11:00', syncedAt: '17/11 10:15', decidedBy: 'Phạm Văn Đức', decidedAt: '15/11 14:05', lines: [L('BP-1042', 1, 1250000)],
+        events: [['15/11 11:00', 'Lê Thu Hà', 'Tạo đơn nháp trên ERP'], ['15/11 14:05', 'ERP', 'Phạm Văn Đức duyệt đơn']] },
+      'DN-2026-0221': { id: 'DN-2026-0221', quote: 'BG-2026-0385', v: 1, cust: 'Công ty Vận tải An Phú', custCode: 'KH-00410', owner: 'Trần Quốc Bảo', mine: false, status: 'rejected', createdAt: '14/11 16:30', syncedAt: '17/11 10:15', decidedBy: 'Phạm Văn Đức', decidedAt: '15/11 08:30', reason: 'Vượt hạn mức công nợ (ghi chú từ ERP)', lines: [L('FO-2210', 20, 160000)],
+        events: [['14/11 16:30', 'Trần Quốc Bảo', 'Tạo đơn nháp trên ERP'], ['15/11 08:30', 'ERP', 'Phạm Văn Đức từ chối · Vượt hạn mức công nợ']] },
+    };
+  }
+  initial(props) {
+    const start = props.start || 'list';
+    const s = { route: 'list', tab: 'todo', mineOnly: true, quotes: Component.QUOTES(), orders: Component.ORDERS(), qid: null, oid: null, check: {}, create: null, confirm: false, toasts: [], turns: [], nextId: 241, sync: null, notice: null, recon: {}, renew: {}, notifs: [], showNotifs: false };
+    const T = '17/11 10:20';
+    const review = (id) => Object.assign(s, { route: 'review', qid: id });
+    if (start === 'list-team') s.mineOnly = false;
+    if (start === 'list-orders') s.tab = 'pending';
+    if (start === 'list-empty') { s.quotes = {}; s.orders = {}; }
+    if (start === 'review') review('BG-2026-0418');
+    if (start === 'review-checking') { review('BG-2026-0418'); s.check['BG-2026-0418'] = { state: 'running' }; }
+    if (start === 'review-ok' || start === 'confirm' || start === 'creating' || start === 'create-unknown' || start === 'create-error') { review('BG-2026-0418'); s.check['BG-2026-0418'] = this.checkResult(s.quotes['BG-2026-0418'], props.precheck, T); }
+    if (start === 'confirm') s.confirm = true;
+    if (start === 'creating') s.create = 'running';
+    if (start === 'create-unknown') { s.create = 'reconcile'; s.recon['BG-2026-0418'] = true; }
+    if (start === 'create-error') s.create = 'error';
+    if (start === 'review-pricechange') { review('BG-2026-0418'); s.check['BG-2026-0418'] = this.checkResult(s.quotes['BG-2026-0418'], 'pricechange', T); }
+    if (start === 'review-stock') { review('BG-2026-0416'); s.check['BG-2026-0416'] = this.checkResult(s.quotes['BG-2026-0416'], null, T); }
+    if (start === 'review-credit') { review('BG-2026-0420'); s.check['BG-2026-0420'] = this.checkResult(s.quotes['BG-2026-0420'], null, T); }
+    if (start === 'review-expired') review('BG-2026-0410');
+    if (start === 'review-expired-renewed') { review('BG-2026-0410'); s.renew['BG-2026-0410'] = { state: 'done', at: T }; }
+    if (start === 'reconcile-notfound') { review('BG-2026-0418'); s.check['BG-2026-0418'] = this.checkResult(s.quotes['BG-2026-0418'], null, T); s.create = 'notfound'; s.recon['BG-2026-0418'] = true; }
+    if (start === 'review-acting') { review('BG-2026-0413'); s.check['BG-2026-0413'] = this.checkResult(s.quotes['BG-2026-0413'], null, T); }
+    if (start === 'review-reassigned') review('BG-2026-0414');
+    if (start === 'notify') { Object.assign(s, { route: 'list', tab: 'approved', showNotifs: true }); this.decide(s, 'DN-2026-0236', 'approved', T); }
+    if (start === 'duplicate') { const keep = s.quotes['BG-2026-0418']; this.makeOrder(s, 'BG-2026-0418', T); s.quotes = { ...s.quotes, 'BG-2026-0418': keep }; review('BG-2026-0418'); s.check['BG-2026-0418'] = this.checkResult(s.quotes['BG-2026-0418'], null, T); s.notice = { tone: 'info', title: 'Đơn nháp đã tồn tại cho BG-2026-0418 v2', text: 'Backend nhận cùng khóa chống trùng BG-2026-0418-v2 và trả về đơn đã tạo DN-2026-0241. Không tạo thêm đơn.', oid: 'DN-2026-0241' }; }
+    if (start === 'created') { this.makeOrder(s, 'BG-2026-0418', T); Object.assign(s, { route: 'order', oid: 'DN-2026-0241' }); }
+    if (start === 'order-pending') Object.assign(s, { route: 'order', oid: 'DN-2026-0236' });
+    if (start === 'order-approved') Object.assign(s, { route: 'order', oid: 'DN-2026-0229' });
+    if (start === 'order-rejected') Object.assign(s, { route: 'order', oid: 'DN-2026-0221' });
+    if (start === 'order-syncdown') Object.assign(s, { route: 'order', oid: 'DN-2026-0236', sync: 'down' });
+    if (start === 'ai-create') { review('BG-2026-0418'); s.panel = true; s.turns = [this.aiTurn('create')]; }
+    if (start === 'ai-approve') { Object.assign(s, { route: 'order', oid: 'DN-2026-0236' }); s.panel = true; s.turns = [this.aiTurn('approve')]; }
+    return s;
+  }
+  aiTurn(key) { return { id: Math.random().toString(36).slice(2), key, time: '09:41' }; }
+  checkResult(q, override, t) {
+    const kind = override && override !== 'ok' ? override : q.check;
+    return { state: 'done', at: t,
+      price: kind === 'pricechange' ? 'changed' : 'same',
+      stock: kind === 'stock' ? 'short' : 'ok',
+      credit: kind === 'credit' ? 'fail' : 'ok',
+      valid: q.expired ? 'expired' : 'ok' };
+  }
+  makeOrder(s, qid, t) {
+    const q = s.quotes[qid]; const id = 'DN-2026-0' + s.nextId; const ac = this.actor(q);
+    s.orders = { ...s.orders, [id]: { id, quote: q.id, v: q.v, cust: q.cust, custCode: q.custCode, owner: q.assignee || (ac.note ? q.owner : 'Nguyễn Minh Anh'), mine: q.mine, status: 'pending', createdAt: t, syncedAt: t, lines: q.lines, actedBy: ac.note ? ac.name + ' · ' + ac.note : null,
+      events: [[q.confirmedAt, 'Khách hàng · Zalo OA', 'Xác nhận ' + q.id + ' v' + q.v], [t, 'Backend', 'Kiểm tra lại giá, tồn kho, công nợ: đạt (mô phỏng)'], [t, ac.name + (ac.note ? ' · ' + ac.note : ''), 'Tạo đơn nháp trên ERP · khóa chống trùng ' + q.id + '-v' + q.v], [t, 'Audit', 'Ghi nhận người thao tác, vai trò, quyền dùng, khóa ' + q.id + '-v' + q.v]] } };
+    const qs = { ...s.quotes }; delete qs[qid]; s.quotes = qs; s.nextId = s.nextId + 1;
+    return id;
+  }
+  decide(s, oid, next, t) {
+    const o = s.orders[oid];
+    const reason = next === 'rejected' ? 'Sai số lượng so với nhu cầu khách (ghi chú từ ERP)' : undefined;
+    s.orders = { ...s.orders, [oid]: { ...o, status: next, syncedAt: t, decidedBy: 'Phạm Văn Đức', decidedAt: t, reason, events: [...o.events, [t, 'ERP', 'Phạm Văn Đức ' + (next === 'approved' ? 'duyệt đơn' : 'từ chối · ' + reason)], [t, 'Hệ thống', 'Gửi thông báo cho ' + o.owner + ' (đề xuất)']] } };
+    s.notifs = [{ id: oid + next, oid, t, tone: next === 'approved' ? 'success' : 'error', title: oid + (next === 'approved' ? ' đã được duyệt trong ERP' : ' bị từ chối trong ERP'), text: next === 'approved' ? 'Phạm Văn Đức duyệt lúc ' + t + '.' : 'Lý do từ ERP: ' + reason + '.', unread: true }, ...(s.notifs || [])];
+  }
+  actor(q) {
+    const persona = this.props.persona || 'sales';
+    if (q.mine && q.assignee) return { name: 'Nguyễn Minh Anh', note: 'được ' + q.reassignedBy + ' phân công lại thay ' + q.owner };
+    if (!q.mine && persona === 'supervisor') return { name: 'Nguyễn Minh Anh (trưởng bộ phận)', note: 'xử lý thay ' + q.owner + (q.absent ? ' (vắng mặt)' : '') };
+    return { name: 'Nguyễn Minh Anh', note: null };
+  }
+  apply(fn) { const s = { ...this.state }; fn(s); this.setState(s); }
+  componentDidMount() {
+    const el = this.rootRef.current;
+    if (el && window.ResizeObserver) {
+      this.ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width); if (Math.abs(w - this.state.w) > 4) this.setState({ w }); });
+      this.ro.observe(el);
+    }
+  }
+  componentWillUnmount() { if (this.ro) this.ro.disconnect(); this.timers.forEach(clearTimeout); }
+  componentDidUpdate(prev) {
+    const keys = ['start', 'erp', 'precheck', 'erpOrder', 'erpOrderNext', 'reconcile', 'persona', 'capOrder', 'capPrice'];
+    if (keys.some((k) => prev[k] !== this.props[k])) { this.timers.forEach(clearTimeout); this.timers = []; this.setState({ panel: null, ...this.initial(this.props) }); }
+  }
+  later(fn, ms) { const id = setTimeout(fn, ms); this.timers.push(id); }
+  now() { const d = new Date(); return '17/11 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  toast(x) {
+    const id = Date.now() + Math.random();
+    this.setState({ toasts: [...this.state.toasts, { ...x, id }] });
+    this.later(() => this.setState({ toasts: this.state.toasts.filter((t) => t.id !== id) }), 5000);
+  }
+  runCheck(qid) {
+    this.setState({ check: { ...this.state.check, [qid]: { state: 'running' } } });
+    this.later(() => this.setState({ check: { ...this.state.check, [qid]: this.checkResult(this.state.quotes[qid], qid === 'BG-2026-0418' ? this.props.precheck : null, this.now()) } }), 1300);
+  }
+  createOrder(qid) {
+    this.setState({ confirm: false, create: 'running' });
+    this.later(() => {
+      const mode = this.state.createRecovered ? 'ok' : (this.props.erpOrder || 'ok');
+      if ((this.props.capOrder || 'granted') !== 'granted') return this.setState({ create: 'denied' });
+      if (mode === 'timeout') return this.setState({ create: 'reconcile', createRecovered: true, recon: { ...this.state.recon, [qid]: true } });
+      if (mode === 'error') return this.setState({ create: 'error', createRecovered: true });
+      let id; this.apply((s) => { id = this.makeOrder(s, qid, this.now()); Object.assign(s, { route: 'order', oid: id, create: null }); const r = { ...s.recon }; delete r[qid]; s.recon = r; });
+      this.toast({ tone: 'success', title: 'Đã tạo đơn nháp ' + id + ' trên ERP', description: 'Mô phỏng · chờ nhân viên có quyền duyệt trong ERP' });
+    }, 1500);
+  }
+  checkCreate(qid) {
+    this.setState({ create: 'checking' });
+    this.later(() => {
+      if ((this.props.reconcile || 'found') === 'notfound' && !this.state.reconSeen) return this.setState({ create: 'notfound', reconSeen: true });
+      let id; this.apply((s) => { id = this.makeOrder(s, qid, this.now()); Object.assign(s, { route: 'order', oid: id, create: null }); const r = { ...s.recon }; delete r[qid]; s.recon = r; });
+      this.toast({ tone: 'info', title: 'Đối soát xong · ' + id, description: 'Đơn đã được tạo ở lần trước — tìm theo khóa chống trùng. Không tạo thêm.' });
+    }, 1000);
+  }
+  refresh(oid) {
+    this.setState({ sync: 'running' });
+    this.later(() => {
+      if ((this.props.erp || 'fresh') === 'down') return this.setState({ sync: 'down' });
+      this.apply((s) => {
+        const o = s.orders[oid]; const t = this.now(); const next = this.props.erpOrderNext || 'none';
+        if (o.status === 'pending' && next !== 'none') this.decide(s, oid, next, t); else s.orders = { ...s.orders, [oid]: { ...o, syncedAt: t } };
+        s.sync = null;
+      });
+      const n = this.state.notifs[0]; if (n && n.oid === oid && n.unread && n.t === this.state.orders[oid].decidedAt) this.toast({ tone: n.tone, title: 'Thông báo · ' + n.title, description: n.text + ' (cơ chế thông báo: đề xuất)' }); else this.toast({ tone: 'info', title: 'Đã đồng bộ trạng thái từ ERP', description: 'Không có thay đổi · mô phỏng' });
+    }, 1000);
+  }
+  renewQuote(qid) {
+    this.setState({ renew: { ...this.state.renew, [qid]: { state: 'running' } } });
+    this.later(() => this.setState({ renew: { ...this.state.renew, [qid]: { state: 'done', at: this.now() } } }), 1300);
+  }
+  ask(key) { this.setState({ turns: [...this.state.turns, { ...this.aiTurn(key), time: this.now().slice(6) }] }); }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const B = NS.Button, S = this.state, P = Component.P();
+    const persona = this.props.persona || 'sales';
+    const capOrder = this.props.capOrder || 'granted', capPrice = this.props.capPrice || 'granted';
+    const erp = this.props.erp || 'fresh';
+    const narrow = S.w < 1360, overlay = S.w < 1180;
+    const vnd = (n) => n.toLocaleString('vi-VN') + ' ₫';
+    const cap = { font: 'var(--type-caption)', color: 'var(--text-secondary)' };
+    const icon = (n, c, sz) => NS.Icon ? h(NS.Icon, { name: n, size: sz || 14, color: c }) : null;
+    const tag = (source, label) => NS.SourceTag ? h(NS.SourceTag, { source, label, variant: 'inline' }) : null;
+    const code = (x) => h('span', { className: 'ap-code' }, x);
+    const locked = () => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4, font: 'var(--type-caption)', color: 'var(--status-restricted-fg)' } }, icon('lock'), 'Hạn chế');
+    const badge = (tone, txt) => NS.Badge ? h(NS.Badge, { size: 'sm', tone, icon: false }, txt) : txt;
+    const pill = (txt, kind) => h('span', { style: { display: 'inline-block', padding: '1px 6px', borderRadius: 4, font: '600 10px/16px var(--font-sans)', letterSpacing: '.04em', background: kind === 'blocked' ? 'var(--status-error-bg)' : kind === 'basis' ? 'var(--status-success-bg)' : 'var(--status-warning-bg)', color: kind === 'blocked' ? 'var(--status-error-fg)' : kind === 'basis' ? 'var(--status-success-fg)' : 'var(--status-warning-fg)' } }, txt);
+    const OST = { pending: ['info', 'Đã tạo đơn nháp · chờ duyệt'], approved: ['success', 'Nhân viên duyệt'], rejected: ['error', 'Từ chối'] };
+    const viewAll = persona === 'supervisor';
+    const go = (route, extra) => this.setState({ route, ...(extra || {}) });
+    const openReview = (id) => go('review', { qid: id, confirm: false, create: S.recon[id] ? 'reconcile' : null, notice: null, createRecovered: false, reconSeen: false, showNotifs: false });
+    const openOrder = (id) => go('order', { oid: id, sync: null, notice: null, showNotifs: false, notifs: S.notifs.map((n) => (n.oid === id ? { ...n, unread: false } : n)) });
+    const sec = (title, right, body) => NS.Card ? h(NS.Card, { title, actions: right }, body) : body;
+    const A = (key, props, body) => NS.Alert ? h(NS.Alert, { key, ...props }, body) : null;
+    const btn = (props, txt) => B ? h(B, props, txt) : null;
+    const goods = (lines) => lines.reduce((a, l) => a + l.qty * l.price, 0);
+    const handoff = (why) => this.toast({ tone: 'success', title: 'Đã chuyển nhân viên · HT-0061', description: why + ' (mô phỏng · người nhận do hệ thống điều phối)' });
+    const simBanner = h('div', { role: 'note', style: { display: 'flex', alignItems: 'center', gap: '6px 12px', flexWrap: 'wrap', padding: '8px 12px', border: '1px dashed var(--border-strong)', borderRadius: 8, background: 'var(--bg-nested)', font: 'var(--type-caption)', color: 'var(--text-secondary)' } },
+      h('span', { style: { fontWeight: 600, color: 'var(--text-primary)' } }, 'Chế độ mô phỏng UX'),
+      h('span', null, 'Persona: ', h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, { sales: 'Nhân viên kinh doanh', restricted: 'Nhân viên hạn chế', supervisor: 'Giám sát kinh doanh', admin: 'Quản trị hệ thống' }[persona] + ' (mô phỏng)')),
+      h('span', null, 'Tạo đơn nháp: ', h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, { granted: 'Đề xuất: có', denied: 'Không', unknown: 'Chưa xác định' }[capOrder])),
+      h('span', null, 'ERP: ', h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, erp === 'down' ? 'không khả dụng' : { ok: 'bình thường', timeout: 'quá thời gian', error: 'lỗi' }[this.props.erpOrder || 'ok'])),
+      h('span', { style: { flexBasis: '100%' } }, 'Mock: MockErpConnector, Quote Service. Không phải bằng chứng API ERP đích, phân quyền, chống tạo đơn trùng hay đồng bộ trạng thái đã hoạt động. Nhân viên tạo đơn nháp, duyệt đơn trong ERP: PROPOSED (B4, B5).'));
+
+    const noAccess = capOrder !== 'granted' && capOrder !== 'denied' ? true : persona === 'admin';
+    const noAccessNode = () => h('div', { style: { paddingTop: 40 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'unauthorized', title: 'Bạn không có quyền truy cập Đơn hàng nháp',
+      description: persona === 'admin' ? 'Quản trị hệ thống không xem nội dung kinh doanh theo mặc định (đề xuất theo AI1).' : 'Quyền với đơn nháp chưa được xác định cho tài khoản này. Máy chủ từ chối; không có dữ liệu nào được tải.', code: 'AUTH-403-DO' }) : null);
+
+    // ---------- list ----------
+    const listNode = () => {
+      const qs = Object.values(S.quotes).filter((q) => (viewAll && !S.mineOnly) || q.mine);
+      const os = Object.values(S.orders).filter((o) => (viewAll && !S.mineOnly) || o.mine);
+      const byTab = (st) => os.filter((o) => o.status === st);
+      const qcols = [
+        { key: 'id', header: 'Báo giá khách xác nhận', render: (q) => h('div', null, code(q.id + ' v' + q.v), h('div', { style: cap }, 'Xác nhận ' + q.confirmedAt)) },
+        { key: 'cust', header: 'Khách hàng', render: (q) => h('div', null, q.cust, h('div', { style: cap }, q.custCode)) },
+        { key: 'st', header: 'Trạng thái', render: (q) => S.recon[q.id] ? badge('warning', 'Chờ đối soát') : q.expired ? (S.renew[q.id] && S.renew[q.id].state === 'done' ? badge('info', 'Chờ khách xác nhận lại v' + (q.v + 1)) : badge('warning', 'Hết hạn · cần báo giá mới')) : badge('neutral', 'Chờ tạo đơn') },
+        { key: 'exp', header: 'Hiệu lực đến', render: (q) => q.expiresAt },
+        { key: 'total', header: 'Tiền hàng', align: 'right', render: (q) => capPrice === 'granted' ? vnd(goods(q.lines)) : locked() },
+        { key: 'owner', header: 'Người phụ trách', render: (q) => q.assignee ? h('div', null, q.assignee, h('div', { style: cap }, 'Phân công lại từ ' + q.owner)) : h('div', null, q.owner, q.absent ? h('div', { style: cap }, 'Vắng mặt') : null) },
+        { key: 'next', header: '', align: 'right', render: (q) => q.mine || viewAll ? h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-link)' } }, q.mine ? 'Xem lại & tạo đơn →' : 'Xử lý thay →') : h('span', { style: cap }, 'Chỉ xem') },
+      ];
+      const ocols = [
+        { key: 'id', header: 'Đơn nháp (ERP)', render: (o) => h('div', null, code(o.id), h('div', { style: cap }, 'Từ ' + o.quote + ' v' + o.v)) },
+        { key: 'cust', header: 'Khách hàng', render: (o) => h('div', null, o.cust, h('div', { style: cap }, o.custCode)) },
+        { key: 'st', header: 'Xử lý đơn (ERP)', render: (o) => badge(OST[o.status][0], OST[o.status][1]) },
+        { key: 'total', header: 'Tiền hàng', align: 'right', render: (o) => capPrice === 'granted' ? vnd(goods(o.lines)) : locked() },
+        { key: 'created', header: 'Tạo lúc', render: (o) => h('div', null, o.createdAt, h('div', { style: cap }, o.owner)) },
+        { key: 'sync', header: 'Đồng bộ', render: (o) => h('span', { style: cap }, o.syncedAt) },
+      ];
+      const empty = (t, d) => NS.EmptyState ? h(NS.EmptyState, { variant: 'empty', title: t, description: d }) : t;
+      const tabs = [['todo', 'Chờ tạo đơn', qs.length], ['pending', 'Chờ duyệt', byTab('pending').length], ['approved', 'Nhân viên duyệt', byTab('approved').length], ['rejected', 'Từ chối', byTab('rejected').length]];
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+        NS.PageHeader ? h(NS.PageHeader, { title: 'Đơn hàng nháp', description: 'Tạo đơn nháp trên ERP từ báo giá khách đã xác nhận. Duyệt hoặc từ chối đơn do nhân viên có quyền thực hiện trong ERP; trạng thái ở đây được đồng bộ từ ERP.' }) : null,
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+          NS.Tabs ? h(NS.Tabs, { 'aria-label': 'Lọc đơn', value: S.tab, onChange: (v) => this.setState({ tab: v }), tabs: tabs.map(([v, l, c]) => ({ value: v, label: l, count: c })) }) : null,
+          h('span', { style: { flex: '1 1 0' } }),
+          viewAll ? h('div', { role: 'radiogroup', 'aria-label': 'Phạm vi', style: { display: 'flex', gap: 6 } }, [['mine', 'Của tôi'], ['all', 'Cả bộ phận']].map(([k, l]) => NS.Tag ? h(NS.Tag, { key: k, selected: (k === 'mine') === S.mineOnly, onClick: () => this.setState({ mineOnly: k === 'mine' }) }, l) : l)) : h('span', { style: cap }, 'Hiển thị của bạn')),
+        S.tab === 'todo'
+          ? h(React.Fragment, null, h('span', { style: cap }, 'Báo giá khách đã xác nhận theo mã và phiên bản, chưa có đơn nháp. ', pill('B4 · PROPOSED'), ' Nhân viên kiểm tra lại rồi bấm tạo đơn.'),
+            NS.DataTable ? h(NS.DataTable, { columns: qcols, rows: qs, rowKey: 'id', onRowClick: (q) => openReview(q.id), caption: 'Báo giá chờ tạo đơn', emptyState: empty('Không có báo giá chờ tạo đơn', 'Báo giá xuất hiện ở đây sau khi khách xác nhận qua Zalo OA.') }) : null)
+          : h(React.Fragment, null, h('span', { style: cap }, 'Trạng thái lấy từ ERP (mô phỏng). ', pill('B5 · PROPOSED'), ' Duyệt / từ chối thực hiện trong ERP, không có ở giao diện này và không giao cho Trợ lý.'),
+            NS.DataTable ? h(NS.DataTable, { columns: ocols, rows: byTab(S.tab), rowKey: 'id', onRowClick: (o) => openOrder(o.id), caption: 'Đơn nháp', emptyState: empty('Không có đơn ở trạng thái này', 'Đơn nháp được tạo từ tab “Chờ tạo đơn”.') }) : null));
+    };
+
+    // ---------- lines table ----------
+    const linesTable = (lines, caption) => NS.DataTable ? h(NS.DataTable, { rowKey: 'sku', density: 'compact', caption, rows: lines, columns: [
+      { key: 'sku', header: 'Phụ tùng', render: (l) => h('div', null, code(l.sku), h('div', { style: cap }, P[l.sku].pname + ' · ' + P[l.sku].brand)) },
+      { key: 'qty', header: 'Số lượng', align: 'right', render: (l) => String(l.qty) },
+      { key: 'price', header: 'Đơn giá (báo giá)', align: 'right', render: (l) => capPrice === 'granted' ? vnd(l.price) : locked() },
+      { key: 'sum', header: 'Thành tiền', align: 'right', render: (l) => capPrice === 'granted' ? vnd(l.price * l.qty) : locked() }] }) : null;
+    const totals = (lines) => NS.DescriptionList ? h(NS.DescriptionList, { columns: 1, items: [
+      { label: 'Tiền hàng', value: capPrice === 'granted' ? vnd(goods(lines)) : locked() },
+      { label: 'VAT · tổng thanh toán', value: h('span', null, 'Không tính ', pill('R4 · BLOCKED', 'blocked')) }] }) : null;
+
+    // ---------- review (DO-02 + DO-05) ----------
+    const reviewNode = () => {
+      const q = S.quotes[S.qid];
+      if (!q) { const o = Object.values(S.orders).find((x) => x.quote === S.qid); return h('div', { style: { paddingTop: 40 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'empty', title: 'Báo giá này đã có đơn nháp', description: o ? o.id + ' · mở đơn để xem trạng thái.' : '', action: o ? btn({ size: 'sm', variant: 'secondary', onClick: () => openOrder(o.id) }, 'Mở ' + o.id) : null }) : null); }
+      const ck = S.check[q.id] || { state: 'none' };
+      const done = ck.state === 'done';
+      const fails = done ? [ck.valid === 'expired' && 'expired', ck.price === 'changed' && 'price', ck.stock === 'short' && 'stock', ck.credit === 'fail' && 'credit'].filter(Boolean) : [];
+      const preFail = q.expired ? ['expired'] : [];
+      const act = q.mine || viewAll; const ac = this.actor(q);
+      const canCreate = act && capOrder === 'granted' && erp === 'fresh' && done && fails.length === 0 && !(S.notice && S.notice.oid) && !q.expired;
+      const busy = S.create === 'running' || S.create === 'checking';
+      const head = NS.PageHeader ? h(NS.PageHeader, { title: 'Xem lại trước khi tạo đơn · ' + q.id + ' v' + q.v,
+        meta: h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-helper)', color: 'var(--text-secondary)' } }, badge('success', 'Khách xác nhận'), h('span', null, q.cust + ' · ' + q.custCode), h('span', null, '· Xác nhận ' + q.confirmedAt + ' qua Zalo OA'), h('span', null, '· Người lập: ' + q.owner)),
+        actions: btn({ variant: 'ghost', iconLeft: 'arrow-left', onClick: () => go('list') }, 'Danh sách') }) : null;
+      const alerts = [];
+      if (S.notice) alerts.push(A('nt', { tone: S.notice.tone, title: S.notice.title, action: S.notice.oid ? btn({ size: 'sm', variant: 'secondary', onClick: () => openOrder(S.notice.oid) }, 'Mở ' + S.notice.oid) : null }, S.notice.text));
+      const rn = S.renew[q.id] || {};
+      if (q.expired && rn.state !== 'done') alerts.push(A('ex', { tone: 'error', icon: 'clock', title: 'Khách đã xác nhận nhưng báo giá hết hạn lúc ' + q.expiresAt,
+        action: act ? btn({ size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', loading: rn.state === 'running', disabled: rn.state === 'running' || erp !== 'fresh', onClick: () => this.renewQuote(q.id) }, rn.state === 'running' ? 'Backend đang kiểm tra…' : 'Kiểm tra lại & lập phiên bản mới') : null },
+        'Không tạo đơn tự động. Backend kiểm tra lại giá, tồn kho, công nợ rồi lập phiên bản báo giá mới; khách phải xác nhận lại phiên bản đó.'));
+      if (q.expired && rn.state === 'done') alerts.push(A('rn', { tone: 'success', title: 'Đã lập ' + q.id + ' v' + (q.v + 1) + ' · chờ khách xác nhận lại',
+        action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'file-text', onClick: () => this.toast({ tone: 'info', title: 'Mở ' + q.id + ' v' + (q.v + 1), description: 'Thuộc prototype Batch C (Báo giá).' }) }, 'Mở báo giá v' + (q.v + 1)) },
+        'Backend kiểm tra lại lúc ' + rn.at + ' (mô phỏng): giá, tồn kho, công nợ đạt; lập v' + (q.v + 1) + ' (nháp, đã tính giá). Phát hành và gửi khách ở Báo giá. v' + q.v + ' không dùng để tạo đơn.'));
+      if (erp === 'down') alerts.push(A('erp', { tone: 'warning', icon: 'server-off', title: 'Không kết nối được ERP (mô phỏng)' }, 'Không kiểm tra lại và không tạo đơn lúc này. Không có gì được gửi đi.'));
+      if (!q.mine && viewAll) alerts.push(A('ro', { tone: 'info', icon: 'user', title: 'Bạn đang xử lý thay ' + q.owner + (q.absent ? ' (vắng mặt)' : '') }, 'Trưởng bộ phận có đủ quyền được tiếp tục kiểm tra và tạo đơn nháp. Mọi thao tác ghi audit: người thao tác, vai trò, thời điểm, khóa chống trùng.'));
+      if (!q.mine && !viewAll) alerts.push(A('ro', { tone: 'neutral', title: 'Báo giá của ' + q.owner }, 'Chỉ xem. Người phụ trách, người được phân công lại hoặc trưởng bộ phận tạo đơn.'));
+      if (q.assignee) alerts.push(A('as', { tone: 'info', icon: 'user', title: 'Được phân công lại cho bạn' }, q.reassignedBy + ' phân công lúc ' + q.reassignedAt + ' thay ' + q.owner + '. Thao tác của bạn được ghi audit.'));
+      if (S.create === 'reconcile') alerts.push(A('uk', { tone: 'warning', icon: 'circle-help', title: 'Chờ đối soát · chưa rõ đơn nháp đã được tạo trên ERP', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'search', onClick: () => this.checkCreate(q.id) }, 'Tra cứu theo khóa chống trùng') }, h('span', null, 'ERP không phản hồi trong 30 giây ', pill('ĐỀ XUẤT CHO DEMO'), ' — cần xác nhận theo API ERP đích. Không tạo lại cho tới khi tra cứu theo khóa ' + q.id + '-v' + q.v + '; tuyệt đối không tạo đơn trùng.')));
+      if (S.create === 'notfound') alerts.push(A('nf', { tone: 'neutral', title: 'Đối soát: không có đơn nào với khóa ' + q.id + '-v' + q.v, action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.createOrder(q.id) }, 'Tạo lại (cùng khóa)') }, 'Backend xác nhận ERP chưa có đơn cho khóa này (mô phỏng). Tạo lại dùng đúng khóa cũ nên nếu đơn xuất hiện muộn, ERP vẫn trả về đơn đã có.'));
+      if (S.create === 'checking') alerts.push(A('ck', { tone: 'neutral', icon: 'loader-circle', title: 'Đang kiểm tra theo khóa chống trùng…' }, 'Hỏi backend xem đơn cho ' + q.id + ' v' + q.v + ' đã có chưa.'));
+      if (S.create === 'error') alerts.push(A('er', { tone: 'error', title: 'ERP không tạo được đơn nháp', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.createOrder(q.id) }, 'Thử lại') }, 'Không có đơn nào được tạo. Mã tham chiếu: ERP-502. Thử lại dùng cùng khóa chống trùng.'));
+      if (S.create === 'denied') alerts.push(A('dn', { tone: 'error', title: 'Máy chủ từ chối: bạn chưa có quyền tạo đơn nháp' }, 'Không có đơn nào được tạo. Quyền tạo đơn: đề xuất, chưa xác định.'));
+      const row = (label, st, ok, okText, badText, note) => h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' } },
+        h('span', { style: { width: 120, font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, label),
+        h('div', { style: { flex: '1 1 0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 } },
+          !done ? h('span', { style: cap }, ck.state === 'running' ? 'Đang kiểm tra…' : 'Chưa kiểm tra') : st === 'warn' ? badge('warning', badText) : ok ? badge('success', okText) : badge('error', badText),
+          done && note ? h('span', { style: cap }, note) : null));
+      const P0 = q.lines.find((l) => l.sku === 'BP-1042');
+      const checkCard = sec('Kiểm tra lại trước khi tạo đơn', done ? h('span', { style: cap }, 'Backend kiểm tra lúc ' + ck.at + ' · mô phỏng') : null, h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        row('Hiệu lực', null, ck.valid !== 'expired', 'Còn hiệu lực đến ' + q.expiresAt, 'Hết hạn ' + q.expiresAt, ck.valid === 'expired' ? 'Không tạo đơn từ báo giá hết hạn (Q2 · PROPOSED).' : null),
+        row('Giá', null, ck.price === 'same', 'Không đổi so với v' + q.v, 'Giá thay đổi', ck.price === 'changed' ? 'BP-1042: ' + (P0 ? vnd(P0.price) : '') + ' → 1.290.000 ₫ theo Quote Service. Backend tạo phiên bản mới ' + q.id + ' v' + (q.v + 1) + '; v' + q.v + ' không dùng để tạo đơn (Q1 · PROPOSED).' : null),
+        row('Tồn kho', null, ck.stock === 'ok', 'Đủ hàng', 'Không đủ hàng', ck.stock === 'short' ? 'BD-0771 hết hàng. Không tạo đơn, không tự đổi trạng thái tồn (Q4 · PROPOSED).' : null),
+        row('Công nợ', null, ck.credit === 'ok', 'Đạt điều kiện', 'Không đạt điều kiện', ck.credit === 'fail' ? 'Vượt hạn mức theo ERP. Số dư công nợ không hiển thị ở đây và không gửi cho Trợ lý. Chuyển nhân viên có thẩm quyền.' : 'Chỉ hiển thị kết quả đạt / không đạt.'),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 4 } },
+          btn({ variant: done ? 'secondary' : 'primary', iconLeft: 'refresh-cw', loading: ck.state === 'running', disabled: ck.state === 'running' || !act || erp !== 'fresh' || busy || S.create === 'reconcile' || S.create === 'notfound' || q.expired, onClick: () => this.runCheck(q.id) }, ck.state === 'running' ? 'Đang kiểm tra…' : done ? 'Kiểm tra lại' : 'Kiểm tra giá, tồn kho, công nợ'),
+          fails.includes('price') ? btn({ variant: 'secondary', iconLeft: 'file-text', onClick: () => this.toast({ tone: 'info', title: 'Mở ' + q.id + ' v' + (q.v + 1), description: 'Thuộc prototype Batch C (Báo giá).' }) }, 'Mở báo giá v' + (q.v + 1)) : null,
+          fails.includes('stock') || fails.includes('credit') ? btn({ variant: 'secondary', iconLeft: 'user', onClick: () => handoff((fails.includes('credit') ? 'Công nợ không đạt · ' : 'Hàng không đủ · ') + q.id) }, 'Chuyển nhân viên có thẩm quyền') : null),
+        h('span', { style: cap }, 'Luôn kiểm tra lại ngay trước khi tạo đơn (Q2). Kết quả là của lần kiểm tra này; nếu tạo đơn sau đó, backend kiểm tra lại một lần nữa (đề xuất).')));
+      const confirmCard = S.confirm && NS.ActionConfirmation ? h(NS.ActionConfirmation, { title: 'Tạo đơn nháp trên ERP?', state: 'pending', confirmLabel: 'Tạo đơn nháp', rejectLabel: 'Không tạo',
+        description: 'Đơn nháp được tạo trên ERP và chờ nhân viên có quyền duyệt trong ERP. Bạn không duyệt ở đây.', note: 'Không có gì được gửi tới ERP cho tới khi bạn bấm “Tạo đơn nháp”. Trợ lý không tham gia bước này.',
+        items: [{ label: 'Báo giá', value: q.id + ' v' + q.v + ' · khách xác nhận ' + q.confirmedAt }, { label: 'Khách hàng', value: q.cust + ' · ' + q.custCode }, { label: 'Số dòng', value: String(q.lines.length) }, { label: 'Tiền hàng', value: capPrice === 'granted' ? vnd(goods(q.lines)) : 'Hạn chế' }, { label: 'Khóa chống trùng', value: q.id + '-v' + q.v }, ...(ac.note ? [{ label: 'Người thao tác', value: q.assignee ? 'Bạn · được phân công lại' : 'Bạn · thay ' + q.owner }] : [])],
+        onConfirm: () => this.createOrder(q.id), onReject: () => this.setState({ confirm: false }) }) : null;
+      const why = q.expired ? 'Báo giá hết hạn — cần phiên bản mới' : !done ? 'Cần kiểm tra lại trước' : fails.length ? 'Kiểm tra lại chưa đạt' : capOrder !== 'granted' ? 'Cần quyền tạo đơn nháp' : null;
+      const createCard = sec('Tạo đơn nháp', h('span', null, pill('B4 · PROPOSED')), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+        S.confirm ? confirmCard : h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+          capOrder === 'denied' ? btn({ restricted: true, restrictedReason: 'Cần quyền tạo đơn nháp (đề xuất)' }, 'Tạo đơn nháp trên ERP')
+            : btn({ iconLeft: 'package', loading: busy, disabled: !canCreate || busy || S.create === 'reconcile' || S.create === 'notfound', onClick: () => this.setState({ confirm: true }) }, busy ? (S.create === 'checking' ? 'Đang tra cứu theo khóa…' : 'Đang tạo trên ERP… (tối đa 30 giây)') : 'Tạo đơn nháp trên ERP'),
+          why && capOrder !== 'denied' ? h('span', { style: cap }, why + '.') : null),
+        h('span', { style: cap }, 'Mỗi báo giá và phiên bản chỉ tạo một đơn nháp: backend dùng khóa chống trùng ' + q.id + '-v' + q.v + ' (đề xuất). Phiên bản bị thay thế hoặc hết hạn không tạo đơn.')));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, ...alerts,
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 } }, checkCard, createCard),
+        sec('Dòng hàng · ' + q.id + ' v' + q.v + ' (đã khóa)', tag('lookup', 'Quote Service · Mock'), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, linesTable(q.lines, 'Dòng hàng'), totals(q.lines))));
+    };
+
+    // ---------- order detail (DO-06) ----------
+    const orderNode = () => {
+      const o = S.orders[S.oid]; if (!o) return null;
+      if (!o.mine && !viewAll) return h('div', { style: { paddingTop: 40 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'unauthorized', title: 'Bạn không có quyền xem đơn này', description: 'Đơn của nhân viên khác. Máy chủ đã từ chối; không có nội dung nào được tải.', code: 'AUTH-403-DO2' }) : null);
+      const head = NS.PageHeader ? h(NS.PageHeader, { title: o.id + ' · ' + o.cust,
+        meta: h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-helper)', color: 'var(--text-secondary)' } }, badge(OST[o.status][0], OST[o.status][1]), h('span', null, 'Từ ' + o.quote + ' v' + o.v), h('span', null, '· Tạo ' + o.createdAt + ' bởi ' + o.owner), h('span', null, '· Đồng bộ ' + o.syncedAt)),
+        actions: btn({ variant: 'ghost', iconLeft: 'arrow-left', onClick: () => go('list', { tab: o.status }) }, 'Danh sách') }) : null;
+      const alerts = [];
+      if (S.sync === 'down') alerts.push(A('sd', { tone: 'warning', icon: 'server-off', title: 'Không đồng bộ được với ERP', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.refresh(o.id) }, 'Thử lại') }, 'Trạng thái hiển thị là của lần đồng bộ lúc ' + o.syncedAt + '. Có thể đã thay đổi trong ERP.'));
+      if (o.status === 'rejected') alerts.push(A('rj', { tone: 'error', title: 'Đơn bị từ chối trong ERP', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'user', onClick: () => handoff('Đơn bị từ chối · ' + o.id) }, 'Chuyển nhân viên có thẩm quyền') }, o.decidedBy + ' từ chối lúc ' + o.decidedAt + '. Lý do: ' + o.reason + '. Xử lý tiếp theo quy trình ERP; tạo lại đơn cần báo giá mới được khách xác nhận (đề xuất).'));
+      if (o.status === 'approved') alerts.push(A('ap', { tone: 'success', title: 'Nhân viên đã duyệt đơn trong ERP' }, o.decidedBy + ' duyệt lúc ' + o.decidedAt + ' (mô phỏng). Giao hàng, xuất hóa đơn: ngoài phạm vi giao diện này.'));
+      const statusCard = sec('Trạng thái trên ERP', h('span', null, pill('B5 · PROPOSED')), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+        NS.DescriptionList ? h(NS.DescriptionList, { columns: 2, items: [
+          { label: 'Xử lý đơn', value: badge(OST[o.status][0], OST[o.status][1]) }, { label: 'Đồng bộ lần cuối', value: o.syncedAt },
+          { label: 'Người duyệt / từ chối', value: o.decidedBy ? o.decidedBy + ' · ' + o.decidedAt : 'Chưa có' }, { label: 'Lý do (từ ERP)', value: o.reason || '—' }] }) : null,
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+          btn({ variant: 'secondary', iconLeft: 'refresh-cw', loading: S.sync === 'running', disabled: S.sync === 'running', onClick: () => this.refresh(o.id) }, S.sync === 'running' ? 'Đang đồng bộ…' : 'Làm mới trạng thái'),
+          btn({ variant: 'ghost', iconLeft: 'external-link', onClick: () => this.toast({ tone: 'info', title: 'Mở ' + o.id + ' trên ERP', description: 'Điểm nối · cần đăng nhập ERP và quyền tương ứng.' }) }, 'Mở trên ERP')),
+        h('span', { style: cap }, 'Duyệt hoặc từ chối đơn do nhân viên có quyền thực hiện trong ERP. Giao diện này không duyệt, không sửa đơn, Trợ lý cũng không.')));
+      const srcCard = sec('Nguồn', null, NS.DescriptionList ? h(NS.DescriptionList, { columns: 1, items: [
+        { label: 'Báo giá', value: h('span', null, code(o.quote + ' v' + o.v), ' · khách xác nhận qua Zalo OA') }, { label: 'Khách hàng (ERP)', value: o.cust + ' · ' + o.custCode },
+        { label: 'Khóa chống trùng', value: o.quote + '-v' + o.v }, ...(o.actedBy ? [{ label: 'Người tạo đơn (audit)', value: o.actedBy }] : [])] }) : null);
+      const timeline = sec('Hoạt động', null, h('ol', { style: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 } }, [...o.events].reverse().map((e, i) => h('li', { key: i, style: { display: 'flex', gap: 12 } },
+        h('span', { style: { ...cap, minWidth: 96 } }, e[0]), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2 } }, h('span', { style: { font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, e[1]), h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-body)' } }, e[2]))))));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, ...alerts,
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 } }, statusCard, srcCard),
+        sec('Dòng hàng', tag('lookup', 'ERP · Mock'), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, linesTable(o.lines, 'Dòng hàng đơn nháp'), totals(o.lines))), timeline);
+    };
+
+    // ---------- AI ----------
+    const turnNodes = (t) => {
+      if (t.key === 'create') return [h(NS.ChatMessage, { key: t.id + 'u', role: 'user', time: t.time }, 'Tạo đơn nháp cho ' + (S.qid || 'BG-2026-0418') + ' giúp tôi'),
+        h(NS.ChatMessage, { key: t.id + 'a', time: t.time, label: false }, h('span', null, 'Tôi không tạo đơn nháp trong giao diện nhân viên. Bạn kiểm tra lại giá, tồn kho, công nợ rồi bấm “Tạo đơn nháp trên ERP” ở màn hình này. ', tag('ai', 'AI nhận diện')), h('span', { style: cap }, 'Không có công cụ nào được gọi. Quy trình tạo đơn: B4 · PROPOSED.'))];
+      if (t.key === 'approve') return [h(NS.ChatMessage, { key: t.id + 'u', role: 'user', time: t.time }, 'Duyệt đơn ' + (S.oid || 'DN-2026-0236') + ' luôn đi'),
+        h(NS.ChatMessage, { key: t.id + 'a', time: t.time, label: false }, h('span', null, 'Duyệt đơn không giao cho Trợ lý. Nhân viên có quyền duyệt đơn trong ERP; bạn có thể bấm “Mở trên ERP”. Tôi cũng không đọc trạng thái đơn — trạng thái trên màn hình là do hệ thống đồng bộ từ ERP. ', tag('ai', 'AI nhận diện')), h('span', { style: cap }, 'Không có công cụ nào được gọi.'))];
+      return [];
+    };
+    const ctxLabel = S.route === 'review' ? 'Đang xem: ' + S.qid + ' (chờ tạo đơn)' : S.route === 'order' ? 'Đang xem: ' + S.oid : 'Đơn hàng nháp';
+    const has = (k) => S.turns.some((t) => t.key === k);
+    const sugg = S.route === 'review' && !has('create') ? ['Tạo đơn nháp cho ' + S.qid + ' giúp tôi'] : S.route === 'order' && !has('approve') ? ['Duyệt đơn ' + S.oid + ' luôn đi'] : [];
+    const threadNode = h(React.Fragment, null, h(NS.ChatMessage, { key: 'ctx', role: 'system' }, ctxLabel),
+      S.turns.length === 0 ? h(NS.ChatMessage, { key: 'w', label: false }, h('span', null, 'Trong Đơn hàng nháp, Trợ lý không có công cụ: không tạo đơn, không duyệt, không đọc trạng thái hay công nợ. Tôi có thể chỉ cho bạn bước tiếp theo trên màn hình. ', tag('ai', 'AI nhận diện'))) : null,
+      S.turns.map(turnNodes));
+    const composerNode = NS.AIComposer ? h(NS.AIComposer, { context: S.route === 'review' ? [S.qid] : S.route === 'order' ? [S.oid] : [], suggestions: sugg, onSuggestion: (s) => this.ask(s.indexOf('Duyệt') === 0 ? 'approve' : 'create'),
+      onSubmit: (v) => this.ask(/duyệt/i.test(v) ? 'approve' : 'create'), placeholder: 'Hỏi về đơn đang xem…', disclaimer: 'AI có thể sai. Trạng thái đơn chỉ lấy từ ERP, hiển thị theo quyền của bạn.' }) : null;
+
+    // ---------- shell ----------
+    const collapsed = S.col !== null ? S.col : narrow;
+    const panelOpen = S.panel !== null ? S.panel : false;
+    const sections = [{ items: [
+      { key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' }, { key: 'lookup', label: 'Tra cứu phụ tùng', icon: 'search' },
+      { key: 'quote', label: 'Báo giá', icon: 'file-text' }, { key: 'orders', label: 'Đơn hàng nháp', icon: 'package' }, { key: 'audit', label: 'Hoạt động', icon: 'history' }] }];
+    const crumbs = S.route === 'list' ? [{ label: 'Đơn hàng nháp' }] : S.route === 'review' ? (overlay ? [{ label: S.qid }] : [{ label: 'Đơn hàng nháp', onClick: () => go('list') }, { label: 'Tạo đơn · ' + S.qid }]) : (overlay ? [{ label: S.oid }] : [{ label: 'Đơn hàng nháp', onClick: () => go('list') }, { label: S.oid }]);
+    const unread = S.notifs.filter((n) => n.unread).length;
+    const notifNode = S.showNotifs ? sec('Thông báo', h('span', null, pill('PROPOSED')), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      S.notifs.length ? S.notifs.map((n) => h('div', { key: n.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: '1px solid var(--border-card)', borderRadius: 8, background: n.unread ? 'var(--bg-subtle)' : 'transparent' } },
+        icon(n.tone === 'success' ? 'circle-check' : 'circle-x', n.tone === 'success' ? 'var(--status-success)' : 'var(--status-error)'),
+        h('div', { style: { flex: '1 1 0' } }, h('div', { style: { font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, n.title), h('div', { style: cap }, n.t + ' · ' + n.text)),
+        btn({ size: 'sm', variant: 'ghost', onClick: () => openOrder(n.oid) }, 'Mở đơn'))) : h('span', { style: cap }, 'Chưa có thông báo.'),
+      h('span', { style: cap }, 'Thông báo cho nhân viên phụ trách khi ERP duyệt hoặc từ chối: đề xuất. Cơ chế (trong ứng dụng, Zalo, email…) chưa được quy định trong tài liệu gốc.'))) : null;
+    const main0 = noAccess ? noAccessNode() : S.route === 'list' ? listNode() : S.route === 'review' ? reviewNode() : orderNode();
+    const main = notifNode ? h(React.Fragment, null, notifNode, main0) : main0;
+    return {
+      rootRef: this.rootRef, sections, navKey: 'orders', collapsed,
+      sidebarFooter: collapsed ? null : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, ...cap } }, h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: erp === 'fresh' ? 'var(--status-success)' : 'var(--status-error)' } }), erp === 'fresh' ? 'ERP mô phỏng · đã kết nối' : 'ERP mô phỏng · không khả dụng'),
+      crumbs, user: { name: 'Nguyễn Minh Anh', role: { sales: 'Nhân viên kinh doanh', restricted: 'Nhân viên hạn chế', supervisor: 'Giám sát kinh doanh', admin: 'Quản trị hệ thống' }[persona] + ' (mô phỏng)', initials: 'MA' },
+      headerActions: NS.IconButton ? h(React.Fragment, null, h(NS.IconButton, { icon: 'bell', label: unread ? 'Thông báo (' + unread + ' mới)' : 'Thông báo', active: S.showNotifs, onClick: () => this.setState({ showNotifs: !S.showNotifs }) }), unread ? h('span', { 'aria-hidden': true, style: { marginLeft: -10, marginRight: 4, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--status-error)', color: '#fff', font: '600 10px/16px var(--font-sans)', textAlign: 'center', alignSelf: 'flex-start' } }, String(unread)) : null, h(NS.IconButton, { icon: 'circle-help', label: 'Trợ giúp (chưa thiết kế)', disabled: true }),
+        noAccess ? null : h(NS.IconButton, { icon: 'sparkles', label: panelOpen ? 'Đóng Trợ lý AI' : 'Mở Trợ lý AI', active: panelOpen, onClick: () => this.setState({ panel: !panelOpen }) })) : null,
+      headerSearch: () => this.toast({ tone: 'info', title: 'Tìm nhanh thuộc Workflow A', description: 'Ô tìm trên header chưa có hành vi trong bản mô phỏng.' }),
+      simBanner, mainNode: main, panelOpen: panelOpen && !noAccess, panelPos: overlay ? 'absolute' : 'relative', panelShadow: overlay ? 'var(--shadow-lg)' : 'none',
+      panelKey: (e) => { if (e.key === 'Escape') { e.stopPropagation(); this.setState({ panel: false }); } },
+      panelContext: ctxLabel, aiStatus: 'online', threadNode, composerNode, closePanel: () => this.setState({ panel: false }),
+      toasts: S.toasts.map((t) => ({ ...t, close: () => this.setState({ toasts: this.state.toasts.filter((x) => x.id !== t.id) }) })),
+      toggleSidebar: () => this.setState({ col: !collapsed }),
+      selectNav: (k) => { if (k === 'orders') go('list'); else this.toast({ tone: 'info', title: k === 'quote' ? 'Báo giá thuộc prototype Batch C' : k === 'lookup' ? 'Tra cứu phụ tùng thuộc Workflow A' : 'Ngoài phạm vi Batch D', description: 'Mở trang tương ứng trên canvas.' }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

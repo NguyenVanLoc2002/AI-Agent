@@ -1,0 +1,85 @@
+<!-- @dsCard group="Dashboard" height=184 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>AvatarGroup — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-app)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  AvatarGroup,
+  Badge
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      maxWidth: 420,
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-card)',
+      borderRadius: 10,
+      padding: 16,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, [['BG-2026-0412', [{
+    name: 'Nguyễn Minh Anh',
+    role: 'Kinh doanh'
+  }], 'neutral', 'Nháp'], ['BG-2026-0411', [{
+    name: 'Nguyễn Minh Anh',
+    role: 'Kinh doanh'
+  }, {
+    name: 'Trần Quốc Bảo',
+    role: 'Trưởng nhóm'
+  }], 'warning', 'Chờ duyệt'], ['BG-2026-0402', [{
+    name: 'Lê Thu Hà'
+  }, {
+    name: 'Trần Quốc Bảo'
+  }, {
+    name: 'Phạm Đức Long'
+  }, {
+    name: 'Vũ Hải Yến'
+  }, {
+    name: 'Đỗ Văn Nam'
+  }], 'error', 'Bị từ chối']].map(([id, pp, t, l]) => React.createElement("div", {
+    key: id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, React.createElement("span", {
+    className: "ap-code",
+    style: {
+      flex: 1
+    }
+  }, id), React.createElement(AvatarGroup, {
+    size: "sm",
+    max: 3,
+    label: "Ng\u01B0\u1EDDi ph\u1EE5 tr\xE1ch",
+    people: pp
+  }), React.createElement(Badge, {
+    shape: "pill",
+    tone: t,
+    size: "sm"
+  }, l))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

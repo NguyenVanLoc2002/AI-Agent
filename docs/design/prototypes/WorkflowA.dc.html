@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Workflow A · Tra cứu phụ tùng — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+.chipbtn{font:var(--type-code);font-size:12px;border:1px dashed var(--border-strong);background:var(--bg-surface);color:var(--text-body);border-radius:6px;padding:2px 8px;cursor:pointer}
+.chipbtn:hover{background:var(--bg-hover)}
+.chipbtn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="height: 100vh; min-height: 560px; display: flex; overflow: hidden; font-family: var(--font-sans); color: var(--text-body); background: var(--bg-app); position: relative;">
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sections}}" active-key="lookup" collapsed="{{collapsed}}" on-toggle-collapsed="{{toggleSidebar}}" on-select="{{selectNav}}" footer="{{sidebarFooter}}"></x-import>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" on-search="{{goLookup}}" search-placeholder="Tìm SKU, mã OE hoặc số VIN" actions="{{headerActions}}" user="{{user}}"></x-import>
+    <div style="flex: 1 1 0; min-height: 0; display: flex; position: relative;">
+      <div style="flex: 1 1 0; min-width: 0; position: relative;">
+        <main style="position: absolute; inset: 0; overflow-y: auto; padding: 16px 24px 40px;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div role="note" style="display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; background: var(--bg-nested); font: var(--type-caption); color: var(--text-secondary);">
+              <span style="font-weight: 600; color: var(--text-primary);">Chế độ mô phỏng UX</span>
+              <span>Persona: <b style="color: var(--text-primary); font-weight: 500;">{{personaLabel}}</b></span>
+              <span>Xem giá: <b style="color: var(--text-primary); font-weight: 500;">{{capPriceLabel}}</b></span>
+              <span>Xem tồn: <b style="color: var(--text-primary); font-weight: 500;">{{capStockLabel}}</b></span>
+              <span>Phạm vi chi nhánh: <b style="color: var(--text-primary); font-weight: 500;">{{scopeLabel}}</b></span>
+              <span>Thêm vào báo giá: <b style="color: var(--text-primary); font-weight: 500;">{{capQuoteLabel}}</b></span>
+              <span>Dữ liệu ERP: <b style="color: var(--text-primary); font-weight: 500;">mô phỏng · {{erpLabel}}</b></span>
+              <span style="flex-basis: 100%;">Mọi quyền ở đây là ĐỀ XUẤT để kiểm tra giao diện, chưa được phê duyệt. Giới hạn trên giao diện không thay thế kiểm tra quyền ở máy chủ.</span>
+            </div>
+
+            <sc-if value="{{isLookup}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+                  <div style="flex: 1 1 320px; min-width: 0;">
+                    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Tra cứu phụ tùng</h1>
+                    <div style="font: var(--type-helper); color: var(--text-secondary); margin-top: 2px;">Tìm theo SKU, mã OE hoặc số VIN. Giá và tồn kho chỉ được dùng khi ERP xác nhận mới; bản lưu và dữ liệu cũ được gắn nhãn riêng.</div>
+                  </div>
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Tag" icon="store">{{branchTag}}</x-import>
+                </div>
+                <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Card" padding="{{ 16 }}">
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SearchField" mode="{{mode}}" on-mode-change="{{setMode}}" value="{{query}}" on-change="{{setQuery}}" loading="{{isLoading}}" error="{{searchError}}" on-submit="{{submit}}"></x-import>
+                    <sc-if value="{{showVehicle}}" hint-placeholder-val="{{ true }}">
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: var(--type-caption); color: var(--text-secondary);">
+                        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Icon" name="car" size="{{ 16 }}" color="var(--text-secondary)"></x-import>
+                        <sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}"><span>Đang tra bảng ánh xạ VIN mẫu…</span></sc-if>
+                        <sc-if value="{{vehicleReady}}" hint-placeholder-val="{{ true }}">
+                          <span>Xe: <b style="color: var(--text-primary); font-weight: 600;">Toyota Vios 1.5G · 2019 · Sedan</b> · Động cơ 2NR-FE · Kết quả đã lọc theo xe này</span>
+                          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" size="sm" tone="neutral" icon="database">Ánh xạ VIN mô phỏng · dữ liệu mẫu</x-import>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font: var(--type-caption); color: var(--text-secondary);">
+                      <span>Thử nhanh (chỉ có trong bản mô phỏng):</span>
+                      <sc-for list="{{samples}}" as="s" hint-placeholder-count="6">
+                        <button type="button" class="chipbtn" onClick="{{s.run}}" title="{{s.hint}}">{{s.text}}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </x-import>
+
+                <sc-if value="{{showPermAlert}}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="neutral" icon="lock" title="{{permAlertTitle}}">{{permAlertText}}</x-import>
+                </sc-if>
+                <sc-if value="{{showErpAlert}}" hint-placeholder-val="{{ false }}">
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="warning" icon="{{erpAlertIcon}}" title="{{erpAlertTitle}}" action="{{retryAction}}">{{erpAlertText}}</x-import>
+                </sc-if>
+
+                <div style="overflow-x: auto;">
+                  <div style="min-width: 760px;">
+                    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DataTable" caption="Kết quả tra cứu phụ tùng" density="compact" columns="{{cols}}" rows="{{rows}}" row-key="sku" loading="{{isLoading}}" on-row-click="{{openRow}}" active-row-key="{{drawerSku}}" selectable="{{canSelect}}" selected="{{selected}}" on-selected-change="{{setSelected}}" toolbar="{{toolbar}}" footer="{{pager}}" empty-state="{{emptyState}}"></x-import>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{isPage}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div><x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" size="sm" variant="ghost" icon-left="arrow-left" on-click="{{goLookup}}">{{backLabel}}</x-import></div>
+                <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.PageHeader" title="{{pageTitle}}" meta="{{pageMeta}}" actions="{{pageActions}}"></x-import>
+                <dc-import name="PartDetail" sku="{{pageSku}}" erp="{{erp}}" cap-price="{{capPrice}}" cap-stock="{{capStock}}" branch-scope="{{branchScope}}" retrying="{{retrying}}" confirmed-at="{{confirmedAt}}" layout="{{pageLayout}}" on-retry="{{retryErp}}" on-open-sku="{{openSkuPage}}" hint-size="100%,900px"></dc-import>
+              </div>
+            </sc-if>
+          </div>
+        </main>
+
+        <sc-if value="{{drawerOpen}}" hint-placeholder-val="{{ false }}">
+          <div onKeyDown="{{drawerKey}}" style="position: absolute; inset: 0; display: flex; justify-content: flex-end; z-index: 20;">
+            <button type="button" aria-label="Đóng chi tiết" tabIndex="-1" onClick="{{closeDrawer}}" style="position: absolute; inset: 0; border: 0; padding: 0; margin: 0; background: var(--overlay-scrim); cursor: default;"></button>
+            <div ref="{{drawerRef}}" tabIndex="-1" role="dialog" aria-label="{{drawerTitle}}" style="position: relative; height: 100%; max-width: 100%; outline: none;">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Drawer" inline="{{ true }}" width="{{drawerWidth}}" title="{{drawerTitle}}" subtitle="{{drawerSubtitle}}" on-close="{{closeDrawer}}" footer="{{drawerFooter}}" style="box-shadow: var(--shadow-lg);">
+                <dc-import name="PartDetail" sku="{{drawerSku}}" erp="{{erp}}" cap-price="{{capPrice}}" cap-stock="{{capStock}}" branch-scope="{{branchScope}}" retrying="{{retrying}}" confirmed-at="{{confirmedAt}}" layout="drawer" on-retry="{{retryErp}}" on-open-sku="{{openSkuDrawer}}" hint-size="100%,1200px"></dc-import>
+              </x-import>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{aiOpen}}" hint-placeholder-val="{{ true }}">
+        <div style="position: {{aiPos}}; top: 0; right: 0; bottom: 0; z-index: 30; box-shadow: {{aiShadow}}; display: flex; height: 100%;">
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIPanel" context="{{aiContext}}" status="{{aiStatus}}" on-close="{{closeAi}}" composer="{{composer}}" style="height: 100%;">
+          <sc-if value="{{aiLoading}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:41">Xe VIN này dùng má phanh trước mã nào?</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:41">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Tra bảng ánh xạ VIN mẫu" name="Agent · tra_xe_theo_vin" status="running"></x-import>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Tìm phụ tùng tương thích" name="Agent · tim_phu_tung" status="running"></x-import>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{aiIdle}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:40">Nhập SKU, mã OE hoặc số VIN để tra cứu. Tôi chỉ dùng quyền của tài khoản bạn và không thay đổi dữ liệu ERP.</x-import>
+          </sc-if>
+          <sc-if value="{{aiEmpty}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:41">Tìm giúp mã này</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:41">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="{{aiEmptyToolLabel}}" name="{{aiEmptyToolName}}" status="{{aiEmptyTool}}" duration="0,3 giây" message="{{aiEmptyToolMsg}}"></x-import>
+              <span>{{aiEmptyText}}</span>
+              <sc-if value="{{aiEmptyVin}}" hint-placeholder-val="{{ false }}"><span style="font: var(--type-helper); color: var(--text-secondary);">Tôi không tự suy đoán xe tương thích khi không có dữ liệu ánh xạ.</span></sc-if>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{aiBlocked}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:43">Má phanh trước cho xe này còn hàng không, giá bao nhiêu?</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:43">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="{{blockedLabel}}" name="{{blockedName}}" status="{{blockedStatus}}" message="{{blockedMsg}}"></x-import>
+              <span>{{blockedText}}</span>
+              <span style="font: var(--type-helper); color: var(--text-secondary);">Tôi vẫn có thể giúp tra thông số, xe tương thích theo danh mục mẫu và mã tương đương.</span>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{aiResults}}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Phiên làm việc · 16/11/2026</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:41">Xe Vios 2019 này dùng má phanh trước nào? Còn hàng không?</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="{{ false }}" time="09:42">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Tra bảng ánh xạ VIN mẫu" name="Agent · tra_xe_theo_vin" status="success" duration="0,1 giây"></x-import>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Kiểm tra tồn kho trong phạm vi được cấp" name="Nội bộ · erp.ton_kho" status="success" duration="0,8 giây"></x-import>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ERPResult" source="ERP mô phỏng" state="lookup" title="BP-1042" synced-at="Tra cứu lúc {{confirmedAt}} (hệ thống ghi)">
+                <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DescriptionList" columns="{{ 2 }}" items="{{aiErpItems}}"></x-import>
+              </x-import>
+              <span>Theo bảng ánh xạ mẫu, xe này dùng <b>BP-1042</b> (OE 04465-0D130). Long Biên: còn hàng. <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SourceTag" source="ai" label="AI nhận diện" variant="inline"></x-import></span>
+              <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--source-ai-bg); border: 1px solid var(--source-ai-border);">
+                <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="font: var(--type-helper); color: var(--text-body); flex: 1 1 0;">Đĩa phanh BD-0771 đang hết hàng. Brembo 09.C771.11 có thông số gần giống — đây là gợi ý, chưa kiểm tra giá và tồn kho.</span><x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SourceTag" source="ai" label="AI nhận diện" variant="inline"></x-import></div>
+                <div><x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" size="sm" variant="ghost" icon-right="chevron-right" on-click="{{openBD}}">Xem BD-0771</x-import></div>
+              </div>
+              <span style="font: var(--type-helper); color: var(--text-secondary);">Tôi chỉ dùng quyền của tài khoản bạn và không thể thêm sản phẩm vào báo giá thay bạn.</span>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{aiCached}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:43">Long Biên còn má phanh trước BP-1042 không?</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:43">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Kiểm tra tồn kho" name="Nội bộ · erp.ton_kho" status="timeout" duration="10,0 giây" message="ERP chưa xác nhận lại. Chỉ có bản lưu lúc 08:15."></x-import>
+              <span>Tôi chỉ thấy bản lưu đồng bộ lúc 08:15, chưa được ERP xác nhận lại. Tôi không dùng số liệu này như số liệu hiện tại.</span>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{aiDetail}}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Ngữ cảnh: {{detailLabel}}</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" time="09:45">So sánh {{detailSku}} với hàng thay thế</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" label="AI nhận diện" time="09:45">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" label="Đọc thông số danh mục" name="Agent · tim_phu_tung" status="success" duration="0,2 giây"></x-import>
+              <span><b>{{detailSku}}</b> là {{detailOrigin}}, vật liệu bán kim loại, có cảm biến mòn (theo danh mục mẫu).</span>
+              <div style="display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--source-ai-bg); border: 1px solid var(--source-ai-border);"><span style="font: var(--type-helper); color: var(--text-body); flex: 1 1 0;">Các mã tương đương có thông số gần giống. Tôi chưa kiểm tra giá và tồn kho các mã này — bấm “Kiểm tra ERP” trong phần Mã tương đương.</span><x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.SourceTag" source="ai" label="AI nhận diện" variant="inline"></x-import></div>
+            </x-import>
+          </sc-if>
+        </x-import>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToastViewport">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="{{t.tone}}" title="{{t.title}}" description="{{t.description}}" on-close="{{t.close}}"></x-import>
+    </sc-for>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"start":{"editor":"enum","options":["results","selected","loading","empty","error","drawer","page","vin-invalid","vin-unsupported","vin-unmapped"],"default":"results","section":"Màn hình"},"erp":{"editor":"enum","options":["fresh","cached","stale","unverified","timeout","down"],"default":"fresh","section":"Dữ liệu ERP mô phỏng"},"persona":{"editor":"enum","options":["sales","restricted","supervisor","admin"],"default":"sales","section":"Quyền mô phỏng"},"capPrice":{"editor":"enum","options":["granted","denied","unknown"],"default":"granted","section":"Quyền mô phỏng"},"capStock":{"editor":"enum","options":["granted","denied","unknown"],"default":"granted","section":"Quyền mô phỏng"},"branchScope":{"editor":"enum","options":["own","own-plus","unknown"],"default":"own","section":"Quyền mô phỏng"},"capQuote":{"editor":"enum","options":["granted","denied","unknown"],"default":"unknown","section":"Quyền mô phỏng"},"aiOpen":{"editor":"boolean","default":true,"section":"Màn hình"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.rootRef = React.createRef();
+    this.drawerRef = React.createRef();
+    this.state = { ...this.initial(props), w: 1440, col: null };
+  }
+  initial(props) {
+    const start = props.start || 'results';
+    const VIN = 'MR8YB3JF5N0123456';
+    const s = { mode: 'vin', query: VIN, status: 'ok', route: 'lookup', drawerSku: null, pageSku: 'BP-1042', selected: [], lastSku: null,
+      erp: props.erp || 'fresh', confirmedAt: '09:42', retrying: false, attempts: 0, lastAttempt: '', toasts: [], ai: null, searchError: undefined };
+    if (start === 'loading') s.status = 'loading';
+    if (start === 'empty') { s.mode = 'sku'; s.query = 'BP-9999X'; s.status = 'empty'; }
+    if (start === 'error') s.status = 'error';
+    if (start === 'drawer') s.drawerSku = 'BP-1042';
+    if (start === 'page') s.route = 'page';
+    if (start === 'selected') s.selected = ['BP-1042', 'BS-0402'];
+    if (start === 'vin-invalid') { s.query = 'MR8YB3JF5N012345O'; s.status = 'idle'; s.searchError = 'Số VIN không hợp lệ: cần đúng 17 ký tự và không chứa I, O, Q.'; }
+    if (start === 'vin-unsupported') { s.query = 'WVWZZZ1KZAW000123'; s.status = 'vin-unsupported'; }
+    if (start === 'vin-unmapped') { s.query = 'MR8YB3JF5N0999999'; s.status = 'vin-unmapped'; }
+    return s;
+  }
+  componentDidMount() {
+    const el = this.rootRef.current;
+    if (el && window.ResizeObserver) {
+      this.ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width); if (Math.abs(w - this.state.w) > 4) this.setState({ w }); });
+      this.ro.observe(el);
+    }
+  }
+  componentWillUnmount() { if (this.ro) this.ro.disconnect(); }
+  componentDidUpdate(prev, prevState) {
+    const keys = ['start', 'erp', 'persona', 'capPrice', 'capStock', 'branchScope', 'capQuote'];
+    if (keys.some((k) => prev[k] !== this.props[k])) this.setState(this.initial(this.props));
+    if (this.state.drawerSku && this.state.drawerSku !== prevState.drawerSku && this.drawerRef.current) this.drawerRef.current.focus();
+  }
+  toast(x) {
+    const id = Date.now() + Math.random();
+    this.setState({ toasts: [...this.state.toasts, { ...x, id }] });
+    setTimeout(() => this.setState({ toasts: this.state.toasts.filter((t) => t.id !== id) }), 5000);
+  }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const S = this.state;
+    const erp = S.erp;
+    const capPrice = this.props.capPrice || 'granted', capStock = this.props.capStock || 'granted';
+    const branchScope = this.props.branchScope || 'own', capQuote = this.props.capQuote || 'unknown';
+    const persona = this.props.persona || 'sales';
+    const canPrice = capPrice === 'granted', canStock = capStock === 'granted' && branchScope !== 'unknown';
+    const narrow = S.w < 1360;
+    const overlay = S.w < 1180;
+    const VIN = 'MR8YB3JF5N0123456';
+    const P = [
+      { sku: 'BP-1042', oe: '04465-0D130', pname: 'Má phanh trước', fit: 'Toyota Vios 2014–2022 · 1.5L', brand: 'Toyota', origin: 'Chính hãng', price: 1250000, stock: 24, unit: 'Bộ', status: 'ok' },
+      { sku: 'BP-1043', oe: '04465-0D140', pname: 'Má phanh trước bản G', fit: 'Toyota Vios G 2018–2022', brand: 'Toyota', origin: 'Chính hãng', price: 1390000, stock: 6, unit: 'Bộ', status: 'low' },
+      { sku: 'BP-2210A', oe: 'AN-2210', pname: 'Má phanh trước ceramic', fit: 'Vios / Yaris 2014–2022', brand: 'Akebono', origin: 'Thay thế', price: 890000, stock: 41, unit: 'Bộ', status: 'ok' },
+      { sku: 'BD-0771', oe: '43512-0D150', pname: 'Đĩa phanh trước', fit: 'Toyota Vios 2014–2022', brand: 'Toyota', origin: 'Chính hãng', price: 1720000, stock: 0, unit: 'Cái', status: 'out' },
+      { sku: 'BP-3318T', oe: 'TR-3318', pname: 'Má phanh trước tiêu chuẩn', fit: 'Vios 2014–2018', brand: 'TRW', origin: 'Thay thế', price: 760000, stock: 18, unit: 'Bộ', status: 'ok' },
+      { sku: 'BS-0402', oe: '04947-0D010', pname: 'Bộ lò xo má phanh', fit: 'Toyota Vios 2014–2022', brand: 'Toyota', origin: 'Chính hãng', price: 215000, stock: 3, unit: 'Bộ', status: 'low' },
+      { sku: 'BF-0118', oe: '90080-91212', pname: 'Dầu phanh DOT 3 · 1 lít', fit: 'Dùng chung', brand: 'Toyota', origin: 'Chính hãng', price: 185000, stock: 62, unit: 'Chai', status: 'ok' },
+      { sku: 'BC-2050', oe: '47750-0D090', pname: 'Cụm kẹp phanh trước trái', fit: 'Toyota Vios 2014–2022', brand: 'Toyota', origin: 'Chính hãng', price: 3480000, stock: 2, unit: 'Cái', status: 'low' },
+    ];
+    // Deterministic mock VIN mapping (fictional fixtures). No real decoder, no LLM inference.
+    const VIN_MAP = { [VIN]: 'vios-2019' };
+    const SUPPORTED_WMI = ['MR8', 'MR0', 'MR2'];
+    const SM = { ok: ['success', 'Còn hàng'], low: ['warning', 'Sắp hết'], out: ['error', 'Hết hàng'] };
+    const find = (s) => P.find((x) => x.sku === s) || P[0];
+    const now = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+    const evaluate = (q, m) => {
+      const s = (q || '').trim().toUpperCase();
+      if (m === 'vin') {
+        if (s.length !== 17 || /[IOQ]/.test(s) || !/^[A-Z0-9]+$/.test(s)) return { error: 'Số VIN không hợp lệ: cần đúng 17 ký tự và không chứa I, O, Q.' };
+        if (!SUPPORTED_WMI.includes(s.slice(0, 3))) return { status: 'vin-unsupported' };
+        if (!VIN_MAP[s]) return { status: 'vin-unmapped' };
+        return { status: 'ok' };
+      }
+      if (!s) return { status: 'empty' };
+      const hit = P.some((p) => (m === 'name' ? p.pname.toUpperCase().includes(s) : (p.sku.includes(s) || p.oe.toUpperCase().includes(s))));
+      return { status: hit ? 'ok' : 'empty' };
+    };
+    const runSearch = (q, m, forced) => {
+      const r = forced ? { status: forced } : evaluate(q, m);
+      if (r.error) { this.setState({ searchError: r.error, status: 'idle', selected: [], drawerSku: null }); return; }
+      this.setState({ status: 'loading', searchError: undefined, drawerSku: null, route: 'lookup', selected: [], query: q, mode: m });
+      setTimeout(() => this.setState({ status: r.status }), 900);
+    };
+    const qU = (S.query || '').trim().toUpperCase();
+    const status = S.status;
+    const filtered = S.mode === 'vin' ? P : S.mode === 'name' ? P.filter((p) => p.pname.toUpperCase().includes(qU)) : P.filter((p) => p.sku.includes(qU) || p.oe.toUpperCase().includes(qU));
+    const rows = status === 'ok' ? filtered : [];
+    const fresh = erp === 'fresh' && !S.retrying;
+    const cached = erp === 'cached' && !S.retrying;
+    const canSelect = canPrice && fresh && status === 'ok';
+    const cap = { font: 'var(--type-caption)', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 };
+    const icon = (n, c) => NS.Icon ? h(NS.Icon, { name: n, size: 14, color: c }) : null;
+    const locked = (c) => h('span', { style: { ...cap, color: 'var(--status-restricted-fg)' } }, icon('lock'), c === 'unknown' ? 'Chưa xác định quyền' : 'Hạn chế');
+    const valueCell = (can, c, render) => {
+      if (!can) return locked(c);
+      if (S.retrying) return NS.Skeleton ? h(NS.Skeleton, { width: 64, height: 12, style: { marginLeft: 'auto' } }) : '…';
+      if (fresh) return render(false);
+      if (cached) return render(true);
+      return h('span', { style: { color: 'var(--text-secondary)' }, 'aria-label': 'Chưa được xác nhận' }, '—');
+    };
+    const stockCap = branchScope === 'unknown' && capStock === 'granted' ? 'unknown' : capStock;
+    const srcCell = () => {
+      if (!canPrice && !canStock) return locked(capPrice === 'unknown' || stockCap === 'unknown' ? 'unknown' : 'denied');
+      if (S.retrying) return h('span', { style: { ...cap, color: 'var(--text-secondary)' } }, NS.Spinner ? h(NS.Spinner, { size: 14 }) : null, 'Đang thử lại…');
+      const m = {
+        fresh: () => NS.SourceTag ? h(NS.SourceTag, { variant: 'inline', source: 'lookup', label: 'Dữ liệu tra cứu', time: S.confirmedAt }) : 'ERP',
+        cached: () => NS.SourceTag ? h(NS.SourceTag, { variant: 'inline', source: 'cache', label: 'Bản lưu · chưa xác nhận lại', time: '08:15' }) : 'Bản lưu',
+        stale: () => h('span', { style: { ...cap, color: 'var(--status-warning-fg)' } }, icon('history'), 'Dữ liệu cũ · đã ẩn'),
+        unverified: () => h('span', { style: { ...cap, color: 'var(--status-warning-fg)' } }, icon('circle-help'), 'Chưa được xác nhận'),
+        timeout: () => h('span', { style: { ...cap, color: 'var(--status-warning-fg)' } }, icon('timer-off'), 'Quá thời gian'),
+        down: () => h('span', { style: { ...cap, color: 'var(--status-warning-fg)' } }, icon('server-off'), 'ERP không khả dụng'),
+      };
+      return m[erp]();
+    };
+    const muted = (isCached) => ({ fontWeight: 500, color: isCached ? 'var(--text-secondary)' : 'var(--text-primary)' });
+    const cols = [
+      { key: 'sku', header: 'SKU / OE', width: 128, sortable: true, render: (r) => h('div', { style: { lineHeight: 1.35 } }, h('div', { className: 'ap-code' }, r.sku), h('div', { className: 'ap-code', style: { fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' } }, 'OE ' + r.oe)) },
+      { key: 'pname', header: 'Sản phẩm', sortable: true, render: (r) => h('div', { style: { lineHeight: 1.35, whiteSpace: 'normal', minWidth: 160 } }, h('div', { style: { fontWeight: 500 } }, r.pname), h('div', { style: { fontSize: 12, color: 'var(--text-secondary)' } }, r.fit)) },
+      { key: 'brand', header: 'Hãng', sortable: true, render: (r) => h('div', { style: { lineHeight: 1.35 } }, h('div', null, r.brand), h('div', { style: { fontSize: 12, color: 'var(--text-secondary)' } }, r.origin === 'Chính hãng' ? 'Hàng chính hãng' : 'Hàng thay thế')) },
+      { key: 'price', header: 'Giá bán (₫)', align: 'right', sortable: fresh && canPrice, sortValue: (r) => r.price, render: (r) => valueCell(canPrice, capPrice, (c) => h('span', { style: muted(c) }, r.price.toLocaleString('vi-VN'))) },
+      { key: 'stock', header: branchScope === 'unknown' ? 'Tồn kho' : 'Tồn · Long Biên', align: 'right', sortable: fresh && canStock, sortValue: (r) => r.stock, render: (r) => valueCell(canStock, stockCap, (c) => h('span', { style: { display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, lineHeight: 1.35 } },
+        h('span', { style: muted(c) }, r.stock + ' ', h('span', { style: { fontWeight: 400, color: 'var(--text-secondary)', fontSize: 12 } }, r.unit.toLowerCase())),
+        c ? h('span', { style: { font: 'var(--type-caption)', color: 'var(--status-warning-fg)' } }, 'Bản lưu') : (NS.Badge ? h(NS.Badge, { shape: 'pill', size: 'sm', tone: SM[r.status][0] }, SM[r.status][1]) : null))) },
+      { key: 'src', header: 'Nguồn', width: 150, render: () => srcCell() },
+    ];
+    const retryErp = () => {
+      this.setState({ retrying: true });
+      setTimeout(() => {
+        const was = this.state.erp;
+        const ok = was === 'timeout' || was === 'cached' || was === 'unverified' || was === 'stale';
+        this.setState({ retrying: false, attempts: this.state.attempts + 1, lastAttempt: now(), erp: ok ? 'fresh' : was, confirmedAt: ok ? now() : this.state.confirmedAt });
+        if (ok) this.toast({ tone: 'success', title: 'ERP đã xác nhận lại dữ liệu', description: 'Dữ liệu mô phỏng · xác nhận ' + now() });
+      }, 1400);
+    };
+    const askAI = () => this.setState({ ai: true });
+    const quoteBtn = !NS.Button ? null : capQuote === 'granted'
+      ? h(NS.Button, { size: 'sm', variant: 'secondary', iconLeft: 'file-plus', onClick: () => this.toast({ tone: 'info', title: 'Thêm vào báo giá — chưa khả dụng', description: 'Thuộc Workflow C, chưa được thiết kế. Không có dữ liệu nào được lưu.' }) }, 'Thêm vào báo giá · Luồng C (chưa thiết kế)')
+      : h(NS.Button, { size: 'sm', restricted: true, restrictedReason: capQuote === 'unknown' ? 'Quyền thêm vào báo giá chưa được xác định' : 'Bạn không có quyền thêm vào báo giá' }, 'Thêm vào báo giá');
+    const countText = status === 'loading' ? 'Đang tìm…' : status !== 'ok' ? '' : rows.length + ' kết quả';
+    const toolbar = NS.TableToolbar ? h(NS.TableToolbar, {
+      filters: status === 'ok' ? [{ key: 'cat', label: 'Danh mục: Hệ thống phanh' }] : [], onRemoveFilter: () => {}, onAddFilter: () => {},
+      selectedCount: canSelect ? S.selected.length : 0, onClearSelection: () => this.setState({ selected: [] }),
+      bulkActions: quoteBtn,
+      actions: h('span', { style: { font: 'var(--type-caption)', color: 'var(--text-secondary)' } }, countText),
+    }) : null;
+    const E = NS.EmptyState, B = NS.Button;
+    const recover = h(React.Fragment, null,
+      B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'barcode', onClick: () => this.setState({ mode: 'oe', query: '', status: 'idle' }) }, 'Tìm theo mã OE') : null,
+      B ? h(B, { size: 'sm', variant: 'subtle', iconLeft: 'sparkles', onClick: askAI }, 'Hỏi Trợ lý AI') : null);
+    const emptyState = !E ? null
+      : status === 'error' ? h(E, { variant: 'error', title: 'Chưa tải được kết quả tra cứu', description: 'Danh mục sản phẩm không phản hồi. Chưa có thay đổi nào được ghi.', code: 'REQ-7F2A',
+          action: B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => runSearch(S.query, S.mode, 'ok') }, 'Thử lại') : null })
+      : status === 'vin-unsupported' ? h(E, { variant: 'no-results', icon: 'car', title: 'Số VIN không được hỗ trợ', description: 'Mã nhà sản xuất “' + qU.slice(0, 3) + '” chưa có trong bảng ánh xạ VIN mẫu. Hãy tìm theo mã OE hoặc SKU.', action: recover })
+      : status === 'vin-unmapped' ? h(E, { variant: 'no-results', icon: 'car', title: 'Không tìm thấy dữ liệu ánh xạ', description: 'Số VIN hợp lệ nhưng chưa có trong dữ liệu mẫu. Hệ thống không tự suy đoán xe tương thích.', action: recover })
+      : status === 'idle' ? h(E, { variant: 'empty', icon: 'search', title: 'Nhập mã để tra cứu', description: 'Tìm theo SKU, mã OE, số VIN hoặc tên sản phẩm.' })
+      : h(E, { variant: 'no-results', title: 'Không tìm thấy “' + S.query + '”', description: 'Không có sản phẩm nào khớp. Kiểm tra lại mã hoặc bỏ bớt bộ lọc.', action: recover });
+    const pager = rows.length > 0 && NS.Pagination ? h(NS.Pagination, { page: 1, pageSize: 20, total: rows.length }) : null;
+    const retryAction = B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', loading: S.retrying, onClick: retryErp }, S.retrying ? 'Đang kiểm tra lại…' : 'Thử lại') : null;
+    const ERP_ALERT = {
+      cached: ['history', 'Đang hiển thị bản lưu, chưa được ERP xác nhận lại', 'Giá và tồn kho là bản lưu đồng bộ lúc 08:15 (mô phỏng). Chỉ để tham khảo — không chọn hoặc báo giá từ bản lưu.'],
+      stale: ['history', 'Dữ liệu ERP đã cũ — đã ẩn', 'Bản lưu gần nhất (17:30 ngày 15/11) quá ngưỡng hiệu lực. Ngưỡng chưa được xác nhận; bản mẫu giả lập 60 phút. Giá và tồn kho bị ẩn.'],
+      unverified: ['circle-help', 'Giá và tồn kho chưa được ERP xác nhận', 'ERP chưa xác nhận dữ liệu cho các dòng này. Không hiển thị số liệu chưa được xác nhận.'],
+      timeout: ['timer-off', 'Yêu cầu giá và tồn kho quá thời gian', 'Danh mục đã tải. Giá bán và tồn kho bị ẩn cho đến khi ERP phản hồi. Chưa có thay đổi nào được ghi. Mã tham chiếu: REQ-7F2A'],
+      down: ['server-off', 'ERP không khả dụng', 'Bạn vẫn tra cứu được danh mục và thông số. Giá bán và tồn kho bị ẩn; dữ liệu có thể chưa cập nhật. Mã tham chiếu: REQ-7F2A'],
+    };
+    const anyErpVisible = canPrice || canStock;
+    const showErpAlert = status === 'ok' && anyErpVisible && erp !== 'fresh';
+    const ea = ERP_ALERT[erp] || ['', '', ''];
+    const permParts = [];
+    if (!canPrice) permParts.push(capPrice === 'unknown' ? 'quyền xem giá chưa được xác định' : 'không có quyền xem giá');
+    if (capStock !== 'granted') permParts.push(capStock === 'unknown' ? 'quyền xem tồn kho chưa được xác định' : 'không có quyền xem tồn kho');
+    else if (branchScope === 'unknown') permParts.push('phạm vi chi nhánh chưa được xác định');
+    const showPermAlert = status === 'ok' && permParts.length > 0;
+
+    const isSel = (sku) => S.selected.includes(sku);
+    const toggle = (sku) => this.setState({ selected: isSel(sku) ? S.selected.filter((x) => x !== sku) : [...S.selected, sku] });
+    const selectAction = (sku) => {
+      if (!B) return null;
+      if (!canPrice) return h(B, { restricted: true, restrictedReason: capPrice === 'unknown' ? 'Chưa xác định quyền xem giá bán' : 'Cần quyền xem giá bán để chọn sản phẩm' }, 'Thêm vào lựa chọn');
+      if (!fresh) return h(B, { iconLeft: 'plus', disabled: true }, 'Thêm vào lựa chọn');
+      return isSel(sku) ? h(B, { variant: 'secondary', iconLeft: 'check', onClick: () => toggle(sku) }, 'Đã chọn · Bỏ chọn')
+        : h(B, { iconLeft: 'plus', onClick: () => toggle(sku) }, 'Thêm vào lựa chọn');
+    };
+    const selectHint = canPrice && !fresh ? 'Chỉ chọn được khi ERP đã xác nhận mới giá bán.' : 'Lựa chọn chỉ lưu tạm trên màn hình này.';
+    const subHeader = (p) => h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-helper)', color: 'var(--text-secondary)' } },
+      NS.Badge ? h(NS.Badge, { size: 'sm', tone: p.origin === 'Chính hãng' ? 'info' : 'neutral', icon: false }, p.origin === 'Chính hãng' ? 'Hàng chính hãng' : 'Hàng thay thế') : null,
+      h('span', { className: 'ap-code', style: { color: 'var(--text-primary)' } }, p.sku), h('span', { className: 'ap-code', style: { fontWeight: 400 } }, 'OE ' + p.oe), h('span', null, p.brand + ' · ' + p.fit));
+    const dP = S.drawerSku ? find(S.drawerSku) : null;
+    const pP = find(S.pageSku);
+    const drawerFooter = dP ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', flexWrap: 'wrap' } },
+      B ? h(B, { variant: 'ghost', iconLeft: 'external-link', onClick: () => this.setState({ pageSku: S.drawerSku, lastSku: S.drawerSku, drawerSku: null, route: 'page' }) }, 'Mở trang đầy đủ') : null,
+      h('span', { style: { flex: 1 } }), selectAction(dP.sku),
+      h('div', { style: { flexBasis: '100%', textAlign: 'right', font: 'var(--type-caption)', color: canPrice && !fresh ? 'var(--status-warning-fg)' : 'var(--text-secondary)' } }, selectHint)) : null;
+    const pageActions = h(React.Fragment, null,
+      S.selected.length > 0 && B ? h(B, { variant: 'secondary', iconLeft: 'list-filter', onClick: () => this.setState({ route: 'lookup' }) }, 'Xem lựa chọn (' + S.selected.length + ')') : null,
+      selectAction(pP.sku));
+    const ctxP = S.route === 'page' ? pP : dP;
+    const view = ctxP ? 'detail' : 'lookup';
+    const sections = [{ items: [
+      { key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' },
+      { key: 'lookup', label: 'Tra cứu phụ tùng', icon: 'search' },
+      { key: 'quote', label: 'Báo giá', icon: 'file-text' },
+      { key: 'orders', label: 'Đơn hàng nháp', icon: 'package' },
+      { key: 'audit', label: 'Hoạt động', icon: 'history' },
+    ] }];
+    const dotMap = { fresh: ['var(--status-success)', 'ERP mô phỏng · đã kết nối'], cached: ['var(--status-warning)', 'ERP · đang dùng bản lưu'], stale: ['var(--status-warning)', 'ERP · dữ liệu cũ'], unverified: ['var(--status-warning)', 'ERP · chưa xác nhận'], timeout: ['var(--status-warning)', 'ERP phản hồi chậm'], down: ['var(--status-error)', 'ERP không khả dụng'] };
+    const dot = dotMap[erp];
+    const PERSONA = { sales: 'Nhân viên kinh doanh', restricted: 'Nhân viên hạn chế', supervisor: 'Giám sát kinh doanh', admin: 'Quản trị hệ thống' };
+    const CAP = { granted: 'Đề xuất: có', denied: 'Không', unknown: 'Chưa xác định' };
+    const ERPL = { fresh: 'xác nhận mới', cached: 'bản lưu', stale: 'dữ liệu cũ', unverified: 'chưa xác nhận', timeout: 'quá thời gian', down: 'không khả dụng' };
+    const collapsed = S.col !== null ? S.col : narrow;
+    const aiOpen = S.ai !== null ? S.ai : (overlay ? false : (this.props.aiOpen !== undefined ? this.props.aiOpen : true));
+    const sampleRun = (q, m) => () => { this.setState({ mode: m, query: q }); runSearch(q, m); };
+    const aiMayShowErp = canPrice && canStock && fresh;
+    const aiEmptyVin = status === 'vin-unsupported' || status === 'vin-unmapped';
+    return {
+      rootRef: this.rootRef, drawerRef: this.drawerRef,
+      sections, cols, rows, toolbar, emptyState, pager, retryAction, drawerFooter, pageActions,
+      erp, capPrice, capStock, branchScope, confirmedAt: S.confirmedAt,
+      collapsed, mode: S.mode, query: S.query, selected: S.selected, drawerSku: S.drawerSku, pageSku: S.pageSku, retrying: S.retrying,
+      searchError: S.searchError,
+      personaLabel: PERSONA[persona] + ' (mô phỏng)', capPriceLabel: CAP[capPrice], capStockLabel: CAP[capStock], capQuoteLabel: capQuote === 'granted' ? 'Đề xuất: có · luồng C chưa thiết kế' : CAP[capQuote],
+      scopeLabel: { own: 'Đề xuất: Long Biên', 'own-plus': 'Đề xuất: Long Biên + Cầu Giấy', unknown: 'Chưa xác định' }[branchScope],
+      erpLabel: ERPL[erp],
+      branchTag: branchScope === 'unknown' ? 'Chi nhánh: chưa xác định' : 'Chi nhánh: Hà Nội — Long Biên',
+      sidebarFooter: collapsed ? null : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--text-secondary)' } }, h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: dot[0] } }), dot[1]),
+      headerActions: NS.IconButton ? h(React.Fragment, null,
+        h(NS.IconButton, { icon: 'bell', label: 'Thông báo' }), h(NS.IconButton, { icon: 'circle-help', label: 'Trợ giúp' }),
+        h(NS.IconButton, { icon: 'sparkles', label: aiOpen ? 'Đóng Trợ lý AI' : 'Mở Trợ lý AI', active: aiOpen, onClick: () => this.setState({ ai: !aiOpen }) })) : null,
+      user: { name: 'Nguyễn Minh Anh', role: PERSONA[persona] + ' (mô phỏng)', initials: 'MA' },
+      crumbs: S.route === 'page' ? [{ label: 'Tra cứu phụ tùng', onClick: () => this.setState({ route: 'lookup', drawerSku: null }) }, { label: S.pageSku }] : [{ label: 'Tra cứu phụ tùng' }],
+      backLabel: status === 'ok' ? 'Quay lại kết quả “' + S.query + '”' : 'Quay lại tra cứu',
+      isLookup: S.route === 'lookup', isPage: S.route === 'page', isLoading: status === 'loading', canSelect,
+      showVehicle: S.mode === 'vin' && (status === 'ok' || status === 'loading') && !S.searchError, vehicleReady: status === 'ok',
+      samples: [
+        { text: VIN, hint: 'VIN có dữ liệu ánh xạ mẫu', run: sampleRun(VIN, 'vin') },
+        { text: 'MR8YB3JF5N0999999', hint: 'VIN hợp lệ, chưa có ánh xạ', run: sampleRun('MR8YB3JF5N0999999', 'vin') },
+        { text: 'WVWZZZ1KZAW000123', hint: 'VIN không được hỗ trợ', run: sampleRun('WVWZZZ1KZAW000123', 'vin') },
+        { text: 'MR8YB3JF5N012345O', hint: 'VIN không hợp lệ (chứa O)', run: sampleRun('MR8YB3JF5N012345O', 'vin') },
+        { text: 'BP-1042', hint: 'Tìm theo SKU', run: sampleRun('BP-1042', 'sku') },
+        { text: '43512-0D150', hint: 'Tìm theo mã OE', run: sampleRun('43512-0D150', 'oe') },
+        { text: 'BP-9999X', hint: 'SKU không tồn tại', run: sampleRun('BP-9999X', 'sku') },
+      ],
+      showPermAlert, permAlertTitle: 'Một số dữ liệu bị ẩn theo quyền của tài khoản',
+      permAlertText: 'Tài khoản mô phỏng: ' + permParts.join(', ') + '. Dữ liệu bị ẩn không được tải về giao diện hay Trợ lý AI. Liên hệ quản trị viên để được cấp quyền.',
+      showErpAlert, erpAlertIcon: ea[0], erpAlertTitle: ea[1], erpAlertText: ea[2] + (S.attempts > 0 ? ' Lần thử gần nhất: ' + S.lastAttempt + ' · ' + S.attempts + ' lần.' : ''),
+      drawerOpen: S.route === 'lookup' && !!S.drawerSku,
+      drawerWidth: overlay ? 420 : 480,
+      drawerTitle: dP ? dP.pname : '', drawerSubtitle: dP ? subHeader(dP) : null,
+      drawerKey: (e) => { if (e.key === 'Escape') { e.stopPropagation(); this.setState({ drawerSku: null }); } },
+      pageTitle: pP.pname + ' ' + pP.brand, pageMeta: subHeader(pP), pageLayout: S.w < 1180 ? 'drawer' : 'page',
+      aiOpen, aiStatus: erp === 'fresh' ? 'online' : 'degraded',
+      aiPos: overlay ? 'absolute' : 'relative', aiShadow: overlay ? 'var(--shadow-lg)' : 'none',
+      aiContext: view === 'detail' ? ctxP.pname + ' · ' + ctxP.sku : status === 'ok' ? 'Kết quả tra cứu' : 'Tra cứu phụ tùng',
+      composer: NS.AIComposer ? h(NS.AIComposer, { busy: status === 'loading', context: view === 'detail' ? [ctxP.sku] : [],
+        suggestions: !aiMayShowErp || status !== 'ok' ? [] : view === 'detail' ? ['Xe nào dùng chung mã này?'] : ['Mã tương đương cho BD-0771?'] }) : null,
+      aiLoading: status === 'loading' || S.retrying, aiIdle: view === 'lookup' && status === 'idle', aiEmptyVin,
+      aiEmpty: view === 'lookup' && (status === 'empty' || status === 'error' || aiEmptyVin),
+      aiEmptyToolLabel: aiEmptyVin ? 'Tra bảng ánh xạ VIN mẫu' : 'Tìm theo mã',
+      aiEmptyToolName: aiEmptyVin ? 'Agent · tra_xe_theo_vin' : 'Agent · tim_phu_tung',
+      aiEmptyTool: status === 'error' ? 'error' : 'success',
+      aiEmptyToolMsg: status === 'error' ? 'Danh mục không phản hồi.' : status === 'vin-unsupported' ? 'Nhà sản xuất chưa có trong dữ liệu mẫu.' : status === 'vin-unmapped' ? 'Không có dữ liệu ánh xạ.' : 'Không có mã nào khớp.',
+      aiEmptyText: status === 'error' ? 'Tôi chưa tra cứu được danh mục lúc này. Bạn có thể thử lại sau ít phút.' : aiEmptyVin ? 'Số VIN này không có dữ liệu ánh xạ mẫu, nên tôi không xác định được xe.' : 'Tôi không tìm thấy mã này trong danh mục mẫu. Mã có thể bị nhập sai.',
+      aiBlocked: view === 'lookup' && status === 'ok' && !aiMayShowErp && !cached && !S.retrying,
+      blockedLabel: !canPrice ? 'Kiểm tra giá bán' : 'Kiểm tra giá và tồn kho',
+      blockedName: !canPrice ? 'Nội bộ · erp.gia_ban' : 'Nội bộ · erp.ton_kho',
+      blockedStatus: !canPrice || !canStock ? 'unauthorized' : erp === 'timeout' ? 'timeout' : erp === 'down' ? 'unavailable' : 'error',
+      blockedMsg: !canPrice || !canStock ? 'Tài khoản chưa được cấp hoặc chưa xác định quyền cho dữ liệu này. Không có dữ liệu nào được trả về.' : erp === 'timeout' ? 'Quá thời gian. Không có dữ liệu nào được thay đổi.' : erp === 'down' ? 'ERP không phản hồi. Không có dữ liệu nào được thay đổi.' : erp === 'stale' ? 'Chỉ có dữ liệu cũ, đã quá ngưỡng hiệu lực.' : 'ERP chưa xác nhận dữ liệu.',
+      blockedText: !canPrice || !canStock ? 'Tôi không thể cung cấp giá hoặc tồn kho vì tài khoản của bạn chưa có quyền tương ứng.' : 'Tôi chưa có dữ liệu ERP được xác nhận lúc này. Tôi sẽ không đưa ra số liệu ước đoán.',
+      aiCached: view === 'lookup' && status === 'ok' && cached && canPrice && canStock,
+      aiResults: view === 'lookup' && status === 'ok' && aiMayShowErp,
+      aiDetail: view === 'detail',
+      aiErpItems: [{ label: 'Long Biên', value: '24 bộ' }, { label: 'Giá bán', value: '1.250.000 ₫ · VAT chưa xác định' }],
+      detailSku: ctxP ? ctxP.sku : '', detailLabel: ctxP ? ctxP.pname + ' · ' + ctxP.sku : '',
+      detailOrigin: ctxP && ctxP.origin === 'Chính hãng' ? 'hàng chính hãng' : 'hàng thay thế',
+      toasts: S.toasts.map((t) => ({ ...t, close: () => this.setState({ toasts: this.state.toasts.filter((x) => x.id !== t.id) }) })),
+      setMode: (m) => this.setState({ mode: m, searchError: undefined }),
+      setQuery: (q) => this.setState({ query: q, searchError: undefined }),
+      submit: (q, m) => runSearch(q, m),
+      setSelected: (k) => this.setState({ selected: k }),
+      openRow: (r) => this.setState({ drawerSku: r.sku, lastSku: r.sku }),
+      closeDrawer: () => this.setState({ drawerSku: null }),
+      openSkuDrawer: (s) => this.setState({ drawerSku: s }),
+      openSkuPage: (s) => this.setState({ pageSku: s }),
+      openBD: () => this.setState({ route: 'lookup', drawerSku: 'BD-0771' }),
+      goLookup: () => this.setState({ route: 'lookup', drawerSku: null }),
+      retryErp,
+      closeAi: () => this.setState({ ai: false }),
+      toggleSidebar: () => this.setState({ col: !collapsed }),
+      selectNav: (k) => { if (k === 'lookup') this.setState({ route: 'lookup', drawerSku: null }); else this.toast({ tone: 'info', title: 'Ngoài phạm vi Workflow A', description: 'Màn hình này sẽ được thiết kế ở bước sau.' }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

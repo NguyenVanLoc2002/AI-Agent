@@ -1,0 +1,110 @@
+<!-- @dsCard group="AI" height=622 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>AIPanel — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  AIPanel,
+  ChatMessage,
+  ToolCall,
+  ERPResult,
+  ActionConfirmation,
+  AIComposer,
+  DescriptionList
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  const [st, setSt] = React.useState('pending');
+  const [ld, setLd] = React.useState(false);
+  return React.createElement("div", {
+    style: {
+      height: 580,
+      border: '1px solid var(--border-default)',
+      borderRadius: 10,
+      overflow: 'hidden',
+      display: 'flex',
+      justifyContent: 'center',
+      background: 'var(--bg-app)'
+    }
+  }, React.createElement(AIPanel, {
+    width: 460,
+    context: "M\xE1 phanh tr\u01B0\u1EDBc \xB7 BP-1042",
+    onClose: () => {},
+    style: {
+      borderRight: '1px solid var(--border-default)'
+    },
+    composer: React.createElement(AIComposer, {
+      context: ['BP-1042'],
+      suggestions: ['Tìm mã thay thế', 'Tồn kho chi nhánh khác']
+    })
+  }, React.createElement(ChatMessage, {
+    role: "user",
+    time: "09:43"
+  }, "C\xF2n bao nhi\xEAu m\xE1 phanh BP-1042 \u1EDF H\xE0 N\u1ED9i? Th\xEAm 2 b\u1ED9 v\xE0o b\xE1o gi\xE1 \u0111ang m\u1EDF."), React.createElement(ChatMessage, {
+    time: "09:44"
+  }, React.createElement(ToolCall, {
+    label: "Ki\u1EC3m tra t\u1ED3n kho",
+    name: "erp.get_stock",
+    status: "success",
+    duration: "0,8 gi\xE2y",
+    detail: '{ "sku": "BP-1042", "branch": "HN-LB" }'
+  }), React.createElement(ToolCall, {
+    label: "Ki\u1EC3m tra gi\xE1 chi nh\xE1nh kh\xE1c",
+    name: "erp.get_price",
+    status: "unauthorized",
+    message: "B\u1EA1n kh\xF4ng c\xF3 quy\u1EC1n xem gi\xE1 chi nh\xE1nh TP.HCM."
+  }), React.createElement(ERPResult, {
+    title: "T\u1ED3n kho",
+    syncedAt: "09:44"
+  }, React.createElement(DescriptionList, {
+    columns: 3,
+    items: [{
+      label: 'Hà Nội — Long Biên',
+      value: '24 bộ'
+    }, {
+      label: 'Giá bán',
+      value: '1.250.000 ₫'
+    }, {
+      label: 'Đang về',
+      value: '40 bộ · 20/11'
+    }]
+  })), React.createElement("span", null, "Chi nh\xE1nh Long Bi\xEAn c\xF2n \u0111\u1EE7 h\xE0ng. T\xF4i \u0111\xE3 chu\u1EA9n b\u1ECB thao t\xE1c d\u01B0\u1EDBi \u0111\xE2y \u2014 vui l\xF2ng x\xE1c nh\u1EADn."), React.createElement(ActionConfirmation, {
+    state: st,
+    loading: ld,
+    title: "Th\xEAm v\xE0o b\xE1o gi\xE1 BG-2026-0412",
+    items: [{
+      label: 'Má phanh trước · BP-1042',
+      value: '2 × 1.250.000 ₫'
+    }],
+    confirmLabel: "Th\xEAm v\xE0o b\xE1o gi\xE1",
+    onConfirm: () => {
+      setLd(true);
+      setTimeout(() => {
+        setLd(false);
+        setSt('confirmed');
+      }, 1200);
+    },
+    onReject: () => setSt('rejected')
+  }))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

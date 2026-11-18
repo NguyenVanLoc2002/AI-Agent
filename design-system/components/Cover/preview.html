@@ -1,0 +1,67 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>AutoParts Agent</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg-surface); color:var(--text-primary); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .brand { fill:var(--action-primary); }
+  .erp { fill:var(--source-erp); }
+  .ai { fill:var(--source-ai); }
+  .ink { fill:var(--bg-inverse); }
+  .soft { fill:var(--chart-primary-soft); }
+  .tile { fill:var(--border-strong); rx:var(--radius-sm); }
+  .blk { rx:var(--radius-lg); }
+  .words { position:absolute; left:var(--space-8); bottom:var(--space-8); max-width:440px; }
+  .name { margin:0; font-size:80px; line-height:.95; font-weight:700; color:var(--text-primary); }
+  .tag { margin:var(--space-3) 0 0; font-size:14px; line-height:20px; color:var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      action-primary 136×244 bled off the top (the one action blue, biggest); source-erp 88×88; source-ai 40×40 (provenance pair, small);
+              bg-inverse 184×88 (ink); chart-primary-soft 96×136 bled off the top-right (tint)
+  arrangement flush modular grid at a space-12 (48px) pitch with space-2 (8px) gutters — the dense operational dashboard
+  pattern     "geometric, modular, dense UI": tiles of border-strong cut by radius-sm, two merged two-wide like table rows; the
+              README calls the product "a premium operational workspace" built on an 8px grid with border-first cards
+  scales      pitch space-12, gap space-2; blocks radius-lg (10px, cards), tiles radius-sm (6px, small controls)
+-->
+<rect class="tile" x="240" y="0" width="88" height="40"/>
+<rect class="tile" x="336" y="240" width="88" height="40"/>
+<rect class="tile" x="0" y="0" width="40" height="40"/>
+<rect class="tile" x="0" y="48" width="40" height="40"/>
+<rect class="tile" x="48" y="48" width="40" height="40"/>
+<rect class="tile" x="0" y="96" width="40" height="40"/>
+<rect class="tile" x="0" y="144" width="40" height="40"/>
+<rect class="tile" x="48" y="144" width="40" height="40"/>
+<rect class="tile" x="0" y="192" width="40" height="40"/>
+<rect class="tile" x="48" y="240" width="40" height="40"/>
+<rect class="tile" x="0" y="240" width="40" height="40"/>
+<rect class="tile" x="336" y="96" width="40" height="40"/>
+<rect class="tile" x="432" y="144" width="40" height="40"/>
+<rect class="tile" x="432" y="192" width="40" height="40"/>
+<rect class="tile" x="96" y="240" width="40" height="40"/>
+<rect class="tile" x="192" y="240" width="40" height="40"/>
+<rect class="tile" x="288" y="240" width="40" height="40"/>
+<rect class="brand blk" x="96" y="-12" width="136" height="244"/>
+<rect class="erp blk" x="240" y="48" width="88" height="88"/>
+<rect class="ai blk" x="336" y="48" width="40" height="40"/>
+<rect class="soft blk" x="384" y="-12" width="96" height="148"/>
+<rect class="ink blk" x="240" y="144" width="184" height="88"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">AutoParts<br>Agent</h1>
+<p class="tag">Không gian làm việc vận hành cho phụ tùng ô tô, cùng trợ lý AI.</p>
+</div>
+</div>
+</body>
+</html>

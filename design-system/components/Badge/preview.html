@@ -1,0 +1,77 @@
+<!-- @dsCard group="Data" height=104 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Badge — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Badge
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, React.createElement(R, {
+    gap: 6
+  }, React.createElement(Badge, {
+    shape: "pill",
+    tone: "success"
+  }, "C\xF2n h\xE0ng"), React.createElement(Badge, {
+    shape: "pill",
+    tone: "warning"
+  }, "S\u1EAFp h\u1EBFt"), React.createElement(Badge, {
+    shape: "pill",
+    tone: "error"
+  }, "H\u1EBFt h\xE0ng"), React.createElement(Badge, {
+    shape: "pill"
+  }, "Nh\xE1p"), React.createElement("span", {
+    style: {
+      width: 1,
+      height: 18,
+      background: 'var(--border-default)'
+    }
+  }), React.createElement(Badge, {
+    tone: "info",
+    icon: false
+  }, "Ch\xEDnh h\xE3ng"), React.createElement(Badge, {
+    tone: "restricted"
+  }, "H\u1EA1n ch\u1EBF")), React.createElement(R, {
+    gap: 6
+  }, React.createElement(Badge, {
+    tone: "success"
+  }, "C\xF2n h\xE0ng"), React.createElement(Badge, {
+    tone: "warning"
+  }, "S\u1EAFp h\u1EBFt"), React.createElement(Badge, {
+    tone: "error"
+  }, "H\u1EBFt h\xE0ng"), React.createElement(Badge, {
+    tone: "info"
+  }, "\u0110ang x\u1EED l\xFD"), React.createElement(Badge, null, "Nh\xE1p"), React.createElement(Badge, {
+    tone: "erp"
+  }, "\u0110\xE3 x\xE1c minh ERP"), React.createElement(Badge, {
+    tone: "ai"
+  }, "G\u1EE3i \xFD AI")));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!-- @dsCard group="Forms" height=326 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Input — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Input
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16
+    }
+  }, React.createElement(Input, {
+    label: "M\xE3 kh\xE1ch h\xE0ng",
+    defaultValue: "KH-00412",
+    success: "\u0110\xE3 t\xECm th\u1EA5y kh\xE1ch h\xE0ng tr\xEAn ERP"
+  }), React.createElement(Input, {
+    label: "\u0110\u01A1n gi\xE1",
+    restricted: true,
+    restrictedReason: "Gi\xE1 l\u1EA5y t\u1EEB ERP \u2014 b\u1EA1n kh\xF4ng c\xF3 quy\u1EC1n s\u1EEDa",
+    defaultValue: "1.250.000",
+    suffix: React.createElement("span", {
+      style: {
+        color: 'var(--text-secondary)',
+        fontSize: 13
+      }
+    }, "\u20AB")
+  }), React.createElement(Input, {
+    label: "S\u1ED1 VIN",
+    mono: true,
+    iconLeft: "car",
+    defaultValue: "MR8YB3JF5N0123456",
+    helper: "17 k\xFD t\u1EF1, kh\xF4ng c\xF3 I, O, Q"
+  }), React.createElement(Input, {
+    label: "M\xE3 OE",
+    required: true,
+    mono: true,
+    iconLeft: "barcode",
+    defaultValue: "04465-0D1",
+    error: "M\xE3 OE kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c ch\u01B0a \u0111\u1EE7 k\xFD t\u1EF1"
+  }), React.createElement(Input, {
+    label: "\u0110\u01A1n gi\xE1",
+    disabled: true,
+    defaultValue: "1.250.000",
+    suffix: React.createElement("span", {
+      style: {
+        color: 'var(--text-secondary)',
+        fontSize: 13
+      }
+    }, "\u20AB"),
+    helper: "Gi\xE1 l\u1EA5y t\u1EEB ERP \u2014 kh\xF4ng ch\u1EC9nh s\u1EEDa"
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

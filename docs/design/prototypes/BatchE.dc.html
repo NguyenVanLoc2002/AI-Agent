@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Batch E · Màn hình hỗ trợ — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+.bb-tbl{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+.bb-tbl th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:6px 10px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap}
+.bb-tbl td{padding:7px 10px;border-bottom:1px solid var(--border-subtle)}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="height: 100vh; min-height: 560px; display: flex; overflow: hidden; font-family: var(--font-sans); color: var(--text-body); background: var(--bg-app); position: relative;">
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sections}}" active-key="{{navKey}}" collapsed="{{collapsed}}" on-toggle-collapsed="{{toggleSidebar}}" on-select="{{selectNav}}" footer="{{sidebarFooter}}"></x-import>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" on-search="{{headerSearch}}" search-placeholder="Tìm SKU, mã OE hoặc số VIN" actions="{{headerActions}}" user="{{user}}"></x-import>
+    <div style="flex: 1 1 0; min-height: 0; display: flex; position: relative;">
+      <main style="flex: 1 1 0; min-width: 0; overflow-y: auto; padding: 16px 24px 40px;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">{{simBanner}}{{mainNode}}</div>
+      </main>
+      <sc-if value="{{panelOpen}}" hint-placeholder-val="{{ false }}">
+        <div onKeyDown="{{panelKey}}" style="position: {{panelPos}}; top: 0; right: 0; bottom: 0; z-index: 30; box-shadow: {{panelShadow}}; display: flex; height: 100%;">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIPanel" context="{{panelContext}}" status="{{aiStatus}}" on-close="{{closePanel}}" composer="{{composerNode}}" style="height: 100%;">{{threadNode}}</x-import>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  {{sessionLayer}}
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToastViewport">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="{{t.tone}}" title="{{t.title}}" description="{{t.description}}" on-close="{{t.close}}"></x-import>
+    </sc-for>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"start": {"editor": "enum", "options": ["dashboard", "error", "audit", "audit-team", "audit-detail", "profile", "profile-password", "denied", "request", "request-sent", "expired", "expired-max", "expired-inflight", "expired-warning", "login", "login-error", "login-locked"], "default": "dashboard", "section": "Màn hình"}, "session": {"editor": "enum", "options": ["ok", "warning", "expired"], "default": "ok", "section": "Dịch vụ mô phỏng"}, "relogin": {"editor": "enum", "options": ["ok", "fail"], "default": "ok", "section": "Dịch vụ mô phỏng"}, "erp": {"editor": "enum", "options": ["fresh", "down"], "default": "fresh", "section": "Dịch vụ mô phỏng"}, "persona": {"editor": "enum", "options": ["sales", "restricted", "supervisor", "admin", "auditor"], "default": "sales", "section": "Quyền mô phỏng"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.rootRef = React.createRef();
+    this.timers = [];
+    this.state = { w: 1440, col: null, panel: null, ...this.initial(props) };
+  }
+  static AUDIT() {
+    const E = (id, t, actor, role, kind, action, target, result, ref, detail, extra) => ({ id, t, actor, role, kind, action, target, result, ref, detail, dept: true, ...(extra || {}) });
+    return [
+      E('A-1043', '17/11 16:38', 'Nguyễn Minh Anh', 'Trưởng bộ phận', 'order', 'Tạo đơn nháp trên ERP', 'DN-2026-0241 · từ BG-2026-0413 v1', 'ok', 'BG-2026-0413-v1', 'Xử lý thay Trần Quốc Bảo (vắng mặt). Kiểm tra lại giá, tồn kho, công nợ: đạt.', { mine: false, onBehalf: 'Trần Quốc Bảo' }),
+      E('A-1042', '17/11 16:36', 'Nguyễn Minh Anh', 'Nhân viên kinh doanh', 'order', 'Tạo đơn nháp — chờ đối soát', 'BG-2026-0418 v2', 'unknown', 'BG-2026-0418-v2', 'ERP không phản hồi trong 30 giây (đề xuất). Chưa tra cứu theo khóa; không tạo lại cho tới khi đối soát.', { mine: true }),
+      E('A-1041', '17/11 16:11', 'Nguyễn Minh Anh', 'Nhân viên kinh doanh', 'quote', 'Phát hành và gửi qua Zalo OA', 'BG-2026-0417 v2', 'ok', 'ZOA-88722', 'v1 bị thay thế. Dịch vụ gửi xác nhận.', { mine: true }),
+      E('A-1040', '17/11 16:10', 'Khách hàng (Zalo OA)', 'Khách hàng', 'quote', 'Gửi “Xác nhận BG-2026-0417 v1”', 'BG-2026-0417 v1', 'denied', '—', 'Hệ thống từ chối: v1 đã bị thay thế.', { mine: true }),
+      E('A-1039', '17/11 15:09', 'Trợ lý AI', 'Trợ lý (Nguyễn Minh Anh xác nhận)', 'ai', 'Gọi lap_bao_gia', 'BG-2026-0419 v1', 'ok', '{BAO_GIA_1}', 'Người xác nhận: Nguyễn Minh Anh. AI chỉ nhận tham chiếu, không nhận đơn giá.', { mine: true }),
+      E('A-1038', '17/11 14:52', 'Trợ lý AI', 'Trợ lý', 'ai', 'Gọi erp.ton_kho (nội bộ)', 'BP-1042 · CN Quận 1', 'denied', 'AUTH-403-ST', 'Máy chủ từ chối theo quyền. Không có dữ liệu nào được trả về.', { mine: true }),
+      E('A-1037', '17/11 14:50', 'Nguyễn Minh Anh', 'Nhân viên kinh doanh', 'ai', 'Chuyển nhân viên', 'HT-0058 · yêu cầu giảm giá', 'ok', 'HT-0058', 'Gửi kèm mã báo giá và lý do. Không gửi giá, tồn, thông tin khách.', { mine: true }),
+      E('A-1036', '17/11 10:15', 'ERP', 'Hệ thống', 'order', 'Đồng bộ trạng thái: từ chối', 'DN-2026-0221', 'ok', 'ARI-SYNC', 'Phạm Văn Đức từ chối · Vượt hạn mức công nợ. Đã thông báo cho Trần Quốc Bảo (đề xuất).', { mine: false }),
+      E('A-1035', '17/11 09:00', 'Võ Thanh Tùng', 'Trưởng bộ phận', 'quote', 'Phân công lại báo giá', 'BG-2026-0414 → Nguyễn Minh Anh', 'ok', '—', 'Người lập Trần Quốc Bảo vắng mặt.', { mine: true }),
+      E('A-1032', '16/11 15:20', 'Lê Thu Hà', 'Nhân viên kinh doanh', 'order', 'Tạo đơn nháp trên ERP', 'DN-2026-0233 · từ BG-2026-0402 v1', 'ok', 'BG-2026-0402-v1', 'Kiểm tra lại: đạt.', { mine: false }),
+    ];
+  }
+  // Nhật ký kỹ thuật — quản trị hệ thống (đã loại dữ liệu nhạy cảm)
+  static TECH() {
+    const T = (id, t, kind, action, src, result, ref, detail) => ({ id, t, kind, action, src, result, ref, detail });
+    return [
+      T('T-5521', '17/11 16:36', 'system', 'ERP: quá thời gian (30 giây)', 'MockErpConnector · tạo đơn', 'error', 'ARI-TIMEOUT', 'Một yêu cầu tạo đơn. Đã chuyển “Chờ đối soát”. Không ghi nội dung đơn.'),
+      T('T-5518', '17/11 15:09', 'aigw', 'AI Gateway: lap_bao_gia', 'Tool Manager', 'ok', 'GW-91F2', 'Thời gian 1,4 giây · đầu vào đã loại giá và dữ liệu khách · đầu ra: tham chiếu.'),
+      T('T-5517', '17/11 14:52', 'aigw', 'AI Gateway: erp.ton_kho bị từ chối', 'Tool Manager · RBAC', 'denied', 'GW-91E7', 'Từ chối theo quyền người dùng. Không có dữ liệu trả về.'),
+      T('T-5510', '17/11 11:02', 'auth', 'Đăng nhập thất bại (3 lần)', 'Xác thực nội bộ', 'denied', 'AUTH-401', 'Tài khoản tl.ha@… · tạm khóa 15 phút (đề xuất).'),
+      T('T-5502', '17/11 08:31', 'auth', 'Đăng nhập', 'Xác thực nội bộ', 'ok', 'SES-7F21', 'Nguyễn Minh Anh · trình duyệt máy tính.'),
+      T('T-5498', '17/11 07:55', 'system', 'Zalo OA: dịch vụ gửi chậm', 'Dịch vụ gửi', 'warn', 'ZOA-LAT', 'Thời gian phản hồi trung bình 6 giây trong 10 phút.'),
+    ];
+  }
+  initial(props) {
+    const start = props.start || 'dashboard';
+    const s = { route: 'dashboard', kind: 'all', who: 'mine', open: null, toasts: [], reauth: null, session: props.session || 'ok', sessionNote: null, loadErr: false,
+      prefs: { density: 'comfortable', nQuote: true, nOrder: true, nEmail: false }, pw: null, req: null, login: { email: '', pw: '', err: null, busy: false } };
+    if (['audit', 'audit-team', 'audit-detail'].includes(start)) s.route = 'audit';
+    if (start === 'audit-team') s.who = 'all';
+    if (start === 'audit-detail') s.open = 'A-1042';
+    if (start === 'profile' || start === 'profile-password') s.route = 'profile';
+    if (start === 'profile-password') s.pw = { cur: '', next: '', err: null, busy: false };
+    if (start === 'denied' || start === 'request' || start === 'request-sent') s.route = 'denied';
+    if (start === 'request') s.req = { cap: '', scope: '', reason: '', err: null, state: 'form', from: 'Quản trị người dùng' };
+    if (start === 'request-sent') s.req = { cap: 'Xem nhật ký bộ phận', scope: 'Bộ phận Kinh doanh phụ tùng', reason: 'Thay trưởng bộ phận nghỉ phép 18–20/11', err: null, state: 'sent', from: 'Quản trị người dùng' };
+    if (start === 'error') s.loadErr = true;
+    if (start === 'expired') s.session = 'expired';
+    if (start === 'expired-max') { s.session = 'expired'; s.sessionNote = 'max'; }
+    if (start === 'expired-inflight') { s.session = 'expired'; s.sessionNote = 'inflight'; }
+    if (start === 'expired-warning') s.session = 'warning';
+    if (start === 'login' || start === 'login-error' || start === 'login-locked') s.session = 'login';
+    if (start === 'login-error') s.login = { email: 'minhanh@apas.example', pw: '', err: 'bad', busy: false };
+    if (start === 'login-locked') s.login = { email: 'tl.ha@apas.example', pw: '', err: 'locked', busy: false };
+    return s;
+  }
+  componentDidMount() {
+    const el = this.rootRef.current;
+    if (el && window.ResizeObserver) {
+      this.ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width); if (Math.abs(w - this.state.w) > 4) this.setState({ w }); });
+      this.ro.observe(el);
+    }
+  }
+  componentWillUnmount() { if (this.ro) this.ro.disconnect(); this.timers.forEach(clearTimeout); }
+  componentDidUpdate(prev) {
+    const keys = ['start', 'persona', 'erp', 'session', 'relogin'];
+    if (keys.some((k) => prev[k] !== this.props[k])) { this.timers.forEach(clearTimeout); this.timers = []; this.setState({ panel: null, ...this.initial(this.props) }); }
+  }
+  later(fn, ms) { const id = setTimeout(fn, ms); this.timers.push(id); }
+  toast(x) {
+    const id = Date.now() + Math.random();
+    this.setState({ toasts: [...this.state.toasts, { ...x, id }] });
+    this.later(() => this.setState({ toasts: this.state.toasts.filter((t) => t.id !== id) }), 5000);
+  }
+  relogin() {
+    this.setState({ reauth: 'running' });
+    this.later(() => {
+      if ((this.props.relogin || 'ok') === 'fail' && !this.state.reauthTried) return this.setState({ reauth: 'error', reauthTried: true });
+      const inflight = this.state.sessionNote === 'inflight';
+      this.setState({ reauth: null, session: 'ok', sessionNote: null });
+      this.toast(inflight ? { tone: 'info', title: 'Đã đăng nhập lại · đối soát thao tác đang chờ', description: 'Tra cứu theo khóa BG-2026-0418-v2: đơn chưa được tạo. Bạn có thể tạo lại với cùng khóa ở Đơn hàng nháp.' } : { tone: 'success', title: 'Đã đăng nhập lại', description: 'Trở về đúng trang đang làm (mô phỏng).' });
+    }, 1200);
+  }
+  doLogin() {
+    const L = this.state.login;
+    if (!L.email || !L.pw) return this.setState({ login: { ...L, err: 'empty' } });
+    this.setState({ login: { ...L, busy: true, err: null } });
+    this.later(() => {
+      if (L.email.indexOf('tl.ha') === 0) return this.setState({ login: { ...this.state.login, busy: false, err: 'locked' } });
+      if (L.pw.length < 6) return this.setState({ login: { ...this.state.login, busy: false, err: 'bad' } });
+      this.setState({ session: 'ok', login: { email: '', pw: '', err: null, busy: false }, route: 'dashboard' });
+      this.toast({ tone: 'success', title: 'Đã đăng nhập', description: 'Phiên tối đa 8 giờ · hết sau 30 phút không hoạt động (đề xuất).' });
+    }, 1000);
+  }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const B = NS.Button, S = this.state;
+    const persona = this.props.persona || 'sales';
+    const erp = this.props.erp || 'fresh';
+    const narrow = S.w < 1360;
+    const cap = { font: 'var(--type-caption)', color: 'var(--text-secondary)' };
+    const icon = (n, c, sz) => NS.Icon ? h(NS.Icon, { name: n, size: sz || 14, color: c }) : null;
+    const code = (x) => h('span', { className: 'ap-code' }, x);
+    const badge = (tone, txt) => NS.Badge ? h(NS.Badge, { size: 'sm', tone, icon: false }, txt) : txt;
+    const pill = (txt, kind) => h('span', { style: { display: 'inline-block', padding: '1px 6px', borderRadius: 4, font: '600 10px/16px var(--font-sans)', letterSpacing: '.04em', background: kind === 'blocked' ? 'var(--status-error-bg)' : kind === 'basis' ? 'var(--status-success-bg)' : 'var(--status-warning-bg)', color: kind === 'blocked' ? 'var(--status-error-fg)' : kind === 'basis' ? 'var(--status-success-fg)' : 'var(--status-warning-fg)' } }, txt);
+    const sec = (title, right, body) => NS.Card ? h(NS.Card, { title, actions: right }, body) : body;
+    const A = (key, props, body) => NS.Alert ? h(NS.Alert, { key, ...props }, body) : null;
+    const btn = (props, txt) => B ? h(B, props, txt) : null;
+    const go = (route, extra) => { this.setState({ route, ...(extra || {}) }); const m = this.rootRef.current && this.rootRef.current.querySelector('main'); if (m) m.scrollTop = 0; };
+    const other = (what) => this.toast({ tone: 'info', title: 'Mở ' + what, description: 'Thuộc prototype khác trên canvas (Batch C / D / Workflow A).' });
+    const viewAll = persona === 'supervisor';
+    const admin = persona === 'admin', auditor = persona === 'auditor';
+    const ROLE = { sales: 'Nhân viên kinh doanh', restricted: 'Nhân viên hạn chế', supervisor: 'Trưởng bộ phận', admin: 'Quản trị hệ thống', auditor: 'Kiểm tra bảo mật (được ủy quyền)' }[persona];
+    const openReq = (from) => this.setState({ req: { cap: '', scope: '', reason: '', err: null, state: 'form', from } });
+    const simBanner = h('div', { role: 'note', style: { display: 'flex', alignItems: 'center', gap: '6px 12px', flexWrap: 'wrap', padding: '8px 12px', border: '1px dashed var(--border-strong)', borderRadius: 8, background: 'var(--bg-nested)', font: 'var(--type-caption)', color: 'var(--text-secondary)' } },
+      h('span', { style: { fontWeight: 600, color: 'var(--text-primary)' } }, 'Chế độ mô phỏng UX'),
+      h('span', null, 'Persona: ', h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, ROLE + ' (mô phỏng)')),
+      h('span', null, 'Phiên: ', h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, { ok: 'đang hoạt động', warning: 'sắp hết do không hoạt động', expired: 'đã hết hạn', login: 'chưa đăng nhập' }[S.session])),
+      h('span', { style: { flexBasis: '100%' } }, 'Theo quyết định 17/11: Q7 (8 giờ / 30 phút không hoạt động), Q8 (có điều kiện), B6, PF, R10 — đều là đề xuất, chưa có trong tài liệu gốc. Dữ liệu mô phỏng; chưa kiểm tra xác thực, phân quyền hay lưu audit thật.'));
+
+    // ---------- E1 · Tổng quan ----------
+    const tile = (key, title, count, tone, desc, onClick, act) => h('div', { key, style: { display: 'flex', flexDirection: 'column', gap: 6, padding: 16, border: '1px solid var(--border-card)', borderRadius: 12, background: 'var(--bg-surface)' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } }, h('span', { style: { font: '600 24px/1.2 var(--font-sans)', color: 'var(--text-primary)' } }, String(count)), badge(tone, title)),
+      h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-body)' } }, desc),
+      onClick ? h('div', null, btn({ size: 'sm', variant: 'ghost', iconRight: 'chevron-right', onClick }, act)) : null);
+    const grid = (...kids) => h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 } }, ...kids);
+    const tbl = (head, rows) => h('table', { className: 'bb-tbl' }, h('thead', null, h('tr', null, head.map((x, i) => h('th', { key: i, style: i ? { textAlign: 'right' } : null }, x)))), h('tbody', null, rows.map((r, i) => h('tr', { key: i }, r.map((c, j) => h('td', { key: j, style: j ? { textAlign: 'right' } : null }, c))))));
+    const dashNode = () => {
+      if (S.loadErr) return errorNode();
+      const head = NS.PageHeader ? h(NS.PageHeader, { title: 'Tổng quan', description: admin ? 'Tình trạng hệ thống, lỗi dịch vụ, cảnh báo kỹ thuật. Không hiển thị giá, doanh thu hay dữ liệu khách hàng.' : viewAll ? 'Số liệu tổng hợp và việc cần xử lý của bộ phận.' : 'Việc của bạn: báo giá, đơn nháp và khách được phân công.' }) : null;
+      const note = h('span', { style: cap }, pill('Q8 · CHẤP THUẬN CÓ ĐIỀU KIỆN'), ' Nội dung theo vai trò. Danh sách ô cần đối chiếu với widget thực tế trước khi chốt. Không có KPI nâng cao, dự báo hay phân tích lịch sử mua (ngoài MVP). Số liệu mô phỏng · 17/11 16:40.');
+      if (admin) {
+        const svc = [['Xác thực nội bộ', 'ok', '—'], ['ERP (MockErpConnector)', erp === 'fresh' ? 'warn' : 'down', erp === 'fresh' ? '1 lần quá 30 giây / 24 giờ' : 'Không kết nối'], ['Quote Service (mô phỏng)', 'ok', '—'], ['Zalo OA (mô phỏng)', 'warn', 'Chậm 07:55–08:05'], ['AI Gateway / Tool Manager', 'ok', '—']];
+        const ST = { ok: ['success', 'Bình thường'], warn: ['warning', 'Cảnh báo'], down: ['error', 'Không khả dụng'] };
+        return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, note,
+          grid(tile('e', 'Lỗi dịch vụ 24 giờ', 2, 'error', 'ERP quá thời gian, Zalo OA chậm.', () => go('audit'), 'Xem nhật ký kỹ thuật'),
+            tile('l', 'Đăng nhập thất bại', 3, 'warning', '1 tài khoản tạm khóa 15 phút (đề xuất).', () => go('audit', { kind: 'auth' }), 'Xem'),
+            tile('g', 'Từ chối theo quyền (AI Gateway)', 1, 'neutral', 'Công cụ bị Tool Manager / RBAC từ chối.', () => go('audit', { kind: 'aigw' }), 'Xem')),
+          sec('Tình trạng dịch vụ', null, h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, tbl(['Dịch vụ', 'Trạng thái', 'Ghi chú'], svc.map(([n, st, nt]) => [n, badge(ST[st][0], ST[st][1]), h('span', { style: cap }, nt)])),
+            h('span', { style: cap }, 'Trạng thái do hệ thống báo; không phải bằng chứng tích hợp đã hoạt động.'))),
+          A('ad', { tone: 'neutral', title: 'Không hiển thị dữ liệu kinh doanh', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'shield-check', onClick: () => openReq('Truy cập dữ liệu kinh doanh (đặc biệt)') }, 'Yêu cầu quyền đặc biệt') }, 'Mở quyền xem giá, hội thoại hay dữ liệu khách cần Giám đốc phê duyệt và được ghi audit.'));
+      }
+      if (auditor) return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, A('au', { tone: 'info', title: 'Vai trò kiểm tra bảo mật' }, 'Tổng quan không áp dụng. Mở Hoạt động để xem nhật ký theo phạm vi được phê duyệt.'), h('div', null, btn({ iconRight: 'chevron-right', onClick: () => go('audit') }, 'Mở Hoạt động')));
+      if (viewAll) return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, note,
+        grid(tile('a', 'Báo giá đang xử lý', 5, 'neutral', 'Nháp chưa phát hành của bộ phận.', () => other('Báo giá · cả bộ phận'), 'Mở Báo giá'),
+          tile('b', 'Chờ khách xác nhận', 4, 'info', 'Đã gửi, còn hiệu lực. 3 báo giá hết hạn trong 24 giờ.', () => other('Báo giá · Đã gửi'), 'Xem'),
+          tile('c', 'Đơn nháp cần xử lý', 8, 'warning', '6 chờ tạo đơn · 1 chờ đối soát · 1 bị từ chối.', () => other('Đơn hàng nháp · cả bộ phận'), 'Mở Đơn hàng nháp'),
+          tile('d', 'Cần xử lý thay / phân công', 2, 'error', 'Báo giá của Trần Quốc Bảo (vắng mặt).', () => other('Đơn hàng nháp · BG-2026-0413'), 'Xử lý')),
+        sec('Theo nhân viên', h('span', { style: cap }, 'Đếm việc · không phải KPI'), tbl(['Nhân viên', 'Đang xử lý', 'Chờ khách xác nhận', 'Chờ tạo đơn', 'Ghi chú'], [
+          ['Nguyễn Minh Anh', '2', '1', '4', ''], ['Lê Thu Hà', '1', '2', '1', ''], ['Trần Quốc Bảo', '2', '1', '1', h('span', { key: 'v' }, badge('warning', 'Vắng mặt'))]])));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, head, note,
+        grid(tile('a', 'Báo giá đang xử lý', 2, 'neutral', 'Nháp chưa phát hành. 1 báo giá có dòng hết hàng / cần kiểm tra.', () => other('Báo giá · Nháp'), 'Mở Báo giá'),
+          tile('b', 'Chờ khách xác nhận', 1, 'info', 'Đã gửi qua Zalo OA, còn hiệu lực đến 20/11 09:50.', () => other('Báo giá · Đã gửi'), 'Xem báo giá'),
+          tile('c', 'Báo giá hết hạn', 1, 'warning', 'Khách đã xác nhận nhưng hết hạn — cần phiên bản mới.', () => other('Đơn hàng nháp · BG-2026-0410'), 'Xử lý'),
+          tile('d', 'Đơn nháp', 6, 'info', '4 chờ tạo đơn · 1 chờ duyệt · 1 chờ đối soát.', () => other('Đơn hàng nháp'), 'Mở Đơn hàng nháp'),
+          tile('e', 'Khách được phân công', 1, 'neutral', 'BG-2026-0414 · Công ty Vận tải An Phú, phân công lại từ Trần Quốc Bảo.', () => other('Đơn hàng nháp · BG-2026-0414'), 'Mở')),
+        sec('Hoạt động gần đây của bạn', btn({ size: 'sm', variant: 'ghost', iconRight: 'chevron-right', onClick: () => go('audit') }, 'Xem tất cả'),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, Component.AUDIT().filter((e) => e.mine).slice(0, 4).map((e) => h('div', { key: e.id, style: { display: 'flex', gap: 10 } }, h('span', { style: { ...cap, minWidth: 80 } }, e.t), h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-body)' } }, e.action + ' · ' + e.target))))));
+    };
+
+    // ---------- E2 · Hoạt động ----------
+    const KIND = { quote: 'Báo giá', order: 'Đơn nháp', ai: 'Trợ lý AI', auth: 'Đăng nhập', system: 'Lỗi hệ thống', aigw: 'AI Gateway (metadata)' };
+    const RES = { ok: ['success', 'Thành công'], denied: ['error', 'Bị từ chối'], unknown: ['warning', 'Chờ đối soát'], error: ['error', 'Lỗi'], warn: ['warning', 'Cảnh báo'] };
+    const auditNode = () => {
+      if (persona === 'restricted') return deniedNode('AUTH-403-AU', 'Hoạt động');
+      const sel0 = (rows) => S.open ? rows.find((e) => e.id === S.open) : null;
+      const scopeNote = h('span', { style: cap }, pill('B6 · ĐỀ XUẤT ĐÃ CHỌN'), ' Nhân viên: thao tác của mình · Trưởng bộ phận: nghiệp vụ của bộ phận · Quản trị: nhật ký kỹ thuật, đăng nhập, lỗi hệ thống, metadata AI Gateway đã loại dữ liệu nhạy cảm · Kiểm tra bảo mật: audit theo phạm vi và thời hạn được phê duyệt.');
+      const header = NS.PageHeader ? h(NS.PageHeader, { title: admin ? 'Nhật ký kỹ thuật' : 'Hoạt động', description: 'Chỉ xem; không sửa, không xóa.' }) : null;
+      if (admin) {
+        const all = Component.TECH();
+        const rows = all.filter((e) => S.kind === 'all' || e.kind === S.kind);
+        const sel = sel0(all);
+        return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, header,
+          NS.Tabs ? h(NS.Tabs, { 'aria-label': 'Loại', value: ['all', 'auth', 'system', 'aigw'].includes(S.kind) ? S.kind : 'all', onChange: (v) => this.setState({ kind: v, open: null }), tabs: [['all', 'Tất cả'], ['auth', 'Đăng nhập'], ['system', 'Lỗi hệ thống'], ['aigw', 'AI Gateway']].map(([v, l]) => ({ value: v, label: l, count: v === 'all' ? all.length : all.filter((e) => e.kind === v).length })) }) : null,
+          scopeNote,
+          NS.DataTable ? h(NS.DataTable, { rowKey: 'id', caption: 'Nhật ký kỹ thuật', rows, onRowClick: (e) => this.setState({ open: S.open === e.id ? null : e.id }), columns: [
+            { key: 't', header: 'Thời điểm', render: (e) => e.t }, { key: 'a', header: 'Sự kiện', render: (e) => h('div', null, e.action, h('div', { style: cap }, KIND[e.kind])) },
+            { key: 's', header: 'Nguồn', render: (e) => e.src }, { key: 'r', header: 'Kết quả', render: (e) => badge(RES[e.result][0], RES[e.result][1]) }, { key: 'f', header: 'Tham chiếu', render: (e) => h('span', { style: cap }, e.ref) }] }) : null,
+          sel ? sec('Chi tiết · ' + sel.id, btn({ size: 'sm', variant: 'ghost', iconLeft: 'x', onClick: () => this.setState({ open: null }) }, 'Đóng'), h('span', { style: { font: 'var(--type-helper)' } }, sel.detail)) : null,
+          A('ad', { tone: 'neutral', title: 'Không có hội thoại, giá hay dữ liệu kinh doanh', action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'shield-check', onClick: () => openReq('Truy cập dữ liệu kinh doanh (đặc biệt)') }, 'Yêu cầu quyền đặc biệt') }, 'Mở quyền đặc biệt cần Giám đốc phê duyệt và được ghi audit.'));
+      }
+      const all = Component.AUDIT();
+      const scoped = all.filter((e) => auditor ? e.dept : (viewAll && S.who === 'all') ? e.dept : e.mine);
+      const rows = scoped.filter((e) => S.kind === 'all' || e.kind === S.kind);
+      const sel = sel0(all);
+      const cols = [
+        { key: 't', header: 'Thời điểm', render: (e) => e.t },
+        { key: 'actor', header: 'Người thao tác', render: (e) => h('div', null, e.actor, h('div', { style: cap }, e.role + (e.onBehalf ? ' · xử lý thay ' + e.onBehalf : ''))) },
+        { key: 'action', header: 'Hành động', render: (e) => h('div', null, e.action, h('div', { style: cap }, KIND[e.kind])) },
+        { key: 'target', header: 'Đối tượng', render: (e) => code(e.target) },
+        { key: 'res', header: 'Kết quả', render: (e) => badge(RES[e.result][0], RES[e.result][1]) },
+        { key: 'ref', header: 'Tham chiếu', render: (e) => h('span', { style: cap }, e.ref) },
+      ];
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, header,
+        auditor ? A('sc', { tone: 'info', icon: 'shield-check', title: 'Phạm vi được phê duyệt: Bộ phận Kinh doanh phụ tùng · 15/11–17/11' }, 'Giám đốc phê duyệt ngày 14/11 · quyền hết hạn 20/11 23:59 (mô phỏng). Mọi lần xem được ghi audit. Ngoài phạm vi: máy chủ từ chối.') : null,
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+          NS.Tabs ? h(NS.Tabs, { 'aria-label': 'Loại hoạt động', value: ['all', 'quote', 'order', 'ai'].includes(S.kind) ? S.kind : 'all', onChange: (v) => this.setState({ kind: v, open: null }), tabs: [['all', 'Tất cả'], ['quote', 'Báo giá'], ['order', 'Đơn nháp'], ['ai', 'Trợ lý AI']].map(([v, l]) => ({ value: v, label: l, count: v === 'all' ? scoped.length : scoped.filter((e) => e.kind === v).length })) }) : null,
+          h('span', { style: { flex: '1 1 0' } }),
+          viewAll ? h('div', { role: 'radiogroup', 'aria-label': 'Phạm vi', style: { display: 'flex', gap: 6 } }, [['mine', 'Của tôi'], ['all', 'Cả bộ phận']].map(([k, l]) => NS.Tag ? h(NS.Tag, { key: k, selected: S.who === k, onClick: () => this.setState({ who: k, open: null }) }, l) : l)) : h('span', { style: cap }, auditor ? 'Theo phạm vi được phê duyệt' : 'Hoạt động của bạn')),
+        scopeNote,
+        NS.DataTable ? h(NS.DataTable, { columns: cols, rows, rowKey: 'id', onRowClick: (e) => this.setState({ open: S.open === e.id ? null : e.id }), caption: 'Nhật ký hoạt động', emptyState: NS.EmptyState ? h(NS.EmptyState, { variant: 'empty', title: 'Không có hoạt động nào', description: 'Thử loại hoạt động khác.' }) : null }) : null,
+        sel ? sec('Chi tiết · ' + sel.id, btn({ size: 'sm', variant: 'ghost', iconLeft: 'x', onClick: () => this.setState({ open: null }) }, 'Đóng'), NS.DescriptionList ? h(NS.DescriptionList, { columns: 2, items: [
+          { label: 'Thời điểm', value: sel.t }, { label: 'Kết quả', value: badge(RES[sel.result][0], RES[sel.result][1]) },
+          { label: 'Người thao tác', value: sel.actor + ' · ' + sel.role }, { label: 'Xử lý thay', value: sel.onBehalf || '—' },
+          { label: 'Đối tượng', value: sel.target }, { label: 'Tham chiếu / khóa', value: sel.ref },
+          { label: 'Diễn giải', value: sel.detail }, { label: 'Nguồn ghi', value: 'Backend (mô phỏng) · không sửa được' }] }) : null) : null,
+        h('span', { style: cap }, 'Đăng nhập và lỗi hệ thống nằm ở nhật ký kỹ thuật (quản trị). Xuất nhật ký, lọc thời gian, tìm theo mã: chưa thiết kế.'));
+    };
+
+    // ---------- E3 · Hồ sơ ----------
+    const profileNode = () => {
+      const P2 = S.prefs; const setP = (p) => this.setState({ prefs: { ...this.state.prefs, ...p } });
+      const caps = admin ? [['Nhật ký kỹ thuật', 'Có'], ['Dữ liệu kinh doanh', 'Không']] : auditor ? [['Audit theo phạm vi được phê duyệt', 'Đến 20/11']] : [
+        ['Tra cứu phụ tùng', 'Có'], ['Xem giá bán', persona === 'restricted' ? 'Không' : 'Có'], ['Xem tồn kho', persona === 'restricted' ? 'Chưa xác định' : 'Có'],
+        ['Lập / sửa báo giá', persona === 'restricted' ? 'Không' : 'Có'], ['Tạo đơn nháp', persona === 'restricted' ? 'Không' : 'Có'],
+        ...(viewAll ? [['Nghiệp vụ của bộ phận', 'Có'], ['Xử lý thay / phân công lại', 'Có']] : [])];
+      const lockItem = (label, value) => ({ label, value: h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } }, value, icon('lock', 'var(--text-tertiary)', 12)) });
+      const pw = S.pw;
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1000 } },
+        NS.PageHeader ? h(NS.PageHeader, { title: 'Hồ sơ cá nhân', description: 'Bạn sửa được tùy chọn giao diện, thông báo và mật khẩu. Thông tin ảnh hưởng phân quyền do quản trị nhân sự và phân quyền quản lý.' }) : null,
+        h('span', { style: cap }, pill('PF · ĐỀ XUẤT ĐÃ CHỌN'), ' Biểu tượng khóa: không tự sửa được.'),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 } },
+          sec('Thông tin tài khoản', null, NS.DescriptionList ? h(NS.DescriptionList, { columns: 1, items: [
+            { label: 'Họ tên', value: 'Nguyễn Minh Anh' }, lockItem('Mã nhân viên', 'NV-0217'), lockItem('Tài khoản đăng nhập', 'minhanh@apas.example'),
+            lockItem('Vai trò', ROLE), lockItem('Bộ phận', admin ? 'Công nghệ' : 'Kinh doanh phụ tùng'), lockItem('Chi nhánh / phạm vi khách hàng', 'Chưa xác định — mô hình chi nhánh chưa chốt'), lockItem('Trạng thái tài khoản', 'Đang hoạt động')] }) : null),
+          sec('Tùy chọn', null, h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+            NS.Select ? h(NS.Select, { label: 'Mật độ hiển thị', value: P2.density, options: [{ value: 'comfortable', label: 'Thoải mái' }, { value: 'compact', label: 'Gọn' }], onChange: (e) => setP({ density: e.target.value }) }) : null,
+            h('span', { style: { font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, 'Thông báo'),
+            NS.Switch ? h(NS.Switch, { label: 'Báo giá sắp hết hạn', checked: P2.nQuote, onChange: (v) => setP({ nQuote: v }) }) : null,
+            NS.Switch ? h(NS.Switch, { label: 'ERP duyệt / từ chối đơn của tôi', checked: P2.nOrder, onChange: (v) => setP({ nOrder: v }) }) : null,
+            NS.Switch ? h(NS.Switch, { label: 'Gửi bản sao qua email', description: 'Kênh ngoài ứng dụng chưa quy định — chưa gửi thật', checked: P2.nEmail, onChange: (v) => setP({ nEmail: v }) }) : null,
+            h('div', null, btn({ size: 'sm', iconLeft: 'check', onClick: () => this.toast({ tone: 'success', title: 'Đã lưu tùy chọn', description: 'Mô phỏng · ghi audit' }) }, 'Lưu tùy chọn'))))),
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 } },
+          sec('Phiên đăng nhập & mật khẩu', h('span', null, pill('Q7 · ĐỀ XUẤT')), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+            NS.DescriptionList ? h(NS.DescriptionList, { columns: 1, items: [{ label: 'Đăng nhập lúc', value: '17/11 08:31 · SES-7F21' }, { label: 'Phương thức', value: 'Tài khoản nhân viên nội bộ · xác thực qua backend (SSO: chờ xác minh hệ thống danh tính)' }, { label: 'Thời hạn', value: 'Tối đa 8 giờ · hết sau 30 phút không hoạt động' }] }) : null,
+            pw ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, padding: 12, border: '1px solid var(--border-card)', borderRadius: 10 } },
+              pw.done ? A('pd', { tone: 'success', title: 'Đã đổi mật khẩu' }, 'Mô phỏng. Các phiên khác bị đăng xuất (đề xuất). Đã ghi audit.') : null,
+              NS.Input ? h(NS.Input, { label: 'Mật khẩu hiện tại', type: 'password', required: true, value: pw.cur, error: pw.err === 'cur' ? 'Mật khẩu hiện tại không đúng' : undefined, onChange: (e) => this.setState({ pw: { ...pw, cur: e.target.value, err: null, done: false } }) }) : null,
+              NS.Input ? h(NS.Input, { label: 'Mật khẩu mới', type: 'password', required: true, value: pw.next, helper: 'Quy tắc độ mạnh: chưa xác định (Q7)', error: pw.err === 'next' ? 'Ít nhất 8 ký tự (giả lập)' : undefined, onChange: (e) => this.setState({ pw: { ...pw, next: e.target.value, err: null, done: false } }) }) : null,
+              h('div', { style: { display: 'flex', gap: 8 } }, btn({ size: 'sm', loading: pw.busy, onClick: () => { if (!pw.cur || pw.cur.length < 6) return this.setState({ pw: { ...pw, err: 'cur' } }); if (pw.next.length < 8) return this.setState({ pw: { ...pw, err: 'next' } }); this.setState({ pw: { ...pw, busy: true } }); this.later(() => this.setState({ pw: { cur: '', next: '', err: null, busy: false, done: true } }), 900); } }, 'Đổi mật khẩu'), btn({ size: 'sm', variant: 'ghost', onClick: () => this.setState({ pw: null }) }, 'Hủy')))
+              : h('div', { style: { display: 'flex', gap: 8 } }, btn({ variant: 'secondary', iconLeft: 'lock', onClick: () => this.setState({ pw: { cur: '', next: '', err: null, busy: false } }) }, 'Đổi mật khẩu'), btn({ variant: 'ghost', iconLeft: 'log-out', onClick: () => this.setState({ session: 'login' }) }, 'Đăng xuất')))),
+          sec('Quyền hiện có', h('span', null, pill('B6')), h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+            ...caps.map(([n, v]) => h('div', { key: n, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' } }, h('span', { style: { flex: '1 1 0', font: 'var(--type-helper)', color: 'var(--text-body)' } }, n), badge(v === 'Không' ? 'error' : v === 'Có' ? 'success' : 'neutral', v))),
+            h('span', { style: cap }, 'Danh sách do máy chủ trả về. Bạn không tự cấp quyền.'),
+            h('div', null, btn({ size: 'sm', variant: 'secondary', iconLeft: 'shield-check', onClick: () => openReq('Hồ sơ cá nhân') }, 'Yêu cầu cấp quyền'))))));
+    };
+
+    // ---------- E4 · Không có quyền · E6 · Lỗi ----------
+    const deniedNode = (code0, where) => h('div', { style: { paddingTop: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'unauthorized', title: 'Bạn không có quyền truy cập ' + (where || 'trang này'),
+      description: 'Máy chủ đã từ chối; không có dữ liệu nào được tải. Nếu công việc cần quyền này, gửi yêu cầu qua quản lý trực tiếp.', code: code0 || 'AUTH-403',
+      action: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' } }, btn({ size: 'sm', iconLeft: 'shield-check', onClick: () => openReq(where || 'trang này') }, 'Yêu cầu cấp quyền'), btn({ size: 'sm', variant: 'secondary', iconLeft: 'arrow-left', onClick: () => go('dashboard') }, 'Về Tổng quan')) }) : null,
+      h('span', { style: cap }, 'Lần truy cập bị từ chối được ghi vào nhật ký.'));
+    const errorNode = () => h('div', { style: { paddingTop: 40 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'error', title: 'Không tải được Tổng quan', description: 'Lỗi hệ thống (mô phỏng). Không có thay đổi nào được thực hiện. Thử lại; nếu vẫn lỗi, gửi mã tham chiếu cho bộ phận IT.', code: 'SYS-500-DB',
+      action: btn({ size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => { this.setState({ loadErr: false }); this.toast({ tone: 'success', title: 'Đã tải lại', description: 'Mô phỏng' }); } }, 'Thử lại') }) : null);
+
+    // ---------- R10 · Yêu cầu cấp quyền ----------
+    const R = S.req;
+    const special = R && R.from.indexOf('đặc biệt') >= 0;
+    const reqDialog = R && NS.Dialog ? h(NS.Dialog, { open: true, title: R.state === 'sent' ? 'Yêu cầu chưa được gửi đi' : 'Yêu cầu cấp quyền', width: 520, onClose: () => this.setState({ req: null }),
+      description: R.state === 'sent' ? null : 'Chỉ liệt kê quyền bạn chưa có. Gửi tới quản lý trực tiếp, sau đó IT / quản trị hệ thống xử lý theo phê duyệt.' + (special ? ' Quyền đặc biệt với dữ liệu kinh doanh cần Giám đốc phê duyệt.' : ''),
+      footer: R.state === 'sent' ? btn({ onClick: () => this.setState({ req: null }) }, 'Đóng') : h('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } }, btn({ variant: 'ghost', onClick: () => this.setState({ req: null }) }, 'Hủy'),
+        btn({ iconLeft: 'send', loading: R.state === 'sending', onClick: () => { if (!R.cap || !R.reason.trim()) return this.setState({ req: { ...R, err: true } }); this.setState({ req: { ...R, state: 'sending', err: false } }); this.later(() => this.setState({ req: { ...this.state.req, state: 'sent' } }), 900); } }, 'Gửi yêu cầu')) },
+      R.state === 'sent' ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+        A('pt', { tone: 'warning', title: 'Điểm nối mô phỏng — chưa có hệ thống tiếp nhận' }, 'Yêu cầu chưa đến quản lý trực tiếp hay IT. Quyền của bạn không thay đổi.'),
+        NS.DescriptionList ? h(NS.DescriptionList, { columns: 1, items: [{ label: 'Quyền đề nghị', value: R.cap }, { label: 'Phạm vi', value: R.scope || '—' }, { label: 'Lý do', value: R.reason }, { label: 'Người phê duyệt', value: special ? 'Quản lý trực tiếp → Giám đốc' : 'Quản lý trực tiếp → IT / quản trị hệ thống' }, { label: 'Trạng thái', value: 'Chưa gửi (mô phỏng)' }] }) : null,
+        h('span', { style: cap }, 'Khi có hệ thống: backend chỉ cập nhật quyền sau khi xác thực phê duyệt hợp lệ; mọi thay đổi quyền ghi audit.'))
+      : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        R.err ? A('re', { tone: 'error', title: 'Chưa gửi được' }, 'Chọn quyền đề nghị và nhập lý do.') : null,
+        NS.Select ? h(NS.Select, { label: 'Quyền đề nghị', required: true, placeholder: 'Chọn quyền', value: R.cap, error: R.err && !R.cap ? 'Bắt buộc' : undefined, options: (special ? ['Truy cập dữ liệu kinh doanh (đặc biệt)'] : (persona === 'restricted' ? ['Xem giá bán', 'Xem tồn kho', 'Lập / sửa báo giá', 'Tạo đơn nháp'] : []).concat(viewAll ? ['Quản trị người dùng'] : ['Xem nhật ký bộ phận', 'Quản trị người dùng'])).map((x) => ({ value: x, label: x })), onChange: (e) => this.setState({ req: { ...R, cap: e.target.value, err: R.err && !R.reason.trim() } }) }) : null,
+        NS.Input ? h(NS.Input, { label: 'Phạm vi', placeholder: special ? 'Ví dụ: BG-2026-0418, 17/11–18/11' : 'Ví dụ: Bộ phận Kinh doanh phụ tùng, đến 30/11', value: R.scope, helper: 'Phạm vi và thời hạn càng hẹp càng dễ phê duyệt', onChange: (e) => this.setState({ req: { ...R, scope: e.target.value } }) }) : null,
+        NS.Textarea ? h(NS.Textarea, { label: 'Lý do', required: true, rows: 3, value: R.reason, error: R.err && !R.reason.trim() ? 'Bắt buộc' : undefined, onChange: (e) => this.setState({ req: { ...R, reason: e.target.value, err: R.err && !R.cap } }) }) : null,
+        h('span', { style: cap }, 'Từ: ' + R.from + '. Bạn không tự cấp quyền được. ', pill('R10 · ĐỀ XUẤT ĐÃ CHỌN')))) : null;
+
+    // ---------- E5 · Phiên ----------
+    const sessionDialog = S.session === 'expired' && NS.Dialog ? h(NS.Dialog, { open: true, tone: 'warning', width: 480, title: S.sessionNote === 'max' ? 'Phiên đã đạt thời hạn tối đa 8 giờ' : 'Phiên đăng nhập đã hết hạn',
+      description: S.sessionNote === 'max' ? 'Đăng nhập lại để tiếp tục.' : 'Bạn không hoạt động 30 phút. Đăng nhập lại để tiếp tục; bạn sẽ quay về đúng trang đang làm.',
+      footer: h('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } }, btn({ variant: 'ghost', onClick: () => this.setState({ session: 'login' }) }, 'Đăng xuất'),
+        btn({ iconLeft: 'shield-check', loading: S.reauth === 'running', disabled: S.reauth === 'running', onClick: () => this.relogin() }, S.reauth === 'running' ? 'Đang đăng nhập…' : 'Đăng nhập lại')) },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+        S.sessionNote === 'inflight' ? A('if', { tone: 'warning', icon: 'circle-help', title: 'Có thao tác chưa rõ kết quả' }, 'Tạo đơn nháp cho BG-2026-0418 v2 đang xử lý khi phiên hết hạn. Không tự động tiếp tục hay tạo lại; sau khi đăng nhập, đối soát theo khóa BG-2026-0418-v2 (D57). Dữ liệu từ công cụ đang chạy chỉ trả về sau khi backend kiểm tra lại quyền.') : null,
+        A('kp', { tone: 'neutral', title: 'Thay đổi chưa lưu' }, 'Được giữ trên thiết bị này cho tới khi đăng nhập lại (đề xuất). Không có thao tác ghi nào tự chạy lại.'),
+        S.reauth === 'error' ? A('er', { tone: 'error', title: 'Đăng nhập không thành công' }, 'Mô phỏng. Thử lại hoặc liên hệ IT. Mã tham chiếu: AUTH-401.') : null,
+        h('span', { style: cap }, pill('Q7 · ĐỀ XUẤT'), ' Tối đa 8 giờ · 30 phút không hoạt động · cấu hình, chưa có trong tài liệu gốc.'))) : null;
+    const sessionWarn = S.session === 'warning' ? A('sw', { tone: 'warning', icon: 'clock', title: 'Phiên sẽ hết sau 5 phút nữa do không hoạt động', action: btn({ size: 'sm', variant: 'secondary', onClick: () => { this.setState({ session: 'ok' }); this.toast({ tone: 'success', title: 'Tiếp tục phiên', description: 'Đặt lại thời gian không hoạt động. Thời hạn tối đa 8 giờ vẫn giữ nguyên.' }); } }, 'Tiếp tục làm việc') }, h('span', null, 'Hết phiên sau 30 phút không hoạt động ', pill('Q7 · ĐỀ XUẤT'), '. Lưu thay đổi đang dở.')) : null;
+    // ---------- E7 · Đăng nhập ----------
+    const L = S.login;
+    const loginLayer = S.session === 'login' ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 70, background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 } },
+      h('div', { style: { width: 400, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 16, padding: 28, background: 'var(--bg-surface)', border: '1px solid var(--border-card)', borderRadius: 16, boxShadow: 'var(--shadow-md)' } },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } }, h('span', { style: { font: '700 20px/1.3 var(--font-sans)', color: 'var(--text-primary)' } }, 'AutoParts Agent'), h('span', { style: cap }, 'Đăng nhập bằng tài khoản nhân viên nội bộ')),
+        L.err === 'bad' ? A('lb', { tone: 'error', title: 'Tài khoản hoặc mật khẩu không đúng' }, 'Không nói rõ trường nào sai. Sai nhiều lần sẽ tạm khóa (ngưỡng đề xuất).') : null,
+        L.err === 'locked' ? A('ll', { tone: 'error', title: 'Tài khoản đang tạm khóa' }, 'Thử lại sau 15 phút (đề xuất) hoặc liên hệ quản lý trực tiếp / IT. Mã tham chiếu: AUTH-423.') : null,
+        NS.Input ? h(NS.Input, { label: 'Tài khoản', placeholder: 'ten@apas.example', value: L.email, error: L.err === 'empty' && !L.email ? 'Bắt buộc' : undefined, onChange: (e) => this.setState({ login: { ...L, email: e.target.value, err: null } }) }) : null,
+        NS.Input ? h(NS.Input, { label: 'Mật khẩu', type: 'password', value: L.pw, error: L.err === 'empty' && !L.pw ? 'Bắt buộc' : undefined, onChange: (e) => this.setState({ login: { ...L, pw: e.target.value, err: null } }), onKeyDown: (e) => { if (e.key === 'Enter') this.doLogin(); } }) : null,
+        btn({ loading: L.busy, disabled: L.busy, onClick: () => this.doLogin(), style: { width: '100%' } }, L.busy ? 'Đang xác thực…' : 'Đăng nhập'),
+        h('span', { style: cap }, 'Không tự đăng ký tài khoản. Quên mật khẩu: liên hệ quản lý trực tiếp / IT (quy trình đặt lại chưa thiết kế). SSO: chờ xác minh hệ thống danh tính. ', pill('Q7 · ĐỀ XUẤT')))) : null;
+
+    // ---------- shell ----------
+    const collapsed = S.col !== null ? S.col : narrow;
+    const sections = [{ items: admin || auditor ? [{ key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' }, { key: 'audit', label: admin ? 'Nhật ký kỹ thuật' : 'Hoạt động', icon: 'history' }] : [
+      { key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' }, { key: 'lookup', label: 'Tra cứu phụ tùng', icon: 'search' },
+      { key: 'quote', label: 'Báo giá', icon: 'file-text' }, { key: 'orders', label: 'Đơn hàng nháp', icon: 'package' }, { key: 'audit', label: 'Hoạt động', icon: 'history' }] }];
+    const navKey = S.route === 'audit' ? 'audit' : S.route === 'dashboard' ? 'dashboard' : null;
+    const crumbs = [{ label: { dashboard: 'Tổng quan', audit: admin ? 'Nhật ký kỹ thuật' : 'Hoạt động', profile: 'Hồ sơ cá nhân', denied: 'Không có quyền' }[S.route] }];
+    const page = S.route === 'dashboard' ? dashNode() : S.route === 'audit' ? auditNode() : S.route === 'profile' ? profileNode() : deniedNode('AUTH-403-AD', 'Quản trị người dùng');
+    const main = h(React.Fragment, null, sessionWarn, page, reqDialog);
+    return {
+      rootRef: this.rootRef, sections, navKey, collapsed,
+      sidebarFooter: collapsed ? null : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, ...cap } }, h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: erp === 'fresh' ? 'var(--status-success)' : 'var(--status-error)' } }), erp === 'fresh' ? 'ERP mô phỏng · đã kết nối' : 'ERP mô phỏng · không khả dụng'),
+      crumbs, user: { name: 'Nguyễn Minh Anh', role: ROLE + ' (mô phỏng)', initials: 'MA' },
+      headerActions: NS.IconButton ? h(React.Fragment, null, h(NS.IconButton, { icon: 'bell', label: 'Thông báo', onClick: () => other('Thông báo (Batch D)') }),
+        h(NS.IconButton, { icon: 'user', label: 'Hồ sơ cá nhân', active: S.route === 'profile', onClick: () => go('profile') })) : null,
+      headerSearch: () => other('Tìm nhanh (Workflow A)'),
+      simBanner, mainNode: main, sessionLayer: h(React.Fragment, null, sessionDialog, loginLayer), panelOpen: false, panelPos: 'relative', panelShadow: 'none', panelKey: () => {}, panelContext: '', aiStatus: 'online', threadNode: null, composerNode: null, closePanel: () => {},
+      toasts: S.toasts.map((t) => ({ ...t, close: () => this.setState({ toasts: this.state.toasts.filter((x) => x.id !== t.id) }) })),
+      toggleSidebar: () => this.setState({ col: !collapsed }),
+      selectNav: (k) => { if (k === 'dashboard' || k === 'audit') go(k, { open: null, kind: 'all' }); else other({ lookup: 'Tra cứu phụ tùng', quote: 'Báo giá', orders: 'Đơn hàng nháp' }[k]); },
+    };
+  }
+}
+</script>
+</body>
+</html>

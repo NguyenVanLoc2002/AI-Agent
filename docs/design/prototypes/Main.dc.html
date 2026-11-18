@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sơ đồ ứng dụng — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+.mod{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.mod h3{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+.mod ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mod li{display:flex;gap:10px;align-items:baseline;font:var(--type-table);color:var(--text-body)}
+.mod li .id{min-width:52px;font:var(--type-code);font-size:12px;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.mod li.sub{padding-left:14px}
+.tag{display:inline-flex;align-items:center;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.on{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.next{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.p{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 24px; font-family: var(--font-sans); color: var(--text-body);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="font: var(--type-overline); letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary);">AutoParts Agent — Employee Workspace</div>
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Sơ đồ ứng dụng cho nhân viên</h1>
+    <p style="margin: 0; max-width: 880px; font: var(--type-body); color: var(--text-secondary);">Mã màn hình theo App UX Plan trong design system. Năm luồng công việc A–E dùng chung một khung ứng dụng. Trợ lý AI là bảng bên phải, không phải một mục điều hướng; bảng mở rộng được thành không gian hội thoại (Batch B).</p>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; font: var(--type-caption); color: var(--text-secondary); align-items: center;">
+    <span class="tag on">Đang thiết kế</span><span>Workflow A, Batch B, C, D và E</span>
+    <span class="tag ok">Có sẵn</span><span>Đã có trong design system, được dùng lại</span>
+    <span class="tag next">Bước sau</span><span>Thiết kế sau khi duyệt Workflow A</span>
+    <span class="tag p">Cần xác nhận</span><span>Phạm vi chưa có trong yêu cầu nghiệp vụ</span>
+  </div>
+
+  <div class="mod" style="background: var(--bg-nested); border: 0;">
+    <h3>Khung ứng dụng · SH <span class="tag on">Đang thiết kế</span></h3>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px;">
+      <ul><li><span class="id">SH-01</span><span>Khung chính: sidebar thu gọn được, header, vùng làm việc, bảng Trợ lý AI</span></li><li><span class="id">SH-02</span><span>Tìm nhanh SKU / OE / VIN trên header</span></li></ul>
+      <ul><li><span class="id">SH-05</span><span>Băng thông báo ERP gián đoạn (toàn cục)</span></li><li><span class="id">SH-08</span><span>Toast thông báo kết quả thao tác</span></li></ul>
+      <ul><li><span class="id">SH-03</span><span>Không có quyền truy cập</span></li><li><span class="id">SH-04</span><span>Lỗi hệ thống / không tìm thấy trang</span></li></ul>
+      <ul><li><span class="id">SH-07</span><span>Phiên đăng nhập hết hạn <span class="tag p">Cần xác nhận</span></span></li><li><span class="id">SH-06</span><span>Đăng nhập <span class="tag p">Cần xác nhận</span></span></li></ul>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+    <div class="mod" style="border-color: var(--status-info-border);">
+      <h3>A · Tìm kiếm sản phẩm <span class="tag on">Đang thiết kế</span></h3>
+      <ul>
+        <li><span class="id">PL-01</span><span>Tra cứu phụ tùng (SKU, mã OE, số VIN, tên)</span></li>
+        <li class="sub"><span class="id">PL-02</span><span>Xác định xe từ số VIN</span></li>
+        <li class="sub"><span class="id">PL-03</span><span>Chi tiết phụ tùng (drawer + trang đầy đủ)</span></li>
+        <li class="sub"><span class="id">PL-04</span><span>Giá bán &amp; tồn kho theo chi nhánh (ERP)</span></li>
+        <li class="sub"><span class="id">PL-05</span><span>Mã tương đương (gợi ý AI, cần kiểm tra ERP)</span></li>
+        <li class="sub"><span class="id">A4–A7</span><span>Trạng thái tìm kiếm: đang tải, không có kết quả, lỗi, ERP gián đoạn, không có quyền</span></li>
+        <li class="sub"><span class="id">PL-06</span><span>Thêm vào báo giá — điểm nối sang luồng C <span class="tag next">Bước sau</span></span></li>
+      </ul>
+    </div>
+    <div class="mod">
+      <h3>B · Trợ lý AI <span class="tag on">Đang thiết kế · Batch B</span></h3>
+      <ul>
+        <li><span class="id">AI-01</span><span>Bảng Trợ lý AI theo ngữ cảnh</span></li>
+        <li class="sub"><span class="id">AI-01</span><span>Cuộc trò chuyện</span></li>
+        <li class="sub"><span class="id">AI-03</span><span>Kết quả công cụ có cấu trúc</span></li>
+        <li class="sub"><span class="id">AI-03</span><span>Lỗi công cụ &amp; trạng thái không có quyền</span></li>
+        <li class="sub"><span class="id">AI-02</span><span>Xác nhận hành động do AI đề xuất</span></li>
+      </ul>
+    </div>
+    <div class="mod">
+      <h3>C · Báo giá <span class="tag on">Đang thiết kế · Batch C</span></h3>
+      <ul>
+        <li><span class="id">QT-01</span><span>Danh sách báo giá</span></li>
+        <li class="sub"><span class="id">QT-02</span><span>Chi tiết báo giá</span></li>
+        <li class="sub"><span class="id">QT-02</span><span>Soạn báo giá</span></li>
+        <li class="sub"><span class="id">QT-09</span><span>Xung đột phiên bản</span></li>
+        <li class="sub"><span class="id">QT-04</span><span>Lịch sử phiên bản</span></li>
+      </ul>
+    </div>
+    <div class="mod">
+      <h3>D · Đơn hàng nháp <span class="tag on">Đang thiết kế · Batch D</span></h3>
+      <ul>
+        <li><span class="id">DO-02</span><span>Xem lại đơn hàng nháp</span></li>
+        <li class="sub"><span class="id">DO-05</span><span>Xác nhận tạo trên ERP</span></li>
+        <li class="sub"><span class="id">DO-06</span><span>Đang xử lý, kết quả, kiểm tra trạng thái sau quá thời gian</span></li>
+      </ul>
+    </div>
+    <div class="mod">
+      <h3>E · Màn hình hỗ trợ <span class="tag on">Đang thiết kế · Batch E</span></h3>
+      <ul>
+        <li><span class="id">DB-01</span><span>Tổng quan <span class="tag p">Cần xác nhận</span></span></li>
+        <li><span class="id">AU-01</span><span>Lịch sử hoạt động</span></li>
+        <li><span class="id">PF-01</span><span>Hồ sơ cá nhân <span class="tag p">Cần xác nhận</span></span></li>
+        <li><span class="id">SH-03</span><span>Không có quyền truy cập</span></li>
+        <li><span class="id">SH-07</span><span>Phiên đăng nhập hết hạn</span></li>
+      </ul>
+    </div>
+    <div class="mod" style="background: var(--bg-nested); border: 0;">
+      <h3>Điều hướng chính (sidebar)</h3>
+      <ul>
+        <li><span class="id">1</span><span>Tổng quan — chỉ khi DB-01 được duyệt</span></li>
+        <li><span class="id">2</span><span>Tra cứu phụ tùng — trang mặc định</span></li>
+        <li><span class="id">3</span><span>Báo giá</span></li>
+        <li><span class="id">4</span><span>Đơn hàng nháp</span></li>
+        <li><span class="id">5</span><span>Hoạt động</span></li>
+      </ul>
+      <p style="margin: 0; font: var(--type-caption); color: var(--text-secondary);">Mục người dùng không có quyền được ẩn; mở bằng đường dẫn trực tiếp sẽ dẫn tới SH-03. Header: tìm nhanh, thông báo, bật/tắt Trợ lý AI, tài khoản.</p>
+    </div>
+  </div>
+
+  <div class="mod">
+    <h3>Luồng A · từ tìm kiếm tới chi tiết</h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font: var(--type-table);">
+      <span style="border: 1px solid var(--border-card); border-radius: 8px; padding: 6px 10px;">PL-01 Nhập SKU / OE / VIN</span>
+      <span aria-hidden="true" style="color: var(--text-secondary);">→</span>
+      <span style="border: 1px solid var(--border-card); border-radius: 8px; padding: 6px 10px;">PL-02 Xác định xe (VIN)</span>
+      <span aria-hidden="true" style="color: var(--text-secondary);">→</span>
+      <span style="border: 1px solid var(--source-erp-border); background: var(--source-erp-bg); border-radius: 8px; padding: 6px 10px;">Kết quả + giá, tồn kho ERP có giờ đồng bộ</span>
+      <span aria-hidden="true" style="color: var(--text-secondary);">→</span>
+      <span style="border: 1px solid var(--border-card); border-radius: 8px; padding: 6px 10px;">PL-03 Drawer chi tiết</span>
+      <span aria-hidden="true" style="color: var(--text-secondary);">→</span>
+      <span style="border: 1px solid var(--border-card); border-radius: 8px; padding: 6px 10px;">PL-03 Trang đầy đủ</span>
+      <span aria-hidden="true" style="color: var(--text-secondary);">→</span>
+      <span style="border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; color: var(--text-secondary);">PL-06 Thêm vào báo giá (luồng C)</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

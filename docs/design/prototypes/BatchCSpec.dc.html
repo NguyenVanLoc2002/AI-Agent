@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Đặc tả Batch C — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Batch C · Đặc tả màn hình Báo giá</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Cập nhật 17/11/2026 theo quyết định B1, B2, Q1–Q6, VR, R4. “Đã rà soát” nghĩa là đã chạy thử thật trên canvas trong Chrome; không mục nào được phê duyệt.</p>
+  </div>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font: var(--type-caption); color: var(--text-secondary);">
+    <span class="tag n">Đã thiết kế</span><span>Có trên canvas</span>
+    <span class="tag p">Đã rà soát</span><span>Đã chạy thử thật trong trình duyệt</span>
+    <span class="tag ok">Đã phê duyệt</span><span>Được người duyệt chấp thuận chính thức</span>
+    <span class="tag x">Bị chặn</span><span>Chờ quyết định nghiệp vụ</span>
+  </div>
+  <div class="card"><h2>Phạm vi và căn cứ · cập nhật theo phản hồi nghiệp vụ 17/11 (lần 2)</h2><ul class="l"><li><b>Có căn cứ:</b> B1 (luồng trạng thái của tài liệu tham chiếu, không có bước duyệt báo giá, duyệt đơn tại ERP), Q3 (khách từ ERP, AI không tạo khách), Q6 (Zalo OA là kênh gửi), VR (ba nhãn; checklist xác minh còn mở), B2 (AI không chiết khấu; chiết khấu thủ công còn mở).</li><li><b>PROPOSED:</b> Q1 (khóa phiên bản đã phát hành), Q2 (hiệu lực 3 ngày mô phỏng, cấu hình backend), Q4 (hết hàng / cần kiểm tra không phát hành báo giá cam kết).</li><li><b>BLOCKED:</b> R4 — không tính VAT, không hiển thị tổng thanh toán.</li><li>Mock: MockErpConnector, Quote Service, Zalo OA. Không phải bằng chứng Quote Service, phân quyền, API ERP đích, gửi Zalo OA hay chống tạo trùng đã hoạt động.</li><li>Chưa thiết kế: tạo đơn nháp và chi tiết xử lý đơn (Batch D), mẫu nội dung gửi khách, luồng phía khách trên Zalo OA.</li></ul></div>
+  <div class="card"><h2>C1 · QT-01 · Danh sách báo giá</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C · Prototype, C1 · bốn artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Mục “Báo giá” trên sidebar; nút “Danh sách”; breadcrumb.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Lọc theo trạng thái báo giá: Tất cả · Nháp · Đã gửi · Khách xác nhận · Hết hạn · Hủy; trưởng bộ phận đổi “Của tôi / Cả bộ phận”; bấm dòng; “Soạn báo giá”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Mã, khách (mã ERP), trạng thái báo giá, phiên bản hiện hành (và “đang soạn vN”), hiệu lực đến, tiền hàng, <b>Xử lý đơn (ERP)</b> tách riêng: Đã tạo đơn nháp · Nhân viên duyệt · Từ chối. “Bị thay thế” là trạng thái phiên bản, xem ở C4.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Dòng → C2. “Soạn báo giá” → C5.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Nhân viên: báo giá của mình. Trưởng bộ phận: thêm báo giá của bộ phận (D34). Không có quyền / quản trị → EmptyState, không tải dữ liệu, ẩn Trợ lý.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Danh sách rỗng → EmptyState + Soạn báo giá.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>“Về Tra cứu phụ tùng”.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>PageHeader, Tabs, DataTable, Badge, Tag, EmptyState</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C2 · QT-02 · Chi tiết báo giá · nháp và đã phát hành</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C2 · mười artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Bấm dòng ở C1; chip mã báo giá từ Trợ lý; sau khi lưu nháp (C5).</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Nháp: sửa số lượng, bỏ dòng, “Tính giá (Quote Service)”, “Phát hành vN & gửi qua Zalo OA”, “Bỏ thay đổi”. Đã gửi/Hết hạn: “Tạo phiên bản mới”, “Hủy báo giá” (có hộp xác nhận). Q4: “Chuyển nhân viên kinh doanh”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Khách (ERP · Mock, mã do backend xác định). Phát hành → hết hạn (3 ngày mô phỏng, cấu hình backend, Q2). Chính sách giá theo ERP, không có trường chiết khấu (B2). Dòng: trạng thái mã (VR), tồn Còn hàng / Hết hàng / Cần kiểm tra, số lượng, đơn giá Quote Service. Tổng: tiền hàng; VAT và tổng thanh toán BLOCKED (R4). Khối “Mô phỏng phía khách (Zalo OA)” để xem phản hồi khi khách xác nhận.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Tab Phiên bản → C4. Phát hành → C3. Khách xác nhận → C7.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Nháp chỉ người lập (có quyền) sửa. Không quyền xem giá → “Hạn chế”. Báo giá người khác: máy chủ từ chối, trừ trưởng bộ phận (chỉ xem). Hủy: quyền chưa xác định.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Hết hàng / cần kiểm tra: không phát hành báo giá cam kết cung ứng (Q4). ERP không khả dụng: không tính giá, không phát hành.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Bỏ thay đổi; tạo phiên bản mới khi hết hạn; chuyển nhân viên.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Card, DescriptionList, DataTable, Input, IconButton, Badge, SourceTag, Alert, ActionConfirmation, Button</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C3 · QT-02 · QT-09 · Tính giá · phát hành & gửi · lỗi</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C3 · chín artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>“Tính giá” và “Phát hành & gửi” trên C2.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Chờ; “Kiểm tra trạng thái” (tính giá chưa rõ); “Kiểm tra trạng thái gửi”; “Thử lại”; “Tải bản nháp mới nhất” (xung đột).</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Tính giá cập nhật bản nháp, không tạo phiên bản mới (Q1: nháp sửa trực tiếp). Phát hành khóa nội dung, đặt thời hạn, thay thế phiên bản trước. <b>Chỉ ghi “Đã gửi” khi dịch vụ gửi xác nhận</b> (mã ZOA-…); không phản hồi → “Đã phát hành · chưa xác nhận gửi”; lỗi → chưa phát hành. Giá khác phiên bản trước → Alert. Xung đột: bản nháp bị sửa ở phiên khác, không phát hành bản cũ.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Thành công → ở lại C2 với trạng thái mới, toast.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Như C2.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Ngưỡng quá thời gian chưa chốt (giả lập).</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Kiểm tra trạng thái trước khi gửi lại; không gửi lại tự động.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Button loading, Alert, Toast, Badge</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C4 · QT-04 · Lịch sử phiên bản · hoạt động</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C4 · hai artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Tab “Phiên bản”, “Hoạt động” trên C2.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Chọn phiên bản để so sánh; Trợ lý tóm tắt khác biệt.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Mỗi phiên bản: Nháp / Đã phát hành · hiện hành / Bị thay thế / Khách xác nhận; thời điểm tạo, người tạo; phát hành → hết hạn và mã gửi Zalo OA; lý do; tiền hàng. So sánh số lượng và đơn giá. Hoạt động: dòng thời gian gồm Quote Service, backend, Zalo OA, khách, ERP.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Quay lại Chi tiết.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Không quyền xem giá → cột giá “Hạn chế”.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>—</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>—</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>DataTable, Tabs pill, bảng theo token</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C5 · QT-02 · Soạn báo giá · khách hàng từ ERP</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C5 · bốn artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>“Soạn báo giá” ở C1; dòng điền sẵn từ lựa chọn tạm.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Nhập số điện thoại hoặc mã khách → “Tra cứu ERP”; chọn khách; sửa/xóa/thêm dòng; “Lưu nháp”; “Chuyển nhân viên xác minh”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Một kết quả → chọn. Nhiều kết quả → cảnh báo, chỉ chọn khi chắc chắn, hoặc chuyển nhân viên. Không thấy → không tạo khách mới ở đây, chuyển nhân viên (Q3). Đơn giá: Quote Service tính sau khi lưu.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Lưu → C2 (Nháp, chưa tính giá). Hủy → C1.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Lập báo giá: quyền đề xuất.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Thiếu khách → Alert + lỗi tại trường.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Đổi khách; chuyển nhân viên.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Input, Button, Alert, DataTable, IconButton, Toast</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C6 · AI-02 · Trợ lý trong báo giá</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C6 · bảy artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Bảng Trợ lý trên C1/C2/C5; câu gợi ý.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>“Gửi yêu cầu” / “Không gửi” (lap_bao_gia); “Kiểm tra trạng thái”; chip mã báo giá; “Chuyển nhân viên có thẩm quyền”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>lap_bao_gia: thẻ xác nhận ghi dòng nào không được đưa vào; AI chỉ nhận {BAO_GIA_1}; kết quả là bản Nháp đã tính giá — Trợ lý không phát hành, không gửi. Tóm tắt khác biệt: chỉ mã và số lượng. <b>Yêu cầu giảm giá</b>: từ chối, không sửa giá, chuyển nhân viên (B2).</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Chip mã → C2 của báo giá vừa tạo.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Không quyền lập báo giá → máy chủ từ chối. Checklist VR chưa duyệt → backend từ chối.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Chưa rõ → không gửi lại tự động.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Kiểm tra trạng thái; soạn thủ công.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>AIPanel, ChatMessage, ActionConfirmation, ToolCall, SourceTag, AIComposer</td></tr></tbody></table></div></div>
+  <div class="card"><h2>C7 · QT-02 · Khách xác nhận · kiểm tra trước tạo đơn</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: C7 · bốn artboard, C2 · Khách xác nhận <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Khách gửi “Xác nhận BG-… vN” qua Zalo OA (mô phỏng bằng nút trên C2).</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>“Kiểm tra lại giá, tồn kho, công nợ”; điểm nối “Tạo đơn nháp — Batch D”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Xác nhận hợp lệ → trạng thái Khách xác nhận. Xác nhận phiên bản bị thay thế hoặc báo giá hết hạn → hệ thống từ chối, ghi vào Hoạt động. Kiểm tra lại: không đổi → sẵn sàng tạo đơn; giá đổi → backend tạo phiên bản mới, phiên bản khách đã xác nhận bị thay thế, cần phát hành và khách xác nhận lại (Q1). Sau khi tạo đơn: trạng thái xử lý đơn lấy từ ERP; duyệt/từ chối do nhân viên có quyền trong ERP.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Tạo đơn → Batch D (chưa thiết kế).</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Kiểm tra lại: người lập (đề xuất).</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>ERP không khả dụng: không kiểm tra được.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>—</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Button, ToolCall pending, Alert, Badge</td></tr></tbody></table></div></div>
+  <div class="tw"><table>
+    <caption>Rà soát nhất quán · vòng 2</caption>
+    <thead><tr><th>#</th><th>Phát hiện</th><th>Mức</th><th>Xử lý</th></tr></thead>
+    <tbody>
+<tr><td class="id">V1</td><td>Khung, sidebar, header, băng mô phỏng, toast, ba nhãn nguồn giống Workflow A và Batch B.</td><td>—</td><td>Đạt</td></tr>
+<tr><td class="id">V2</td><td>Sau khi khách xác nhận hợp lệ, cảnh báo “từ chối xác nhận v1” cũ vẫn hiện.</td><td>Trung bình</td><td>Đã sửa, đã chạy lại</td></tr>
+<tr><td class="id">V3</td><td>Hai lần gửi cùng ra một mã ZOA.</td><td>Thấp</td><td>Đã sửa</td></tr>
+<tr><td class="id">V4</td><td>Đánh dấu PROPOSED / BLOCKED / CÓ CĂN CỨ hiện ngay cạnh quy tắc trên giao diện.</td><td>—</td><td>Mới</td></tr>
+<tr><td class="id">V5</td><td>Mở Trợ lý ở 1440 px: bảng dòng cuộn ngang; Alert nhiều khách khớp: nút hành động nằm giữa khối.</td><td>Thấp</td><td>Chưa sửa</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Trạng thái còn thiếu</caption>
+    <thead><tr><th>#</th><th>Trạng thái</th><th>Tình trạng</th></tr></thead>
+    <tbody>
+<tr><td class="id">CM1</td><td>Tạo đơn nháp, chi tiết đơn, chống tạo đơn trùng</td><td>Batch D</td></tr>
+<tr><td class="id">CM2</td><td>Chiết khấu thủ công: mức tối đa, cấp phê duyệt</td><td>Chờ chủ nghiệp vụ (B2)</td></tr>
+<tr><td class="id">CM3</td><td>Tạo / liên kết khách mới, bảng giá khách mới</td><td>Chờ chủ nghiệp vụ (Q3)</td></tr>
+<tr><td class="id">CM4</td><td>Hàng đặt trước, đang nhập, giao thiếu</td><td>Chờ chủ nghiệp vụ (Q4)</td></tr>
+<tr><td class="id">CM5</td><td>VAT và tổng thanh toán</td><td>BLOCKED (R4)</td></tr>
+<tr><td class="id">CM6</td><td>Quyền hủy báo giá, thông báo cho khách khi hủy</td><td>Chưa xác định</td></tr>
+<tr><td class="id">CM7</td><td>Thời hạn chính thức, ngày nghỉ</td><td>Chờ chủ nghiệp vụ (Q2)</td></tr>
+<tr><td class="id">CM8</td><td>Phiên đăng nhập hết hạn khi đang tính giá / gửi</td><td>Bị chặn · Q7</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Kiểm thử cần có khi làm backend (theo phản hồi)</caption>
+    <thead><tr><th>#</th><th>Nội dung</th></tr></thead>
+    <tbody>
+<tr><td class="id">T1</td><td>Versioning: phiên bản đã phát hành không sửa; thay đổi tạo phiên bản mới; phiên bản bị thay thế không tạo đơn</td></tr>
+<tr><td class="id">T2</td><td>Báo giá hết hạn: không nhận xác nhận, không tạo đơn</td></tr>
+<tr><td class="id">T3</td><td>Không truy cập giá của khách khác</td></tr>
+<tr><td class="id">T4</td><td>Không tự chiết khấu (UI, API, công cụ AI)</td></tr>
+<tr><td class="id">T5</td><td>Giá thay đổi trước tạo đơn → phiên bản mới</td></tr>
+<tr><td class="id">T6</td><td>Chống tạo đơn trùng (idempotency)</td></tr>
+    </tbody>
+  </table></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":5800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

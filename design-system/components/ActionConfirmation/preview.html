@@ -1,0 +1,56 @@
+<!-- @dsCard group="AI" height=211 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>ActionConfirmation — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  ActionConfirmation
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  const [st, setSt] = React.useState('pending');
+  const [ld, setLd] = React.useState(false);
+  return React.createElement("div", {
+    style: {
+      maxWidth: 460
+    }
+  }, React.createElement(ActionConfirmation, {
+    state: st,
+    loading: ld,
+    title: "Th\xEAm v\xE0o b\xE1o gi\xE1 BG-2026-0412",
+    items: [{
+      label: 'Má phanh trước · BP-1042',
+      value: '2 × 1.250.000 ₫'
+    }],
+    confirmLabel: "Th\xEAm v\xE0o b\xE1o gi\xE1",
+    onConfirm: () => {
+      setLd(true);
+      setTimeout(() => {
+        setLd(false);
+        setSt('confirmed');
+      }, 1200);
+    },
+    onReject: () => setSt('rejected')
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

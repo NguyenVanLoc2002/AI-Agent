@@ -1,6 +1,14 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: Independent demo rebranding (docs only), 2026-11-16
+## Current: Claude Design integration (docs only), 2026-11-17
+- Branch `docs/APAS-01-claude-design-integration` (from `docs/APAS-00-independent-demo-rebranding`). Not committed. The owner's earlier uncommitted deletions/modifications are still untouched.
+- The owner added `design-system/` and `docs/design/` (Claude Design export). Claude Design replaces the Stitch plan (A-18).
+- Done: vendor/customer/proposal identifiers neutralised in `docs/design/**` (.md, .dc.html, canvas.json; 411 replacements, 41 files); nested `docs/design/CLAUDE.md` replaced by `docs/design/DESIGN_GUIDE.md` (reference only, no precedence); root `CLAUDE.md`, rule 50, skill `ui-from-stitch` → `ui-from-claude-design`, TRACEABILITY, USE_CASES pointer updated; `DECISIONS_REQUIRED.md` gained A-17 (logo), A-18 (Claude Design export) and §UX (UX-01..UX-18 design-vs-ADR/contract/RBAC conflicts); screen→UC mapping in `docs/design/specs/90`; `design-system/` README export banner, EXPORT-NOTES caveats, OFL/ISC licenses; `_ds_bundle.js` and `archived/` removed from the export; root `.gitignore` excludes `docs/design/evidence/`.
+- Not changed: ADRs, contracts, RBAC_MATRIX, security rules, settings, code. Conflicts are recorded, not resolved.
+- Open: owner decides UX-01..UX-18, A-17, A-18; full export with `.jsx` sources before `frontend/`; re-capture evidence screenshots; the Claude Design canvas itself still shows the old vendor name.
+- Next actions: owner reviews this branch → decide UX items blocking Batch A (UX-13, UX-15) → SEC-01a egress guard remains the next code issue.
+
+## Previous: Independent demo rebranding (docs only), 2026-11-16
 - Branch `docs/APAS-00-independent-demo-rebranding`, created from `origin/main` `4d283db` (POC-001 merged via PR #1). Committed and pushed for a PR into `main`. The owner's earlier uncommitted deletions/modifications are still local and were not committed.
 - Project is now **AutoParts Agent Sandbox (APAS)**, an independent technical demo with no customer and a vendor-neutral ERP connector. Disclaimer is in README and CLAUDE.md. Full record: `docs/REBRANDING_REPORT.md`. Approval A-16 is PROPOSED.
 - Changed: 24 project-authored doc and `.claude` text files plus the new report. No code, config, settings, ADR decision or status changed. The owner's earlier deletions and modifications were left untouched.

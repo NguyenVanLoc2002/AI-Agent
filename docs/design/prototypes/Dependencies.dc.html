@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Quyền và câu hỏi nghiệp vụ mở — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 14px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Phụ thuộc về quyền và câu hỏi nghiệp vụ mở</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Cập nhật theo phản hồi review ngày 16/11/2026. Giai đoạn hiện tại là UX prototype: không có quy tắc nghiệp vụ, hợp đồng API hay cơ chế bảo mật nào được phê duyệt. Giới hạn trên giao diện không thay thế kiểm tra quyền ở máy chủ.</p>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font: var(--type-caption); color: var(--text-secondary);">
+      <span class="tag p">ĐỀ XUẤT</span><span>Dùng trong prototype, chưa phê duyệt</span>
+      <span class="tag u">CHƯA XÁC ĐỊNH</span><span>Chưa có thông tin — giao diện coi như không có quyền</span>
+      <span class="tag x">BỊ CHẶN</span><span>Chặn thiết kế luồng sau</span>
+    </div>
+  </div>
+
+  <div class="tw"><table>
+    <caption>Persona mô phỏng (chỉ phục vụ kiểm tra giao diện)</caption>
+    <thead><tr><th>Persona</th><th>Nhãn trong giao diện</th><th>Quyền mặc định</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td class="id">Sales Employee</td><td>Nhân viên kinh doanh (mô phỏng)</td><td>Không có</td><td rowspan="4">Persona chỉ là nhãn. Mọi quyền được bật/tắt riêng bằng Tweaks (Đề xuất: có / Không / Chưa xác định). Không persona nào được mặc định có quyền xem giá, sửa giá, xem liên chi nhánh, quản lý báo giá hay tạo đơn nháp.</td></tr>
+      <tr><td class="id">Restricted Employee</td><td>Nhân viên hạn chế (mô phỏng)</td><td>Không có</td></tr>
+      <tr><td class="id">Sales Supervisor</td><td>Giám sát kinh doanh (mô phỏng)</td><td>Không có</td></tr>
+      <tr><td class="id">System Administrator</td><td>Quản trị hệ thống (mô phỏng)</td><td>Không có</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tw"><table>
+    <caption>Capability dùng trong Workflow A</caption>
+    <thead><tr><th>Capability</th><th>Kiểm soát</th><th>Khi không có / chưa xác định</th><th>Bề mặt bị ảnh hưởng</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td class="id">parts.search</td><td>Tra cứu danh mục, thông số, xe tương thích</td><td>Luôn bật trong prototype</td><td>Kết quả, chi tiết</td><td><span class="tag p">ĐỀ XUẤT</span></td></tr>
+      <tr><td class="id">erp.price.view</td><td>Xem giá bán</td><td>Ô giá khóa “Hạn chế” / “Chưa xác định quyền”; giá không được tải về giao diện; AI trả công cụ “không có quyền”; không chọn dòng</td><td>Bảng kết quả, drawer, trang, AI, mã tương đương</td><td><span class="tag u">CHƯA XÁC ĐỊNH</span></td></tr>
+      <tr><td class="id">erp.stock.view</td><td>Xem tồn kho</td><td>Ô tồn khóa; khối tồn kho ẩn; AI không nhận số tồn</td><td>Bảng kết quả, drawer, trang, AI</td><td><span class="tag u">CHƯA XÁC ĐỊNH</span></td></tr>
+      <tr><td class="id">branch.scope</td><td>Phạm vi chi nhánh được xem (đối tượng)</td><td>Chỉ chi nhánh trong phạm vi được tải; phạm vi chưa xác định → ẩn toàn bộ tồn kho. Chi nhánh ngoài phạm vi không xuất hiện kể cả dạng khóa</td><td>Khối tồn kho, AI</td><td><span class="tag u">CHƯA XÁC ĐỊNH</span></td></tr>
+      <tr><td class="id">quote.line.add</td><td>Thêm sản phẩm vào báo giá</td><td>Nút khóa trung tính. Khi có quyền: nút vẫn chỉ là điểm nối tới luồng C, không lưu gì</td><td>Thanh công cụ khi chọn dòng</td><td><span class="tag x">BỊ CHẶN · luồng C</span></td></tr>
+      <tr><td class="id">ai.use</td><td>Mở Trợ lý AI</td><td>Chưa mô phỏng tắt; AI luôn chỉ dùng quyền của người dùng</td><td>AI panel</td><td><span class="tag u">CHƯA XÁC ĐỊNH</span></td></tr>
+      <tr><td class="id">export</td><td>Xuất danh sách</td><td>Không có nút xuất trong Workflow A</td><td>—</td><td><span class="tag n">NGOÀI PHẠM VI</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tw"><table>
+    <caption>Câu hỏi nghiệp vụ — trạng thái sau review</caption>
+    <thead><tr><th>Mã</th><th>Câu hỏi</th><th>Quyết định hiện tại</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      <tr><td class="id">B6</td><td>Vai trò và quyền chính thức</td><td>Phân quyền nhật ký đã chọn (D59). Vai trò, quyền chi tiết khác vẫn theo persona mô phỏng.</td><td><span class="tag u">MỘT PHẦN</span></td></tr>
+      <tr><td class="id">R4</td><td>Giá đã gồm VAT hay chưa</td><td>Không giả định; không tính VAT, không hiển thị tổng thanh toán (D47). Chờ chủ nghiệp vụ và đơn vị phụ trách ERP.</td><td><span class="tag x">BLOCKED</span></td></tr>
+      <tr><td class="id">B3</td><td>Nguồn giải mã VIN</td><td>Bảng ánh xạ VIN mẫu cố định (fixtures). Không dùng dịch vụ thật, không để AI suy đoán xe tương thích.</td><td><span class="tag ok">ĐÃ TRẢ LỜI cho demo</span></td></tr>
+      <tr><td class="id">R5</td><td>Phạm vi xem tồn kho</td><td>Chỉ chi nhánh trong phạm vi được cấp; không tự cấp toàn hệ thống; không truyền dữ liệu ngoài phạm vi tới component hay AI.</td><td><span class="tag ok">ĐÃ TRẢ LỜI cho demo</span></td></tr>
+      <tr><td class="id">E1</td><td>Ngưỡng hiệu lực của dữ liệu ERP (khi nào bản lưu trở thành dữ liệu cũ)</td><td>Chưa có. Prototype giả lập 60 phút và ghi rõ là giả lập.</td><td><span class="tag u">MỞ · mới</span></td></tr>
+      <tr><td class="id">E2</td><td>Có được hiển thị bản lưu (cached) cho người dùng không, và dùng vào việc gì</td><td>Prototype hiển thị mờ kèm nhãn “Bản lưu · chưa xác nhận lại”, không cho chọn hay báo giá.</td><td><span class="tag u">MỞ · mới</span></td></tr>
+      <tr><td class="id">R1</td><td>Hàng sắp hết / hết hàng có được thêm vào báo giá</td><td>Chưa thiết kế (thuộc luồng C).</td><td><span class="tag x">MỞ · luồng C</span></td></tr>
+      <tr><td class="id">R7</td><td>Nguồn mã tương đương</td><td>Gắn nhãn “Gợi ý AI · chưa xác minh”; phải “Kiểm tra ERP” mới thấy giá.</td><td><span class="tag u">MỞ</span></td></tr>
+      <tr><td class="id">R9</td><td>Ngưỡng quá thời gian ERP, chính sách thử lại</td><td>Giả lập 10 giây, thử lại thủ công.</td><td><span class="tag n">MỞ</span></td></tr>
+      <tr><td class="id">R10</td><td>Kênh xin thêm quyền</td><td>Quản lý trực tiếp → IT / quản trị (D62). Chưa có hệ thống tiếp nhận: điểm nối.</td><td><span class="tag u">ĐÃ QUYẾT · ĐIỂM NỐI</span></td></tr>
+      <tr><td class="id">B1</td><td>Trạng thái báo giá và bước duyệt</td><td>Luồng của tài liệu tham chiếu; không duyệt báo giá; duyệt đơn tại ERP (D40).</td><td><span class="tag u">CÓ CĂN CỨ</span></td></tr>
+      <tr><td class="id">B2</td><td>Chiết khấu</td><td>AI không chiết khấu; giá theo ERP (D38). Chiết khấu thủ công, mức tối đa, cấp phê duyệt: chờ chủ nghiệp vụ.</td><td><span class="tag u">CÓ CĂN CỨ · còn mở</span></td></tr>
+      <tr><td class="id">Q1</td><td>Phiên bản đã phát hành có sửa được không</td><td>Khóa sau phát hành, thay đổi bằng phiên bản mới (D39, D48).</td><td><span class="tag u">PROPOSED</span></td></tr>
+      <tr><td class="id">Q2</td><td>Thời hạn hiệu lực báo giá</td><td>Mô phỏng 3 ngày từ lúc phát hành, cấu hình backend (D44). Thời hạn chính thức, cách tính ngày, ngày nghỉ: chờ chủ nghiệp vụ.</td><td><span class="tag u">PROPOSED</span></td></tr>
+      <tr><td class="id">Q3</td><td>Nguồn khách hàng, tạo khách mới</td><td>ERP là nguồn có thẩm quyền; AI không tạo khách (D45). Giá khách mới, quy trình tạo/liên kết: chờ chủ nghiệp vụ.</td><td><span class="tag u">CÓ CĂN CỨ · còn mở</span></td></tr>
+      <tr><td class="id">Q4</td><td>Báo giá mã hết hàng</td><td>Không phát hành báo giá cam kết cung ứng, chuyển nhân viên (D46). Hàng đặt trước/đang nhập/giao thiếu: chờ chủ nghiệp vụ.</td><td><span class="tag u">PROPOSED</span></td></tr>
+      <tr><td class="id">Q6</td><td>Kênh gửi báo giá</td><td>Zalo OA; chỉ ghi đã gửi khi dịch vụ xác nhận (D43). Demo: điểm nối mô phỏng.</td><td><span class="tag u">CÓ CĂN CỨ</span></td></tr>
+      <tr><td class="id">B4 · B5</td><td>Thẩm quyền đơn nháp; “Tạo trên ERP”</td><td>Batch D theo lựa chọn 17/11: nhân viên tạo, duyệt trong ERP (D49, D50). Người lập vắng: trưởng bộ phận / phân công lại + audit (D54). Timeout 30 giây demo, cần xác nhận theo API ERP đích (D57). Cơ chế thông báo chưa quy định (D56).</td><td><span class="tag u">PROPOSED</span></td></tr>
+      <tr><td class="id">Q5</td><td class="vi">Danh sách công cụ AI được phép, và Trợ lý có được đọc giá/tồn thay người dùng không</td><td>Theo tài liệu giải pháp 1.0: 4 công cụ Agent + tra cứu nội bộ do backend gọi. Backend được truy vấn có ủy quyền; LLM không nhận giá, số lượng tồn, dữ liệu khách. Lập báo giá, tạo đơn nháp thuộc MVP; sửa giá, chiết khấu, duyệt đơn không giao cho AI.</td><td>ĐÃ TRẢ LỜI cho thiết kế · tài liệu là bản đề xuất, chưa phải API đã có</td></tr><tr><td class="id">Q7 · Q8</td><td>Xác thực và hết phiên; Tổng quan</td><td>Q7: tài khoản nội bộ, 8 giờ / 30 phút (D60), SSO chờ xác minh. Q8: chấp thuận có điều kiện theo vai trò (D58), cần đối chiếu widget thực tế.</td><td><span class="tag u">ĐÃ QUYẾT · ĐỀ XUẤT</span></td></tr><tr><td class="id">AI1</td><td class="vi">Có lưu lịch sử hội thoại không, bao lâu, ai xem được</td><td>Có lưu. Hội thoại khách hàng 12 tháng (đề xuất, chờ chủ nghiệp vụ duyệt). Thời hạn lưu hội thoại nội bộ và audit log chưa xác định. Xem theo vai trò: nhân viên — được phân công; trưởng bộ phận — bộ phận; quản trị — không xem nội dung kinh doanh mặc định.</td><td>ĐÃ TRẢ LỜI một phần · thời hạn nội bộ MỞ</td></tr><tr><td class="id">AI2</td><td class="vi">“Dừng” có hủy truy vấn ở máy chủ không</td><td>Chưa có hợp đồng hủy. Giao diện chỉ ngừng nhận kết quả, không báo “đã hủy”; không hủy/tạo lại báo giá, đơn dựa trên trạng thái streaming.</td><td>MỞ · cần API contract</td></tr><tr><td class="id">AI3</td><td class="vi">Những thao tác nào cần xác nhận; đề xuất có hết hạn không</td><td>Tra cứu: không cần. Lựa chọn tạm: thao tác chọn trực tiếp. Tạo đơn nháp: khách xác nhận theo mã + phiên bản báo giá. Báo giá có hạn (ví dụ 3 ngày, chờ chốt); gợi ý AI và lựa chọn tạm chưa có TTL.</td><td>ĐÃ TRẢ LỜI cho Batch B · thời hạn báo giá MỞ</td></tr><tr><td class="id">AI4</td><td class="vi">Ngưỡng quá thời gian và chính sách thử lại của dịch vụ AI</td><td>Chưa có ngưỡng; chốt sau khi có hợp đồng API và đo thực tế. Timeout sau lệnh tạo đơn phải đối soát, không tự thử lại.</td><td>MỞ</td></tr><tr><td class="id">AI5</td><td class="vi">Trợ lý trả lời thế nào khi được hỏi về dữ liệu ngoài phạm vi</td><td>Dùng câu trả lời đề xuất trong phản hồi; backend từ chối trước khi dữ liệu tới LLM/UI. Mô hình chi nhánh/kho chưa chốt.</td><td>ĐỀ XUẤT · mô hình quyền MỞ</td></tr>
+      <tr><td class="id">VR</td><td>Quy tắc gắn nhãn “Đã xác minh”</td><td>Ba nhãn theo mục 5; chỉ mã Đã xác minh được lập báo giá tự động; không tự đặt ngưỡng confidence. Checklist đối chiếu: chờ chủ nghiệp vụ.</td><td><span class="tag u">CÓ CĂN CỨ · còn mở</span></td></tr><tr><td class="id">HO</td><td class="vi">Người nhận và quyền của “Chuyển nhân viên” trong giao diện nhân viên</td><td>Prototype ghi “do hệ thống điều phối — quy tắc chưa xác định”.</td><td>MỞ · mới</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tw"><table>
+    <caption>Phụ thuộc vào design system</caption>
+    <thead><tr><th>Thành phần</th><th>Vấn đề</th><th>Cách xử lý tạm trong prototype</th></tr></thead>
+    <tbody>
+      <tr><td class="id">SourceTag</td><td>Chưa có nguồn “dữ liệu cũ”, “chưa xác minh”, “danh mục”, “mô phỏng”.</td><td>Dùng source erp/cache với nhãn tùy chỉnh; các trạng thái còn lại là chữ + biểu tượng</td></tr>
+      <tr><td class="id">ERPResult</td><td>Chưa có trạng thái riêng cho quá thời gian, dữ liệu cũ, chưa xác minh.</td><td>state error + tiêu đề phụ mô tả trạng thái</td></tr>
+      <tr><td class="id">Drawer</td><td>Chế độ modal che cả Trợ lý AI; chế độ inline không tự giữ focus.</td><td>Drawer inline trong lớp phủ vùng nội dung; tự chuyển focus vào khi mở, Esc để đóng</td></tr>
+      <tr><td class="id">DataTable</td><td>Không khóa chọn từng dòng.</td><td>Cả bảng chỉ chọn được khi giá đã được ERP xác nhận mới</td></tr>
+      <tr><td class="id">AppHeader</td><td>Chưa có menu tài khoản.</td><td>Hiển thị tên + persona mô phỏng</td></tr>
+<tr><td class="vi">ChatMessage</td><td>Tiêu đề tin nhắn luôn ghi “Gợi ý, cần kiểm tra”.</td><td>ĐÃ SỬA 17/11: thêm prop label; Batch B gắn nhãn theo từng phần. Workflow A chưa đổi</td></tr>
+<tr><td class="vi">ToolCall</td><td>Chưa có trạng thái “chờ”, “chưa rõ”, “bản lưu”.</td><td>ĐÃ SỬA 17/11: thêm pending, unknown. Bản lưu vẫn dùng “Quá thời gian” + lời nhắn</td></tr>
+<tr><td class="vi">ActionConfirmation</td><td>Chưa có trạng thái “hết hạn”.</td><td>Chưa thiết kế (M4)</td></tr>
+<tr><td class="vi">EmptyState</td><td>Thuộc tính code tự thêm “Mã tham chiếu:”.</td><td>ĐÃ SỬA trong Workflow A và Batch B (truyền mã trần)</td></tr>
+<tr><td class="vi">Bảng trong hội thoại</td><td>DS chưa có bảng gọn cho kết quả công cụ.</td><td>Bảng HTML theo token</td></tr>
+<tr><td class="vi">ERPResult · AIComposer · SourceTag</td><td>Dữ liệu ERP tự gọi là “Đã xác minh”; câu lưu ý cũ; thiếu nhãn Dữ liệu tra cứu / Đã xác minh.</td><td>ĐÃ SỬA 17/11: state lookup + label; disclaimer mới; nguồn lookup, verified</td></tr>
+    </tbody>
+  </table></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

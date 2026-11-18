@@ -1,0 +1,52 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "fonts": {
+      "files": {},
+      "name": "fonts",
+      "order": []
+    },
+    "icons": {
+      "files": {},
+      "name": "icons",
+      "order": []
+    },
+    "notes": {
+      "files": {},
+      "name": "notes",
+      "order": []
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-11-16T07:18:47.466Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": [
+      "project/CHANGELOG.md",
+      "project/guidelines/writing.md",
+      "project/ui_kits/app/README.md"
+    ]
+  },
+  "groups": [
+    "fonts",
+    "icons",
+    "notes"
+  ],
+  "layout": "files",
+  "libraries": [
+    {"name": "react", "version": "18"},
+    {"name": "react-dom", "version": "18"}
+  ],
+  "namespace": "AutoPartsAgentDesignSystem_aa8546",
+  "sections": {},
+  "title": "AutoParts Agent Design System",
+  "lastChange": {
+    "by": "Claude",
+    "at": "2026-11-16T09:58:00Z",
+    "via": "Claude",
+    "note": "Finished setting up: tokens.json, component folders with previews and guidelines, bundle, cover."
+  }
+}
