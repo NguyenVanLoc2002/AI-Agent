@@ -19,7 +19,7 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 | [007](ADR-007-quote-state-machine.md) | Quote/draft order state machine | PROPOSED | A-03, D-01 |
 | [008](ADR-008-quote-handle.md) | Opaque quote handle & server render | PROPOSED | — |
 | [009](ADR-009-idempotency-unknown-outcome.md) | Idempotency & unknown ERP outcome | PROPOSED | D-03 |
-| [010](ADR-010-identity-session.md) | Identity/session demo & RBAC | PROPOSED | A-06, D-08 |
+| [010](ADR-010-identity-session.md) | Identity/session demo & RBAC | ACCEPTED 2026-11-18 | D-08, UX-12 (phần còn lại) |
 | [011](ADR-011-history-summary.md) | History policy-safe summary | PROPOSED | — |
 | [012](ADR-012-logging-audit.md) | Logging/audit/observability | ACCEPTED 2026-11-18 | D-09 (mở) |
 | [013](ADR-013-kill-switch-provider-failure.md) | Kill switch & provider failure | PROPOSED | — |
