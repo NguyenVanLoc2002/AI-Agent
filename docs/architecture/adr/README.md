@@ -15,7 +15,7 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 | [003](ADR-003-data-classification-egress.md) | Phân loại dữ liệu & type-level egress boundary | ACCEPTED 2026-11-18 | — |
 | [004](ADR-004-ai-gateway.md) | AI Gateway & Fake provider cho PoC | ACCEPTED 2026-11-18 | A-05 ✔, D-07 (mở) |
 | [005](ADR-005-erp-ports.md) | Tách ERP ports + bucket tồn | ACCEPTED 2026-11-18 | A-07 ✔, A-12 ✔ |
-| [006](ADR-006-tool-contract.md) | Tool contract & per-call authz | PROPOSED | D-10, A-14 |
+| [006](ADR-006-tool-contract.md) | Tool contract & per-call authz | ACCEPTED 2026-11-18 | A-14 |
 | [007](ADR-007-quote-state-machine.md) | Quote/draft order state machine | PROPOSED | A-03, D-01 |
 | [008](ADR-008-quote-handle.md) | Opaque quote handle & server render | PROPOSED | — |
 | [009](ADR-009-idempotency-unknown-outcome.md) | Idempotency & unknown ERP outcome | PROPOSED | D-03 |

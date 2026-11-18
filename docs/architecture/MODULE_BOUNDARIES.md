@@ -12,7 +12,7 @@
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `AgentApi.handleTurn(...)` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
 | policy | DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
-| tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolRegistry`, `ToolAuthorizationPolicy` | APPROVED_TECHNICAL |
+| tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum) | APPROVED_TECHNICAL |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
 | order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `OrderApi.submit(quoteId, version)` | RESTRICTED, INTERNAL |
@@ -27,7 +27,7 @@
 ```
 conversation ─► agent ─► gateway ─► policy
       │           └────► tools ─► catalog
-      │                    └────► quote (QuoteApi.issueQuote → QuoteHandle)
+      │                    └ ─ ─► quote (EP-06: QuoteApi.issueQuote với SKU, chưa có)
       ├─► handoff (HandoffApi.open)          handoff ──(event HandoffOpened/Resolved)──► conversation (listener)
       └─► quote (render quote card)
 quote ─► order (OrderApi.submit)
@@ -76,3 +76,8 @@ bootstrap ─► mọi module (wiring)
 - Sau review SEC-01a: `gateway` bỏ `identity` khỏi allowlist (không dùng); `erp` chỉ còn `catalog :: spi` (bỏ `catalog` thường). Review vòng 2 (L2): `erp` bỏ luôn `quote`, `order`, `identity` (chưa dùng; cho phép gọi API của chúng tạo vòng logic). Allowlist `erp` = `catalog :: spi`, `platform`, `audit`; thêm `quote :: spi`/`order :: spi` khi các spi đó được tạo.
 - Rule bổ sung: ARCH-05b (kiểu egress chỉ là record, enum, sealed interface hoặc utility final chỉ-static; chặn kế thừa, interface mở, class thường), ARCH-05c (không annotation Jackson trừ `@JsonTypeInfo`/`@JsonSubTypes`), ARCH-06 khớp tên đầy đủ `platform.EgressClassified`, ARCH-08b dùng meta-annotation + regex rộng (header `X-Customer-Id`, `custId`, `customerCode`), ARCH-08c (type trong `..adapter.web..` không có field `AuthenticatedCustomerRef`/`customerId`). Review vòng 2: ARCH-08b thêm tên `customer`/`account`/`buyer`/`user`/`khachHang` + hậu tố `Number`/`Key`, cấm tham số `Map`/`MultiValueMap`/`HttpHeaders`/`HttpServletRequest`/`WebRequest`/`HttpEntity`, và quét đệ quy mọi type đạt tới từ tham số controller (kể cả ngoài `adapter.web`); ARCH-05d (tên field miễn quét chỉ trên cặp `Type.field` đã duyệt); ARCH-05e (`@JsonTypeInfo` chỉ `Id.NAME`). `ArchitectureRulesTest` kiểm tra fixture hợp lệ tồn tại (L4); `EgressEnumAlignmentTest` giữ `Provenance`/`AvailabilityBucket` của `catalog.spi` và `gateway.api` đồng nhất (L3). Allowlist số theo cặp `Type.field`: `TechnicalContext.requestedQuantity`, `QuoteRequestResult.lineCount` (bỏ `quantity` trần).
 - `EgressCaptureListener` là hook chỉ dành cho test; `ArchitectureRulesTest` cấm class production hiện thực nó.
+
+## 8. Ghi chú triển khai EP-03 (2026-11-18)
+- `tools` allowlist: `catalog`, `catalog :: spi`, `gateway :: api` (A-20), `identity`, `platform` (`quote` và `audit` bỏ vì chưa dùng; `quote` thêm lại ở EP-06; khi đó tools đổi productRef → SKU, quote không đọc `product_ref`). EP-04 cần: `agent` thêm `gateway :: api`, `conversation` thêm `tools :: spi`, identity mở API kiểu `CurrentPrincipalProvider` để tạo `PrincipalId`. `tools` không phụ thuộc `conversation` (tránh vòng conversation → agent → tools): quyền truy cập conversation đi qua `tools.spi.ConversationAccessPort` (named interface `tools :: spi`), do `conversation` hiện thực ở EP-04.
+- Kiểu mới: `platform.ConversationId` (shared kernel), `identity.PrincipalId` (pseudonym, chỉ identity tạo được), `identity.Role`, `identity.Channel`, `catalog.CatalogSearch`/`CatalogMatch` (API của catalog), `gateway.api.ToolErrorResult`.
+- `tools` sở hữu bảng `tool_invocation` và `product_ref` (Flyway V4).
