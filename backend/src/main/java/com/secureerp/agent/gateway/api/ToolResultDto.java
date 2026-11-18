@@ -14,7 +14,8 @@ import com.secureerp.agent.platform.EgressClassified;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = ProductSearchResult.class, name = "productSearch"),
     @JsonSubTypes.Type(value = QuoteRequestResult.class, name = "quoteRequest"),
-    @JsonSubTypes.Type(value = HandoffResult.class, name = "handoff")
+    @JsonSubTypes.Type(value = HandoffResult.class, name = "handoff"),
+    @JsonSubTypes.Type(value = ToolErrorResult.class, name = "toolError")
 })
-public sealed interface ToolResultDto permits ProductSearchResult, QuoteRequestResult, HandoffResult {
+public sealed interface ToolResultDto permits ProductSearchResult, QuoteRequestResult, HandoffResult, ToolErrorResult {
 }

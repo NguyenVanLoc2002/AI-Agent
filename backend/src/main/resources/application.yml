@@ -80,5 +80,17 @@ apas:
       timeout:
         short: 5s
         standard: 15s
+  # EP-03 tool limits: D-10 restrictive defaults APPROVED 2026-11-18 (TOOL_CONTRACTS §1).
+  tools:
+    limits:
+      calls-per-turn: 3
+      calls-per-conversation-per-hour: 20
+      calls-per-principal-per-hour: 40
+      conversations-per-principal-per-hour: 5
+      max-depth: 3
+      max-array-items: 20
+      max-string-chars: 256
+      rejections-before-handoff: 3
+      product-ref-ttl: 2h
 # apas.erp.mock.fault-mode is deliberately absent from shared configuration (default NONE in code);
 # fault injection is set only by tests (architecture review M6).

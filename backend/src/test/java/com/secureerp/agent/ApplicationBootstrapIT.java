@@ -41,7 +41,7 @@ class ApplicationBootstrapIT {
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1", "2", "3");
+        assertThat(applied).containsExactly("1", "2", "3", "4");
     }
 
     @Test
@@ -49,7 +49,8 @@ class ApplicationBootstrapIT {
         // V2 (SEC-01a, ADR-012 ACCEPTED): egress_record is the only application table so far.
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
-        assertThat(tables).containsExactlyInAnyOrder("flyway_schema_history", "egress_record");
+        assertThat(tables).containsExactlyInAnyOrder("flyway_schema_history", "egress_record", "tool_invocation",
+                "product_ref");
     }
 
     @Test
