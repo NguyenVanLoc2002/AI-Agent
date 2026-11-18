@@ -2,12 +2,14 @@ package com.secureerp.agent.policy.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.policy.InboundSanitizer.Blocked;
 import com.secureerp.agent.policy.InboundSanitizer.RedactionFlag;
 import com.secureerp.agent.policy.InboundSanitizer.Sanitized;
+import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
+import java.util.Base64;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** T-SEC01-USERMONEY and T-SEC01-VIN (unit), per A-10 / A-11 APPROVED 2026-11-18. */
@@ -47,12 +49,12 @@ class DefaultInboundSanitizerTest {
     @Test
     void technicalTextIsUnchanged() {
         String text = "Can ma phanh OE 04465-0K290 cho Vios 2019, so luong 2";
-        assertThat(sanitizer.sanitize(text)).isEqualTo(new Sanitized(text, java.util.Set.of()));
+        assertThat(sanitizer.sanitize(text)).isEqualTo(new Sanitized(text, Set.of()));
     }
 
     @Test
     void obfuscatedPhoneThatSurvivesRedactionIsBlocked() {
-        String base64Phone = java.util.Base64.getEncoder().encodeToString("0912345678".getBytes());
+        String base64Phone = Base64.getEncoder().encodeToString("0912345678".getBytes());
         assertThat(sanitizer.sanitize("so cua toi " + base64Phone)).isEqualTo(new Blocked(PolicyCode.PHONE, null));
     }
 }

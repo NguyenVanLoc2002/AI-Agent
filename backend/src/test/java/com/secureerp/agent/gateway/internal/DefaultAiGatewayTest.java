@@ -4,9 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.audit.EgressDecisionEvent;
 import com.secureerp.agent.gateway.EgressFixtures;
-import com.secureerp.agent.gateway.GatewayResult;
+import com.secureerp.agent.gateway.EgressScan;
 import com.secureerp.agent.gateway.GatewayResult.FailureReason;
 import com.secureerp.agent.gateway.GatewayResult.RefusalReason;
+import com.secureerp.agent.gateway.GatewayResult;
 import com.secureerp.agent.gateway.api.AvailabilityBucket;
 import com.secureerp.agent.gateway.api.ModelRequest;
 import com.secureerp.agent.gateway.api.ProductRef;
@@ -18,6 +19,7 @@ import com.secureerp.agent.gateway.api.TechnicalContext;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderReply;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderTransportException;
 import com.secureerp.agent.policy.EgressPolicy;
+import com.secureerp.agent.policy.EgressVerdict;
 import com.secureerp.agent.policy.SentinelVariants;
 import com.secureerp.agent.policy.internal.DefaultEgressPolicy;
 import com.secureerp.agent.policy.internal.SensitiveDataDetector;
@@ -154,15 +156,15 @@ class DefaultAiGatewayTest {
     /** Mutation control (security review M5(e)): with a pass-all policy the oracle must catch the leak. */
     @Test
     void oracleDetectsLeakWhenPolicyIsDisabled() {
-        DefaultAiGateway unguarded = new DefaultAiGateway(payload -> com.secureerp.agent.policy.EgressVerdict.pass(),
+        DefaultAiGateway unguarded = new DefaultAiGateway(payload -> EgressVerdict.pass(),
                 provider, publisher, clock);
         String variant = SentinelVariants.of(SentinelVariants.COST).get("V02-dots");
 
         unguarded.complete(EgressFixtures.request("gia von " + variant));
 
         assertThat(provider.sent).singleElement().satisfies(body -> {
-            assertThat(com.secureerp.agent.gateway.EgressScan.containsSentinel(body)).isTrue();
-            assertThat(com.secureerp.agent.gateway.EgressScan.containsExact(body, variant)).isTrue();
+            assertThat(EgressScan.containsSentinel(body)).isTrue();
+            assertThat(EgressScan.containsExact(body, variant)).isTrue();
         });
     }
 

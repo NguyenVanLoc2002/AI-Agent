@@ -6,6 +6,8 @@ import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -78,11 +80,11 @@ class SensitiveDataDetectorTest {
     /** Regression (GW200 run 1): decoded garbage from a trace UUID was flagged as MONEY. */
     @Test
     void identifierShapedValuesDoNotTriggerFindings() {
-        java.util.Random random = new java.util.Random(20261118L);
+        Random random = new Random(20261118L);
         for (int i = 0; i < 1000; i++) {
             // Same shape as gateway EgressFixtures.traceId, inlined so policy tests do not depend on gateway.
-            String deterministic = new java.util.UUID(0x5EC01A0000000000L | i, 0x8000000000000000L | i).toString();
-            String randomUuid = new java.util.UUID(random.nextLong(), random.nextLong()).toString();
+            String deterministic = new UUID(0x5EC01A0000000000L | i, 0x8000000000000000L | i).toString();
+            String randomUuid = new UUID(random.nextLong(), random.nextLong()).toString();
             assertThat(detector.detect(deterministic)).as("trace %d", i).isEmpty();
             assertThat(detector.detect(randomUuid)).as("random uuid %d", i).isEmpty();
         }

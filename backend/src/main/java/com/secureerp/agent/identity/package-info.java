@@ -5,5 +5,7 @@
  * POC-001; no business logic yet. Allowed module dependencies are enforced by
  * {@code ModuleStructureTest}; finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
  */
-@org.springframework.modulith.ApplicationModule(displayName = "Identity", allowedDependencies = { "platform", "audit" })
+@ApplicationModule(displayName = "Identity", allowedDependencies = { "platform", "audit" })
 package com.secureerp.agent.identity;
+
+import org.springframework.modulith.ApplicationModule;

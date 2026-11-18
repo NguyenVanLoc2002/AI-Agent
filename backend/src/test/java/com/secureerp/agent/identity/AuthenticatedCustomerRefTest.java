@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 /** ARCH-08 support: the reference is opaque, redacted and not publicly constructible. */
 class AuthenticatedCustomerRefTest {
@@ -34,11 +36,11 @@ class AuthenticatedCustomerRefTest {
     /** Architecture review M4(d): a client JSON value must never become a customer reference. */
     @Test
     void cannotBeDeserializedFromClientJson() {
-        tools.jackson.databind.json.JsonMapper mapper = tools.jackson.databind.json.JsonMapper.builder().build();
+        JsonMapper mapper = JsonMapper.builder().build();
         assertThatThrownBy(() -> mapper.readValue("\"cref_synthCustomerA0001\"", AuthenticatedCustomerRef.class))
-                .isInstanceOf(tools.jackson.core.JacksonException.class);
+                .isInstanceOf(JacksonException.class);
         assertThatThrownBy(() -> mapper.readValue("{\"opaqueValue\":\"cref_synthCustomerA0001\"}",
-                AuthenticatedCustomerRef.class)).isInstanceOf(tools.jackson.core.JacksonException.class);
+                AuthenticatedCustomerRef.class)).isInstanceOf(JacksonException.class);
     }
 
     @Test

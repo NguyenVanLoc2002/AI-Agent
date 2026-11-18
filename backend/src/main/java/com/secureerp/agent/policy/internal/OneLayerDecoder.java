@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,19 +75,19 @@ public final class OneLayerDecoder {
                 || (Character.isISOControl(cp) && cp != '\n' && cp != '\t' && cp != '\r'));
     }
 
-    private static java.util.Optional<String> decodeBase64(String candidate) {
+    private static Optional<String> decodeBase64(String candidate) {
         String body = candidate.replace("=", ""); // java.util.Base64 accepts unpadded input
         if (body.length() % 4 == 1) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
         for (Base64.Decoder decoder : List.of(Base64.getDecoder(), Base64.getUrlDecoder())) {
             try {
-                return java.util.Optional.of(utf8(decoder.decode(body)));
+                return Optional.of(utf8(decoder.decode(body)));
             } catch (IllegalArgumentException ignored) {
                 // try the other alphabet
             }
         }
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 
     private static String replacePercent(String text) {

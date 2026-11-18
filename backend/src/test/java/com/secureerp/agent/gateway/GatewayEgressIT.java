@@ -2,6 +2,7 @@ package com.secureerp.agent.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.secureerp.agent.audit.EgressDecisionEvent;
 import com.secureerp.agent.catalog.spi.CatalogUnavailableException;
 import com.secureerp.agent.catalog.spi.ExactProductQuery;
 import com.secureerp.agent.erp.internal.MockErpConnector;
@@ -11,6 +12,7 @@ import com.secureerp.agent.gateway.internal.EgressSerializer;
 import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * T-SEC01-CAPTURE, T-SEC01-ERR and T-SEC01-VIN end to end at gateway level (ADR-016): requests go
@@ -104,10 +109,10 @@ class GatewayEgressIT extends FakeProviderEnvironment {
     }
 
     @Autowired
-    org.springframework.transaction.PlatformTransactionManager transactionManager;
+    PlatformTransactionManager transactionManager;
 
     @Autowired
-    org.springframework.context.ApplicationEventPublisher events;
+    ApplicationEventPublisher events;
 
     /** Review H2/M1: a real insert failure in PostgreSQL means nothing is sent anywhere. */
     @Test
@@ -134,7 +139,7 @@ class GatewayEgressIT extends FakeProviderEnvironment {
     @Test
     void auditRowSurvivesCallerRollback() {
         String traceId = EgressFixtures.traceId(21);
-        new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(tx -> {
+        new TransactionTemplate(transactionManager).executeWithoutResult(tx -> {
             gateway.complete(EgressFixtures.request(traceId,
                     List.of(new SafeMessage(SafeMessage.Role.CUSTOMER, "Loc gio Innova 2020"))));
             tx.setRollbackOnly();
@@ -149,9 +154,9 @@ class GatewayEgressIT extends FakeProviderEnvironment {
     @Test
     void exactlyOneSynchronousAuditWriter() {
         String traceId = EgressFixtures.traceId(22);
-        events.publishEvent(new com.secureerp.agent.audit.EgressDecisionEvent(traceId,
-                com.secureerp.agent.audit.EgressDecisionEvent.Decision.PASS, null, null, null, List.of("text"), 10,
-                java.time.Instant.parse("2026-11-18T00:00:00Z")));
+        events.publishEvent(new EgressDecisionEvent(traceId,
+                EgressDecisionEvent.Decision.PASS, null, null, null, List.of("text"), 10,
+                Instant.parse("2026-11-18T00:00:00Z")));
 
         assertThat(jdbc.queryForObject("select count(*) from egress_record where trace_id = ?", Integer.class, traceId))
                 .isEqualTo(1);

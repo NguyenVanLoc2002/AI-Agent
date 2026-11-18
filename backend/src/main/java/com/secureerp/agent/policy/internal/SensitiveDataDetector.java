@@ -3,6 +3,7 @@ package com.secureerp.agent.policy.internal;
 import com.secureerp.agent.policy.PolicyCode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -141,7 +142,7 @@ public class SensitiveDataDetector {
         String compact = normalized.replaceAll("\\s+", "");
         for (Honeytoken token : honeytokens) {
             if (token.kind() == Honeytoken.Kind.TEXT && compact.contains(token.value())) {
-                return Optional.of(new Finding(com.secureerp.agent.policy.PolicyCode.HONEYTOKEN, token.id()));
+                return Optional.of(new Finding(PolicyCode.HONEYTOKEN, token.id()));
             }
         }
         return Optional.empty();
@@ -162,7 +163,7 @@ public class SensitiveDataDetector {
     }
 
     private static Optional<Finding> pattern(String canonical) {
-        String lower = canonical.toLowerCase(java.util.Locale.ROOT);
+        String lower = canonical.toLowerCase(Locale.ROOT);
         if (EMAIL.matcher(lower).find()) {
             return Optional.of(new Finding(PolicyCode.EMAIL, null));
         }

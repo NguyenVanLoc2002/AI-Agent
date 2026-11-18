@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
@@ -62,7 +64,7 @@ class ArchitectureRulesTest {
         long egressFields = production.stream()
                 .filter(c -> c.getPackageName().startsWith("com.secureerp.agent.gateway.api"))
                 .flatMap(c -> c.getFields().stream())
-                .filter(f -> !f.getModifiers().contains(com.tngtech.archunit.core.domain.JavaModifier.STATIC))
+                .filter(f -> !f.getModifiers().contains(JavaModifier.STATIC))
                 .count();
         assertThat(egressFields).isGreaterThanOrEqualTo(20);
     }
@@ -118,7 +120,7 @@ class ArchitectureRulesTest {
     @Test
     @DisplayName("review L3: no production class receives captured egress bodies")
     void noProductionEgressCaptureListener() {
-        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses()
+        ArchRuleDefinition.noClasses()
                 .should().implement("com.secureerp.agent.gateway.adapter.EgressCaptureListener")
                 .as("EgressCaptureListener is a test-only hook (ADR-016 capture a)")
                 .check(production);

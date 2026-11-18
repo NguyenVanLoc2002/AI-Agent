@@ -13,6 +13,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -137,7 +138,7 @@ public final class EgressSerializer {
     private static Set<String> allowedNames() {
         Set<String> names = new TreeSet<>();
         names.add("type");
-        collect(ModelRequest.class, names, new java.util.HashSet<>());
+        collect(ModelRequest.class, names, new HashSet<>());
         return Collections.unmodifiableSet(names);
     }
 

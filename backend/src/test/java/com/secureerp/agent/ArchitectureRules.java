@@ -22,6 +22,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -345,7 +346,7 @@ public final class ArchitectureRules {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
                 List<JavaParameter> parameters = method.getParameters();
-                java.lang.reflect.Parameter[] reflected = reflectParameters(method);
+                Parameter[] reflected = reflectParameters(method);
                 for (int i = 0; i < parameters.size(); i++) {
                     JavaParameter parameter = parameters.get(i);
                     if (parameter.getRawType().getSimpleName().equals(CUSTOMER_REF)) {
@@ -370,7 +371,7 @@ public final class ArchitectureRules {
         };
     }
 
-    private static java.lang.reflect.Parameter[] reflectParameters(JavaMethod method) {
+    private static Parameter[] reflectParameters(JavaMethod method) {
         try {
             return method.reflect().getParameters();
         } catch (RuntimeException | LinkageError e) {
