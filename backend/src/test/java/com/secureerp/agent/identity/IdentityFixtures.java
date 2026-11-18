@@ -11,6 +11,11 @@ public final class IdentityFixtures {
         return PrincipalId.fromAuthenticatedSession("usr_" + pad(seed));
     }
 
+    /** A synthetic customer reference: {@code cref_} plus the seed padded to 22 base64url characters. */
+    public static AuthenticatedCustomerRef customer(String seed) {
+        return AuthenticatedCustomerRef.fromVerifiedBinding("cref_" + pad(seed));
+    }
+
     static String pad(String seed) {
         String padded = (seed + "ZZZZZZZZZZZZZZZZZZZZZZ").substring(0, 22);
         if (!padded.matches("[A-Za-z0-9_-]{22}")) {

@@ -190,6 +190,37 @@ public final class ArchitectureRules {
                 .as("ARCH-08 only identity creates AuthenticatedCustomerRef")
                 .allowEmptyShould(true));
 
+        // Any dependency counts, so method references and field types are caught too (EP-06 reviews).
+        rules.put("ARCH-08d", noClasses()
+                .that().resideOutsideOfPackages(base + ".identity..", base + ".erp..")
+                .should().dependOnClassesThat().haveSimpleName("ErpCustomerKeys")
+                .as("ARCH-08 only identity and the erp adapter read the ERP customer key (A-19, EP-06)")
+                .allowEmptyShould(true));
+
+        // EP-06 architecture review M1: customer prices on the card are for the server render only.
+        rules.put("ARCH-13a", noClasses()
+                .that().resideOutsideOfPackages(base + ".quote..", base + ".conversation..")
+                .should().dependOnClassesThat().haveSimpleNameStartingWith("QuoteCard")
+                .as("ARCH-13 only quote and the conversation render use QuoteCard/QuoteCards (prices)")
+                .allowEmptyShould(true));
+
+        // EP-06 architecture review M2: Money (customer prices) stays in the modules that own prices.
+        rules.put("ARCH-13b", noClasses()
+                .that().resideOutsideOfPackages(base + ".platform..", base + ".quote..", base + ".order..",
+                        base + ".erp..", base + ".conversation..")
+                .should().dependOnClassesThat().haveSimpleName("Money")
+                .as("ARCH-13 only platform, quote, order, erp and the conversation render use Money")
+                .allowEmptyShould(true));
+
+        // EP-06 architecture review L2: quote may use catalog :: spi for the Sku type only.
+        rules.put("ARCH-13c", noClasses()
+                .that().resideInAPackage(base + ".quote..")
+                .should().dependOnClassesThat(DescribedPredicate.describe("catalog.spi other than Sku",
+                        target -> target.getPackageName().equals(base + ".catalog.spi")
+                                && !target.getSimpleName().equals("Sku")))
+                .as("ARCH-13 quote uses only Sku from catalog.spi")
+                .allowEmptyShould(true));
+
         rules.put("ARCH-08b", methods()
                 .that().areDeclaredInClassesThat().areMetaAnnotatedWith(simpleNameIn("RestController", "Controller"))
                 .should(notAcceptCustomerIdentityFromRequest(base))

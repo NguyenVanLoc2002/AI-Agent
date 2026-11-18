@@ -95,5 +95,11 @@ apas:
   # EP-05: lifetime of a conversation's current VIN (owner decision 2026-11-18: 2 h, like a productRef).
   catalog:
     vin-ttl: 2h
+  # EP-06 quotes (owner decisions 2026-11-18, ADR-014 / ADR-008): VND, scale 0, HALF_UP per line, 24 h.
+  quote:
+    currency: VND
+    money-scale: 0
+    rounding: HALF_UP
+    validity: 24h
 # apas.erp.mock.fault-mode is deliberately absent from shared configuration (default NONE in code);
 # fault injection is set only by tests (architecture review M6).

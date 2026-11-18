@@ -90,9 +90,8 @@ class ToolRegistryIT {
         ToolProposal quote = new ToolProposal("requestQuote",
                 "{\"lines\":[{\"productRef\":\"" + ref + "\",\"quantity\":2}]}");
 
-        // Own conversation: ownership passes; the quote executor arrives with EP-06.
-        assertThat(code(tools.execute(ToolFixtures.customer("alice", 1, 2), quote)))
-                .isEqualTo(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+        // Own conversation: ownership passes and the quote is issued (EP-06; no error code).
+        assertThat(code(tools.execute(ToolFixtures.customer("alice", 1, 2), quote))).isNull();
         ToolOutcome otherConversation = tools.execute(ToolFixtures.customer("alice", 2, 3), quote);
         assertThat(code(otherConversation)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
         assertThat(otherConversation.handoffRequired()).isTrue();

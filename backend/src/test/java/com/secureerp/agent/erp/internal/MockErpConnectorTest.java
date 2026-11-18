@@ -12,12 +12,22 @@ import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.catalog.spi.VerifiedProductPort;
 import com.secureerp.agent.catalog.spi.Vin;
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.ErpCustomerKeys;
+import com.secureerp.agent.identity.IdentityFixtures;
 import com.secureerp.agent.platform.ErrorCode;
+import com.secureerp.agent.platform.Money;
+import com.secureerp.agent.quote.spi.EligibilityStatus;
+import com.secureerp.agent.quote.spi.PriceQuote;
+import com.secureerp.agent.quote.spi.QuoteSourceUnavailableException;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
+import java.util.Currency;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -167,6 +177,92 @@ class MockErpConnectorTest {
 
         assertThat(malformed.search(new ExactProductQuery.ByVin(new Vin(MockErpBackend.NA_VIN)))).isEmpty();
         assertThat(output.getAll()).contains("erp.vehicle.row_skipped").doesNotContain(MockErpBackend.NA_VIN);
+        assertNoForbidden(output.getAll());
+    }
+
+    /**
+     * EP-06 quote ports. The price row carries cost, margin and a contact; only unit price, currency,
+     * price list and revision cross the adapter boundary. The customer key comes from identity only.
+     */
+    @Test
+    void customerPriceKeepsOnlyAllowlistedFields(CapturedOutput output) {
+        AuthenticatedCustomerRef customerA = IdentityFixtures.customer("SynthCustomerA");
+
+        PriceQuote price = connector.priceFor(customerA, new Sku("SKU-BRK-PAD-A")).orElseThrow();
+
+        assertThat(ErpCustomerKeys.keyOf(customerA)).isEqualTo(MockErpBackend.CUSTOMER_A);
+        assertThat(price.unitPrice().amount()).isEqualByComparingTo("555444333");
+        assertThat(price.unitPrice().currency().getCurrencyCode()).isEqualTo("VND");
+        assertThat(price.priceSource()).isEqualTo("mock-erp:pl:contract");
+        assertThat(price.revision()).isEqualTo("r1");
+        assertThat(Arrays.stream(PriceQuote.class.getRecordComponents()).map(RecordComponent::getName))
+                .containsExactly("unitPrice", "priceSource", "revision");
+        assertThat(price.toString()).doesNotContain("555444333");
+        assertThat(connector.priceFor(IdentityFixtures.customer("SynthCustomerB"), new Sku("SKU-BRK-PAD-A"))
+                .orElseThrow().unitPrice().amount()).isEqualByComparingTo("666777888");
+        assertThat(connector.priceFor(IdentityFixtures.customer("SynthCustomerC"), new Sku("SKU-BRK-PAD-A"))).isEmpty();
+        assertThat(connector.priceFor(customerA, new Sku("SKU-UNKNOWN"))).isEmpty();
+        assertNoForbidden(output.getAll());
+        assertThat(output.getAll()).doesNotContain("555444333", MockErpBackend.CUSTOMER_A);
+    }
+
+    /** Backend review M-3: 19 significant digits survive parsing exactly (no double on the way). */
+    @Test
+    void pricesAreParsedExactly() {
+        PriceQuote price = connector.priceFor(IdentityFixtures.customer("SynthCustomerA"), new Sku("SKU-AIR-FLT-A"))
+                .orElseThrow();
+
+        assertThat(price.unitPrice().amount()).isEqualTo(new BigDecimal("555444333123456.7891"));
+    }
+
+    /** ERP_CONNECTOR §3.3: the revision is optional (D-01). */
+    @Test
+    void priceRevisionIsOptional() {
+        PriceQuote price = new PriceQuote(Money.of(BigDecimal.TEN, Currency.getInstance("VND")), "mock-erp:pl:contract",
+                null);
+
+        assertThat(price.revision()).isNull();
+        assertThatThrownBy(() -> new PriceQuote(Money.of(BigDecimal.TEN, Currency.getInstance("VND")), "x", "bad rev"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void creditStatusIsCoarseAndFailsClosed() {
+        assertThat(connector.check(IdentityFixtures.customer("SynthCustomerA"))).isEqualTo(EligibilityStatus.ELIGIBLE);
+        assertThat(connector.check(IdentityFixtures.customer("SynthCustomerB"))).isEqualTo(EligibilityStatus.NOT_ELIGIBLE);
+        assertThat(connector.check(IdentityFixtures.customer("SynthCustomerC")))
+                .isEqualTo(EligibilityStatus.REVIEW_REQUIRED);
+    }
+
+    @Test
+    void stockQuantityIsInternalAndUnknownMeansNone() {
+        assertThat(connector.quantityAvailable(new Sku("SKU-BRK-PAD-A"))).hasValue(12);
+        assertThat(connector.quantityAvailable(new Sku("SKU-OIL-FLT-A"))).hasValue(0);
+        assertThat(connector.quantityAvailable(new Sku("SKU-UNKNOWN"))).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = MockErpFaultMode.class, names = {"ERROR_WITH_SENTINEL", "TIMEOUT"})
+    void quotePortFailuresAreCodeOnly(MockErpFaultMode mode, CapturedOutput output) {
+        MockErpConnector failing = new MockErpConnector(mode);
+        AuthenticatedCustomerRef customerA = IdentityFixtures.customer("SynthCustomerA");
+
+        for (ThrowingCallable call : List.<ThrowingCallable>of(
+                () -> failing.priceFor(customerA, new Sku("SKU-BRK-PAD-A")),
+                () -> failing.quantityAvailable(new Sku("SKU-BRK-PAD-A")),
+                () -> failing.check(customerA))) {
+            assertThatThrownBy(call).isInstanceOf(QuoteSourceUnavailableException.class)
+                    .satisfies(e -> assertNoForbidden(stackTrace(e)));
+        }
+        assertNoForbidden(output.getAll());
+    }
+
+    @Test
+    void malformedPriceRowMeansNoPrice(CapturedOutput output) {
+        MockErpConnector malformed = new MockErpConnector(MockErpFaultMode.MALFORMED_ROWS);
+
+        assertThat(malformed.priceFor(IdentityFixtures.customer("SynthCustomerA"), new Sku("SKU-BRK-PAD-A"))).isEmpty();
+        assertThat(output.getAll()).contains("erp.price.row_skipped");
         assertNoForbidden(output.getAll());
     }
 

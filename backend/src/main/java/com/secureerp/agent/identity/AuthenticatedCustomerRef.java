@@ -1,5 +1,9 @@
 package com.secureerp.agent.identity;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -41,6 +45,25 @@ public final class AuthenticatedCustomerRef {
 
     static AuthenticatedCustomerRef fromVerifiedBinding(String opaqueValue) {
         return new AuthenticatedCustomerRef(opaqueValue, Issued.BY_IDENTITY);
+    }
+
+    /** For {@link ErpCustomerKeys} only (same package). */
+    String opaqueValue() {
+        return opaqueValue;
+    }
+
+    /**
+     * SHA-256 (hex) of the reference, for binding server-side rows (quote, quote handle) to the
+     * customer without storing the reference itself (ADR-008). Not reversible to the ERP key.
+     */
+    public String bindingDigest() {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(("apas:customer-binding:" + opaqueValue).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     @Override

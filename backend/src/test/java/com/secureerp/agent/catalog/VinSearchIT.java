@@ -222,9 +222,8 @@ class VinSearchIT {
         assertThat(byOe.candidates()).extracting(ProductRef::provenance).containsExactly(Provenance.VERIFIED);
         assertThat(code(tools.execute(ToolFixtures.customer("alice", 34, 3), quote(byModel))))
                 .isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
-        // Ownership and VERIFIED pass; the quote executor itself arrives with EP-06.
-        assertThat(code(tools.execute(ToolFixtures.customer("alice", 34, 4), quote(byOe))))
-                .isEqualTo(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+        // Ownership and VERIFIED pass, and the quote is issued (EP-06; no error code).
+        assertThat(code(tools.execute(ToolFixtures.customer("alice", 34, 4), quote(byOe)))).isNull();
     }
 
     private static ToolProposal quote(ProductSearchResult result) {

@@ -1,5 +1,6 @@
 package com.secureerp.agent.tools;
 
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Channel;
 import com.secureerp.agent.identity.PrincipalId;
 import com.secureerp.agent.identity.Role;
@@ -13,10 +14,12 @@ import java.util.regex.Pattern;
  * (EP-04), never from model output or tool arguments. The tool layer still checks conversation
  * ownership itself on every call.
  *
- * @param turnId pseudonymous trace ID of the current turn (UUID); scopes the per-turn call limit
+ * @param turnId   pseudonymous trace ID of the current turn (UUID); scopes the per-turn call limit
+ * @param customer the session's customer (A-19: identity resolves it, EP-04); {@code null} for a
+ *                 session without a linked customer, which is never quoted automatically (D-04)
  */
 public record ToolCallContext(PrincipalId principal, Role role, Channel channel, ConversationId conversation,
-        String turnId) {
+        String turnId, AuthenticatedCustomerRef customer) {
 
     private static final Pattern TURN_ID =
             Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
