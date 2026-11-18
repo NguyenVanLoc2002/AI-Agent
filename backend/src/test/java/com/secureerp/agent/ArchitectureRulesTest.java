@@ -118,13 +118,28 @@ class ArchitectureRulesTest {
                 // Added after the second SEC-01a review.
                 Arguments.of("ARCH-05d", f + "gateway.api.LooseHandleDto.quoteHandle", f + "gateway.api.ProductRef"),
                 Arguments.of("ARCH-05e", f + "gateway.api.ClassTypedDto", f + "gateway.api.NameTypedDto"),
-                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerNumberController.chat",
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerNumberController.chatByNumber",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerNumberController.chatByAccount",
                         f + "conversation.adapter.web.SafeChatController"),
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.HeaderMapController.chat",
                         f + "conversation.adapter.web.SafeChatController"),
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.ServletRequestController.chat",
                         f + "conversation.adapter.web.SafeChatController"),
                 Arguments.of("ARCH-08b", f + "conversation.api.OrderEnvelope$Buyer.buyerId",
+                        f + "conversation.adapter.web.SafeChatController"),
+                // Added after the third SEC-01a review.
+                Arguments.of("ARCH-05e", f + "gateway.api.FieldTypedDto", f + "gateway.api.NameTypedDto"),
+                Arguments.of("ARCH-05e", f + "gateway.api.PropertyTypedDto", f + "gateway.api.NameTypedDto"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.RenamedBodyController.byProperty",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.RenamedBodyController.byAlias",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.RawBodyController.buyers",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.RawBodyController.tree",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.RawBodyController.bytes",
                         f + "conversation.adapter.web.SafeChatController"));
     }
 

@@ -24,6 +24,8 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -162,7 +164,7 @@ public final class ArchitectureRules {
         rules.put("ARCH-05d", fields()
                 .that().areDeclaredInClassesThat().resideInAnyPackage(egress)
                 .and().areNotStatic()
-                .should(beApprovedIfServerIdentifier())
+                .should(beApprovedIfServerIdentifier(base))
                 .as("ARCH-05 fields named like server identifiers (honeytoken check only at egress) exist only "
                         + "on the approved, strictly validated Type.field pairs")
                 .allowEmptyShould(true));
@@ -170,7 +172,8 @@ public final class ArchitectureRules {
         rules.put("ARCH-05e", classes()
                 .that().resideInAnyPackage(egress)
                 .should(useOnlyLogicalTypeNames())
-                .as("ARCH-05 @JsonTypeInfo on egress types uses Id.NAME (no Java class names in the payload)")
+                .as("ARCH-05 @JsonTypeInfo on egress types and their fields uses Id.NAME with property \"type\" "
+                        + "(no Java class names, no type ID under a scan-exempt field name)")
                 .allowEmptyShould(true));
 
         rules.put("ARCH-06", classes()
@@ -214,19 +217,39 @@ public final class ArchitectureRules {
      * {@code quantity}).
      */
     static final Set<String> NUMERIC_FIELD_ALLOWLIST =
-            Set.of("TechnicalContext.requestedQuantity", "QuoteRequestResult.lineCount");
+            Set.of("gateway.api.TechnicalContext.requestedQuantity", "gateway.api.QuoteRequestResult.lineCount");
 
     static final String EGRESS_CLASSIFIED = "com.secureerp.agent.platform.EgressClassified";
 
     /**
      * ARCH-05d: the only {@code Type.field} pairs that may use a name from
      * {@link DefaultEgressPolicy#SERVER_IDENTIFIER_FIELDS}; each validates its value strictly (UUID,
-     * prompt ID, masked VIN, or 22-character server token).
+     * prompt ID, masked VIN, or 22-character server token). Pairs (like the numeric allowlist) are
+     * relative to the base package, so a same-named record elsewhere does not inherit the exemption
+     * (third review L3).
      */
     static final Set<String> SERVER_IDENTIFIER_FIELD_ALLOWLIST = Set.of(
-            "ModelRequest.traceId", "ModelRequest.systemPromptId", "TechnicalContext.maskedVin",
-            "TechnicalContext.vinRef", "TechnicalContext.quoteHandle", "ProductRef.productRef",
-            "QuoteRequestResult.quoteHandle");
+            "gateway.api.ModelRequest.traceId", "gateway.api.ModelRequest.systemPromptId",
+            "gateway.api.TechnicalContext.maskedVin", "gateway.api.TechnicalContext.vinRef",
+            "gateway.api.TechnicalContext.quoteHandle", "gateway.api.ProductRef.productRef",
+            "gateway.api.QuoteRequestResult.quoteHandle");
+
+    /** ARCH-05e: the only type-ID property; it is not a scan-exempt field name. */
+    private static final Set<String> TYPE_ID_PROPERTIES = Set.of("type", "@type");
+
+    /** ARCH-08b: server-side principal parameters, exempt from the name and body checks (third review M1). */
+    private static final Set<String> PRINCIPAL_ANNOTATIONS = Set.of(
+            "org.springframework.security.core.annotation.AuthenticationPrincipal",
+            "org.springframework.security.core.annotation.CurrentSecurityContext");
+    private static final List<String> PRINCIPAL_TYPES =
+            List.of("java.security.Principal", "org.springframework.security.core.Authentication");
+
+    /** ARCH-08b: handler-adjacent methods that never bind a client request body or parameter. */
+    private static final Set<String> NON_HANDLER_METHOD_ANNOTATIONS = Set.of("ExceptionHandler", "InitBinder");
+
+    /** Jackson annotations that rename a body field on the wire (third review M2). */
+    private static final Set<String> JSON_NAME_ANNOTATIONS =
+            Set.of("com.fasterxml.jackson.annotation.JsonProperty", "com.fasterxml.jackson.annotation.JsonAlias");
 
     /**
      * ARCH-08b: controller parameter types that expose the whole request (every header or parameter),
@@ -235,7 +258,10 @@ public final class ArchitectureRules {
     private static final List<String> RAW_REQUEST_TYPES = List.of(
             "java.util.Map", "org.springframework.util.MultiValueMap", "org.springframework.http.HttpHeaders",
             "jakarta.servlet.ServletRequest", "org.springframework.web.context.request.WebRequest",
-            "org.springframework.http.HttpEntity", "org.springframework.http.server.ServerHttpRequest");
+            "org.springframework.http.HttpEntity", "org.springframework.http.server.ServerHttpRequest",
+            // raw bodies the framework does not bind to typed fields (third review M2)
+            "java.io.InputStream", "java.io.Reader", "tools.jackson.databind.JsonNode",
+            "com.fasterxml.jackson.databind.JsonNode");
 
     private static final Set<String> SMALL_INTEGER_TYPES = Set.of("int", "java.lang.Integer");
     private static final Set<String> SAFE_SCALAR_TYPES = Set.of("java.lang.String", "boolean", "java.lang.Boolean");
@@ -282,8 +308,7 @@ public final class ArchitectureRules {
         return new ArchCondition<>("have an egress-safe type") {
             @Override
             public void check(JavaField field, ConditionEvents events) {
-                Optional<String> problem = unsafe(field.getType(),
-                        field.getOwner().getSimpleName() + "." + field.getName(), base);
+                Optional<String> problem = unsafe(field.getType(), relativePair(field, base), base);
                 problem.ifPresent(p -> events.add(SimpleConditionEvent.violated(field,
                         "Field <" + field.getFullName() + "> " + p)));
             }
@@ -378,11 +403,17 @@ public final class ArchitectureRules {
         };
     }
 
-    private static ArchCondition<JavaField> beApprovedIfServerIdentifier() {
+    /** {@code Owner.field} relative to the base package, e.g. {@code gateway.api.ProductRef.productRef}. */
+    private static String relativePair(JavaField field, String base) {
+        String owner = field.getOwner().getName();
+        return (owner.startsWith(base + ".") ? owner.substring(base.length() + 1) : owner) + "." + field.getName();
+    }
+
+    private static ArchCondition<JavaField> beApprovedIfServerIdentifier(String base) {
         return new ArchCondition<>("be an approved server-identifier field") {
             @Override
             public void check(JavaField field, ConditionEvents events) {
-                String pair = field.getOwner().getSimpleName() + "." + field.getName();
+                String pair = relativePair(field, base);
                 if (DefaultEgressPolicy.SERVER_IDENTIFIER_FIELDS.contains(field.getName())
                         && !SERVER_IDENTIFIER_FIELD_ALLOWLIST.contains(pair)) {
                     events.add(SimpleConditionEvent.violated(field, "Field <" + field.getFullName()
@@ -396,12 +427,15 @@ public final class ArchitectureRules {
         return new ArchCondition<>("use @JsonTypeInfo(use = Id.NAME) only") {
             @Override
             public void check(JavaClass c, ConditionEvents events) {
-                c.getAnnotations().stream()
+                List<JavaAnnotation<?>> annotations = new ArrayList<>(c.getAnnotations());
+                c.getFields().forEach(f -> annotations.addAll(f.getAnnotations()));
+                annotations.stream()
                         .filter(a -> a.getRawType().getName().equals("com.fasterxml.jackson.annotation.JsonTypeInfo"))
                         .filter(a -> !a.get("use").map(v -> v instanceof JavaEnumConstant e && e.name().equals("NAME"))
-                                .orElse(false))
-                        .forEach(a -> events.add(SimpleConditionEvent.violated(c,
-                                "Class <" + c.getName() + "> uses @JsonTypeInfo without Id.NAME")));
+                                .orElse(false)
+                                || !TYPE_ID_PROPERTIES.contains(a.get("property").map(String::valueOf).orElse("@type")))
+                        .forEach(a -> events.add(SimpleConditionEvent.violated(c, "Class <" + c.getName()
+                                + "> uses @JsonTypeInfo without Id.NAME or with a type property other than \"type\"")));
             }
         };
     }
@@ -410,6 +444,10 @@ public final class ArchitectureRules {
         return new ArchCondition<>("not accept customer identity from the request") {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
+                if (method.getAnnotations().stream()
+                        .anyMatch(a -> NON_HANDLER_METHOD_ANNOTATIONS.contains(a.getRawType().getSimpleName()))) {
+                    return; // exception handlers and binders do not bind client input (third review L5)
+                }
                 List<JavaParameter> parameters = method.getParameters();
                 Parameter[] reflected = reflectParameters(method);
                 for (int i = 0; i < parameters.size(); i++) {
@@ -417,6 +455,13 @@ public final class ArchitectureRules {
                     if (parameter.getRawType().getSimpleName().equals(CUSTOMER_REF)) {
                         events.add(SimpleConditionEvent.violated(method,
                                 "Method <" + method.getFullName() + "> takes " + CUSTOMER_REF + " from the request"));
+                    }
+                    if (isServerSidePrincipal(parameter)) {
+                        continue; // identity from the security context, the pattern CLAUDE.md requires
+                    }
+                    if (parameter.getRawType().getName().equals("[B")) {
+                        events.add(SimpleConditionEvent.violated(method,
+                                "Method <" + method.getFullName() + "> takes a raw byte[] body"));
                     }
                     for (String rawType : RAW_REQUEST_TYPES) {
                         if (parameter.getRawType().isAssignableTo(rawType)) {
@@ -449,8 +494,34 @@ public final class ArchitectureRules {
      * ARCH-08b (second review M4): a request body type declared anywhere in the code base, and every
      * type reachable through its fields and generic arguments, carries no customer identity field.
      */
+    private static boolean isServerSidePrincipal(JavaParameter parameter) {
+        return parameter.getAnnotations().stream().anyMatch(a -> PRINCIPAL_ANNOTATIONS.contains(a.getRawType().getName()))
+                || PRINCIPAL_TYPES.stream().anyMatch(t -> parameter.getRawType().isAssignableTo(t));
+    }
+
+    /** Wire names set by {@code @JsonProperty} / {@code @JsonAlias} on a body field. */
+    private static List<String> jsonNames(JavaField field) {
+        List<String> names = new ArrayList<>();
+        for (JavaAnnotation<?> annotation : field.getAnnotations()) {
+            if (JSON_NAME_ANNOTATIONS.contains(annotation.getRawType().getName())) {
+                annotation.get("value").ifPresent(value -> {
+                    if (value instanceof Object[] array) {
+                        Arrays.stream(array).map(String::valueOf).forEach(names::add);
+                    } else {
+                        names.add(String.valueOf(value));
+                    }
+                });
+            }
+        }
+        return names;
+    }
+
     private static Optional<String> reachableIdentityField(JavaType type, String base, Set<String> visited) {
         JavaClass raw = type.toErasure();
+        if (raw.isArray()) {
+            // Arrays are followed to their element type (third review M2: Buyer[] was skipped).
+            return reachableIdentityField(raw.getComponentType(), base, visited);
+        }
         if (type instanceof JavaParameterizedType parameterized) {
             for (JavaType argument : parameterized.getActualTypeArguments()) {
                 Optional<String> nested = reachableIdentityField(argument, base, visited);
@@ -467,7 +538,8 @@ public final class ArchitectureRules {
                 continue;
             }
             if (field.getRawType().getSimpleName().equals(CUSTOMER_REF)
-                    || CUSTOMER_PARAMETER.matcher(field.getName()).matches()) {
+                    || CUSTOMER_PARAMETER.matcher(field.getName()).matches()
+                    || jsonNames(field).stream().anyMatch(n -> CUSTOMER_PARAMETER.matcher(n).matches())) {
                 return Optional.of(field.getFullName());
             }
             Optional<String> nested = reachableIdentityField(field.getType(), base, visited);
