@@ -57,4 +57,22 @@ class DefaultInboundSanitizerTest {
         String base64Phone = Base64.getEncoder().encodeToString("0912345678".getBytes());
         assertThat(sanitizer.sanitize("so cua toi " + base64Phone)).isEqualTo(new Blocked(PolicyCode.PHONE, null));
     }
+
+    /** Second review M3: a VIN typed in groups is masked to WMI + 14 asterisks, like a plain one. */
+    @Test
+    void splitVinIsMasked() {
+        InboundSanitizer.Result result = sanitizer.sanitize("Xe toi VIN JTDBT-923X7-1234567, can ma phanh");
+        assertThat(result).isInstanceOf(Sanitized.class);
+        Sanitized sanitized = (Sanitized) result;
+        assertThat(sanitized.text()).contains("JTD**************").doesNotContain("1234567");
+        assertThat(sanitized.flags()).contains(RedactionFlag.VIN_MASKED);
+    }
+
+    /** Second review M2: phone formats with brackets, slashes and double spaces are redacted. */
+    @Test
+    void phoneWithLooserSeparatorsIsRedacted() {
+        InboundSanitizer.Result result = sanitizer.sanitize("goi (090) 123 4567 hoac 090/123/4567 nhe");
+        assertThat(result).isInstanceOf(Sanitized.class);
+        assertThat(((Sanitized) result).text()).doesNotContain("4567").contains("[SDT]");
+    }
 }

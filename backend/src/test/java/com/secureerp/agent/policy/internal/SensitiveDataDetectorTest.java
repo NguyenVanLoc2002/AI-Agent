@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -112,5 +114,46 @@ class SensitiveDataDetectorTest {
     })
     void ordinaryTechnicalTextPasses(String text) {
         assertThat(detector.detect(text)).isEmpty();
+    }
+
+    /** Second review M2: separators the old pattern did not allow. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"(090) 123 4567", "0901  234  567", "090/123/4567", "090 - 123 - 4567",
+        "goi (+84) 90 123 4567 nhe", "(028) 3812 3456"})
+    void phoneWithLooserSeparatorsIsDetected(String text) {
+        assertThat(detector.detect(text)).map(SensitiveDataDetector.Finding::code).contains(PolicyCode.PHONE);
+    }
+
+    /** Second review M3: a full VIN written in groups. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"JTDBT923X7 1234567", "JTDBT-923X7-1234567", "VIN: JTD BT923 X71 234567 nhe",
+        "XE JTDBT.923X7.1234567"})
+    void splitVinIsDetected(String text) {
+        assertThat(detector.detect(text)).map(SensitiveDataDetector.Finding::code).contains(PolicyCode.FULL_VIN);
+    }
+
+    /** Split-VIN and loose-phone false-positive corpus: ordinary part numbers, models and dates. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"SKU-BRK-PAD-A", "04465-0K290", "Ma OE 04465-0K290 va 04465-0K291", "Vios 2019 1.5G",
+        "Ngay 03/12/2019 can 2 bo", "SKU-BRK-PAD-A x 2, SKU-FLT-AIR-B x 1", "Innova 2020 2.0E MT"})
+    void separatedCodesAreNotVinsOrPhones(String text) {
+        assertThat(detector.detect(text)).isEmpty();
+    }
+
+    /** Second review M1: junk byte and misaligned base64 no longer hide the encoded value. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"V27-base64-junk-byte", "V28-hex-junk-byte", "V29-base64-prefixed"})
+    void encodedSentinelWithJunkOrPrefixIsDetected(String variant) {
+        assertThat(detector.detect(SentinelVariants.of(SentinelVariants.COST).get(variant)))
+                .map(SensitiveDataDetector.Finding::honeytokenId).contains("HT-COST-01");
+    }
+
+    @Test
+    void encodedPhoneWithJunkByteIsDetected() {
+        String encoded = Base64.getEncoder().encodeToString(("0912345678" + (char) 1).getBytes(StandardCharsets.UTF_8));
+        assertThat(detector.detect(encoded)).map(SensitiveDataDetector.Finding::code).contains(PolicyCode.PHONE);
+        assertThat(detector.detect("x" + Base64.getEncoder()
+                .encodeToString("0912345678".getBytes(StandardCharsets.UTF_8))))
+                .map(SensitiveDataDetector.Finding::code).contains(PolicyCode.PHONE);
     }
 }

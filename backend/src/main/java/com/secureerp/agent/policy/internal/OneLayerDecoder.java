@@ -43,36 +43,54 @@ public final class OneLayerDecoder {
         int candidates = 0;
         Matcher base64 = BASE64.matcher(text);
         while (base64.find() && candidates++ < MAX_CANDIDATES) {
-            decodeBase64(base64.group()).filter(OneLayerDecoder::plausibleText).ifPresent(variants::add);
+            // A letter or digit glued in front shifts the 4-character alignment (second review M1),
+            // so every offset 0..3 is decoded.
+            String run = base64.group();
+            for (int offset = 0; offset < 4 && run.length() - offset >= 8; offset++) {
+                decodeBase64(run.substring(offset)).flatMap(OneLayerDecoder::scannableText).ifPresent(variants::add);
+            }
         }
         Matcher hex = HEX.matcher(text);
         while (hex.find() && candidates++ < MAX_CANDIDATES) {
-            addIfPlausible(variants, utf8(HexFormat.of().parseHex(hex.group(1))));
+            scannableText(utf8(HexFormat.of().parseHex(hex.group(1)))).ifPresent(variants::add);
         }
         Matcher escapedHex = ESCAPED_HEX.matcher(text);
         while (escapedHex.find() && candidates++ < MAX_CANDIDATES) {
-            addIfPlausible(variants, utf8(HexFormat.of().parseHex(escapedHex.group().replace("\\x", ""))));
+            scannableText(utf8(HexFormat.of().parseHex(escapedHex.group().replace("\\x", ""))))
+                    .ifPresent(variants::add);
         }
         return variants;
     }
 
-    private static void addIfPlausible(List<String> variants, String decoded) {
-        if (plausibleText(decoded)) {
-            variants.add(decoded);
-        }
-    }
+    /** Above this share of undecodable or control characters a decoded run counts as binary. */
+    static final double MAX_BINARY_SHARE = 0.25;
 
     /**
-     * Only decoded runs that are valid UTF-8 text without control characters are scanned. Random
-     * identifiers (UUIDs, handles) that happen to look like base64/hex decode to binary garbage,
-     * which otherwise produces false pattern hits. A real encoded value always decodes to text.
+     * The decoded run with undecodable bytes and control characters replaced by spaces, if it is
+     * mostly text. Random identifiers (UUIDs, handles) that look like base64/hex decode to binary
+     * garbage, which otherwise produces false pattern hits, so mostly-binary runs are dropped. A
+     * single junk byte added to an encoded value no longer hides it (second review M1: before, one
+     * such byte discarded the whole run).
      */
-    static boolean plausibleText(String decoded) {
-        if (decoded.length() < 4) {
-            return false;
+    static Optional<String> scannableText(String decoded) {
+        int[] codePoints = decoded.codePoints().toArray();
+        if (codePoints.length < 4) {
+            return Optional.empty();
         }
-        return decoded.codePoints().noneMatch(cp -> cp == 0xFFFD
-                || (Character.isISOControl(cp) && cp != '\n' && cp != '\t' && cp != '\r'));
+        StringBuilder cleaned = new StringBuilder(decoded.length());
+        int binary = 0;
+        for (int cp : codePoints) {
+            if (cp == 0xFFFD || (Character.isISOControl(cp) && cp != '\n' && cp != '\t' && cp != '\r')) {
+                binary++;
+                cleaned.append(' ');
+            } else {
+                cleaned.appendCodePoint(cp);
+            }
+        }
+        if (binary > codePoints.length * MAX_BINARY_SHARE || cleaned.toString().isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(cleaned.toString());
     }
 
     private static Optional<String> decodeBase64(String candidate) {

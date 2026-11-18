@@ -54,6 +54,11 @@ public final class SentinelVariants {
         v.put("V24-hyphens", interleave(digits, "-"));
         v.put("V25-in-sentence", "gia von la " + digits + " dong nhe");
         v.put("V26-apostrophes", g.formatted("'", "'"));
+        // Second review M1: one junk byte appended, and a letter glued in front of the base64 run.
+        byte[] withJunk = (digits + (char) 1).getBytes(StandardCharsets.UTF_8);
+        v.put("V27-base64-junk-byte", Base64.getEncoder().encodeToString(withJunk));
+        v.put("V28-hex-junk-byte", HexFormat.of().formatHex(digits.getBytes(StandardCharsets.US_ASCII)) + "ff");
+        v.put("V29-base64-prefixed", "x" + Base64.getEncoder().encodeToString(digits.getBytes(StandardCharsets.UTF_8)));
         return v;
     }
 

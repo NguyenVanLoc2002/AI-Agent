@@ -20,6 +20,8 @@ public class DefaultInboundSanitizer implements InboundSanitizer {
     static final String PHONE_PLACEHOLDER = "[SDT]";
     static final String EMAIL_PLACEHOLDER = "[EMAIL]";
     static final String VIN_MASK = "**************";
+    /** Bound on split-VIN masking per message; more than this is left to the residual check (block). */
+    static final int MAX_SPLIT_VINS = 5;
 
     private final SensitiveDataDetector detector;
 
@@ -43,6 +45,16 @@ public class DefaultInboundSanitizer implements InboundSanitizer {
         if (vin.find()) {
             flags.add(RedactionFlag.VIN_MASKED);
             text = vin.replaceAll(m -> Matcher.quoteReplacement(m.group().substring(0, 3).toUpperCase() + VIN_MASK));
+        }
+        // A VIN typed in groups ("JTDBT-923X7-1234567") is masked the same way (second review M3).
+        for (int masked = 0; masked < MAX_SPLIT_VINS; masked++) {
+            Optional<SensitiveDataDetector.Span> split = SensitiveDataDetector.splitVin(text);
+            if (split.isEmpty()) {
+                break;
+            }
+            flags.add(RedactionFlag.VIN_MASKED);
+            String wmi = text.substring(split.get().start(), split.get().end()).replaceAll("[ .\\-]", "").substring(0, 3);
+            text = text.substring(0, split.get().start()) + wmi + VIN_MASK + text.substring(split.get().end());
         }
         Optional<SensitiveDataDetector.Finding> residual = detector.detect(text);
         if (residual.isPresent()) {

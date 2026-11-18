@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
@@ -33,9 +34,14 @@ public class SensitiveDataDetector {
             "(?U)(?:(?<!\\w)(?<!quoc )(?<!quốc )(?<!tham )(?:giá|gia|price|tổng|tong|total|thành tiền|thanh tien|vốn|von|cost|công nợ|cong no|nợ|debt|hạn mức|han muc)(?!\\w)"
                     + "(?:\\s*(?:là|la|khoảng|khoang|chỉ|chi|tầm|tam|cộng|cong|vốn|von|bán|ban|mới|moi|[:=]))*\\s*|[₫$]\\s?)"
                     + "\\d(?:[\\d.,' _]*\\d){3,}");
-    /** VN mobile (10 digits) or landline (11 digits); not inside a longer alphanumeric token such as a UUID. */
+    /**
+     * VN mobile (10 digits) or landline (11 digits); not inside a longer alphanumeric token such as a
+     * UUID. Up to three separators (space, dot, dash, slash, brackets) between digits, so
+     * "(090) 123 4567", "090/123/4567" and double spaces are covered (second review M2).
+     */
     static final Pattern PHONE = Pattern.compile(
-            "(?<![\\w+])(?:\\+?84|0)[\\s.\\-]?[35789](?:[\\s.\\-]?\\d){8}(?!\\w)|(?<![\\w+])(?:\\+?84|0)[\\s.\\-]?2(?:[\\s.\\-]?\\d){9}(?!\\w)");
+            "(?<![\\w+])\\(?(?:\\+?84|0)[\\s./()\\-]{0,3}[35789](?:[\\s./()\\-]{0,3}\\d){8}(?!\\w)"
+                    + "|(?<![\\w+])\\(?(?:\\+?84|0)[\\s./()\\-]{0,3}2(?:[\\s./()\\-]{0,3}\\d){9}(?!\\w)");
     static final Pattern EMAIL = Pattern.compile("[a-z0-9._%+-]+@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}",
             Pattern.CASE_INSENSITIVE);
     /**
@@ -46,6 +52,44 @@ public class SensitiveDataDetector {
     static final Pattern FULL_VIN = Pattern.compile(
             "(?<![A-Za-z0-9_-])(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}\\d)(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}[A-HJ-NPR-Za-hj-npr-z])"
                     + "[A-HJ-NPR-Za-hj-npr-z0-9]{17}(?![A-Za-z0-9_-])");
+    /**
+     * Upper-case VIN characters in groups of 2+ separated by one or two spaces, dots or dashes
+     * ("JTDBT-923X7-1234567", "JTDBT 923X7 1234567"). Any run of consecutive groups that adds up to
+     * 17 characters with a digit and a letter is a full VIN (second review M3). Lower-case split
+     * VINs are not covered (residual, AI_GATEWAY §6a).
+     */
+    private static final Pattern VIN_GROUPS = Pattern.compile(
+            "(?<![A-Za-z0-9_])[A-HJ-NPR-Z0-9]{2,}(?:[ .\\-]{1,2}[A-HJ-NPR-Z0-9]{2,})+(?![A-Za-z0-9_])");
+    private static final Pattern VIN_GROUP = Pattern.compile("[A-HJ-NPR-Z0-9]{2,}");
+    private static final int VIN_LENGTH = 17;
+
+    /** Start (inclusive) and end (exclusive) of a full VIN written in separated groups. */
+    record Span(int start, int end) {
+    }
+
+    /** First full VIN written in separated groups, if any. */
+    static Optional<Span> splitVin(String text) {
+        Matcher groups = VIN_GROUPS.matcher(text);
+        while (groups.find()) {
+            List<int[]> parts = new ArrayList<>();
+            Matcher group = VIN_GROUP.matcher(text).region(groups.start(), groups.end());
+            while (group.find()) {
+                parts.add(new int[] {group.start(), group.end()});
+            }
+            for (int first = 0; first < parts.size(); first++) {
+                StringBuilder joined = new StringBuilder();
+                for (int last = first; last < parts.size() && joined.length() < VIN_LENGTH; last++) {
+                    joined.append(text, parts.get(last)[0], parts.get(last)[1]);
+                    if (joined.length() == VIN_LENGTH && last > first
+                            && joined.chars().anyMatch(Character::isDigit)
+                            && joined.chars().anyMatch(Character::isLetter)) {
+                        return Optional.of(new Span(parts.get(first)[0], parts.get(last)[1]));
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
 
     public record Finding(PolicyCode code, String honeytokenId) {
 
@@ -173,7 +217,7 @@ public class SensitiveDataDetector {
         if (MONEY_SUFFIX.matcher(lower).find() || MONEY_PREFIX.matcher(lower).find()) {
             return Optional.of(new Finding(PolicyCode.MONEY, null));
         }
-        if (FULL_VIN.matcher(canonical).find()) {
+        if (FULL_VIN.matcher(canonical).find() || splitVin(canonical).isPresent()) {
             return Optional.of(new Finding(PolicyCode.FULL_VIN, null));
         }
         return Optional.empty();
