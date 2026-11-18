@@ -6,6 +6,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
+import com.secureerp.agent.policy.internal.DefaultEgressPolicy;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -23,6 +24,7 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +159,20 @@ public final class ArchitectureRules {
                 .as("ARCH-05 egress types use no Jackson annotations except @JsonTypeInfo/@JsonSubTypes")
                 .allowEmptyShould(true));
 
+        rules.put("ARCH-05d", fields()
+                .that().areDeclaredInClassesThat().resideInAnyPackage(egress)
+                .and().areNotStatic()
+                .should(beApprovedIfServerIdentifier())
+                .as("ARCH-05 fields named like server identifiers (honeytoken check only at egress) exist only "
+                        + "on the approved, strictly validated Type.field pairs")
+                .allowEmptyShould(true));
+
+        rules.put("ARCH-05e", classes()
+                .that().resideInAnyPackage(egress)
+                .should(useOnlyLogicalTypeNames())
+                .as("ARCH-05 @JsonTypeInfo on egress types uses Id.NAME (no Java class names in the payload)")
+                .allowEmptyShould(true));
+
         rules.put("ARCH-06", classes()
                 .that().resideInAnyPackage(egress)
                 .and(RECORD_OR_INTERFACE)
@@ -173,8 +189,9 @@ public final class ArchitectureRules {
 
         rules.put("ARCH-08b", methods()
                 .that().areDeclaredInClassesThat().areMetaAnnotatedWith(simpleNameIn("RestController", "Controller"))
-                .should(notAcceptCustomerIdentityFromRequest())
-                .as("ARCH-08 controllers take no AuthenticatedCustomerRef and no customerId/tenantId parameter")
+                .should(notAcceptCustomerIdentityFromRequest(base))
+                .as("ARCH-08 controllers take no AuthenticatedCustomerRef, no customer/tenant/account/user ID "
+                        + "parameter or nested body field, no header/parameter map and no raw request")
                 .allowEmptyShould(true));
 
         rules.put("ARCH-08c", fields()
@@ -201,12 +218,32 @@ public final class ArchitectureRules {
 
     static final String EGRESS_CLASSIFIED = "com.secureerp.agent.platform.EgressClassified";
 
+    /**
+     * ARCH-05d: the only {@code Type.field} pairs that may use a name from
+     * {@link DefaultEgressPolicy#SERVER_IDENTIFIER_FIELDS}; each validates its value strictly (UUID,
+     * prompt ID, masked VIN, or 22-character server token).
+     */
+    static final Set<String> SERVER_IDENTIFIER_FIELD_ALLOWLIST = Set.of(
+            "ModelRequest.traceId", "ModelRequest.systemPromptId", "TechnicalContext.maskedVin",
+            "TechnicalContext.vinRef", "TechnicalContext.quoteHandle", "ProductRef.productRef",
+            "QuoteRequestResult.quoteHandle");
+
+    /**
+     * ARCH-08b: controller parameter types that expose the whole request (every header or parameter),
+     * so a customer ID could be read without a named parameter (second review M4).
+     */
+    private static final List<String> RAW_REQUEST_TYPES = List.of(
+            "java.util.Map", "org.springframework.util.MultiValueMap", "org.springframework.http.HttpHeaders",
+            "jakarta.servlet.ServletRequest", "org.springframework.web.context.request.WebRequest",
+            "org.springframework.http.HttpEntity", "org.springframework.http.server.ServerHttpRequest");
+
     private static final Set<String> SMALL_INTEGER_TYPES = Set.of("int", "java.lang.Integer");
     private static final Set<String> SAFE_SCALAR_TYPES = Set.of("java.lang.String", "boolean", "java.lang.Boolean");
     private static final Set<String> SAFE_CONTAINERS = Set.of("java.util.List", "java.util.Set", "java.util.Optional");
     private static final String CUSTOMER_REF = "AuthenticatedCustomerRef";
     private static final Pattern CUSTOMER_PARAMETER =
-            Pattern.compile("(?i)^(x[_-])?(customer|tenant|cust)[_-]?(id|ref|code|no)$");
+            Pattern.compile("(?i)^(x[_-])?(customer|tenant|cust|account|acct|buyer|user|khach[_-]?hang)"
+                    + "([_-]?(id|ref|code|no|number|num|key))?$");
 
     private static final DescribedPredicate<JavaClass> NOT_PACKAGE_INFO =
             DescribedPredicate.describe("not package-info", c -> !c.getSimpleName().equals("package-info"));
@@ -341,7 +378,35 @@ public final class ArchitectureRules {
         };
     }
 
-    private static ArchCondition<JavaMethod> notAcceptCustomerIdentityFromRequest() {
+    private static ArchCondition<JavaField> beApprovedIfServerIdentifier() {
+        return new ArchCondition<>("be an approved server-identifier field") {
+            @Override
+            public void check(JavaField field, ConditionEvents events) {
+                String pair = field.getOwner().getSimpleName() + "." + field.getName();
+                if (DefaultEgressPolicy.SERVER_IDENTIFIER_FIELDS.contains(field.getName())
+                        && !SERVER_IDENTIFIER_FIELD_ALLOWLIST.contains(pair)) {
+                    events.add(SimpleConditionEvent.violated(field, "Field <" + field.getFullName()
+                            + "> uses a server-identifier name outside " + SERVER_IDENTIFIER_FIELD_ALLOWLIST));
+                }
+            }
+        };
+    }
+
+    private static ArchCondition<JavaClass> useOnlyLogicalTypeNames() {
+        return new ArchCondition<>("use @JsonTypeInfo(use = Id.NAME) only") {
+            @Override
+            public void check(JavaClass c, ConditionEvents events) {
+                c.getAnnotations().stream()
+                        .filter(a -> a.getRawType().getName().equals("com.fasterxml.jackson.annotation.JsonTypeInfo"))
+                        .filter(a -> !a.get("use").map(v -> v instanceof JavaEnumConstant e && e.name().equals("NAME"))
+                                .orElse(false))
+                        .forEach(a -> events.add(SimpleConditionEvent.violated(c,
+                                "Class <" + c.getName() + "> uses @JsonTypeInfo without Id.NAME")));
+            }
+        };
+    }
+
+    private static ArchCondition<JavaMethod> notAcceptCustomerIdentityFromRequest(String base) {
         return new ArchCondition<>("not accept customer identity from the request") {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
@@ -353,6 +418,15 @@ public final class ArchitectureRules {
                         events.add(SimpleConditionEvent.violated(method,
                                 "Method <" + method.getFullName() + "> takes " + CUSTOMER_REF + " from the request"));
                     }
+                    for (String rawType : RAW_REQUEST_TYPES) {
+                        if (parameter.getRawType().isAssignableTo(rawType)) {
+                            events.add(SimpleConditionEvent.violated(method, "Method <" + method.getFullName()
+                                    + "> takes the raw request or a header/parameter map (" + rawType + ")"));
+                        }
+                    }
+                    reachableIdentityField(parameter.getType(), base, new HashSet<>()).ifPresent(path ->
+                            events.add(SimpleConditionEvent.violated(method, "Method <" + method.getFullName()
+                                    + "> accepts customer identity in its body via " + path)));
                     for (JavaAnnotation<?> annotation : parameter.getAnnotations()) {
                         for (String attribute : List.of("value", "name")) {
                             annotation.get(attribute).map(String::valueOf)
@@ -369,6 +443,39 @@ public final class ArchitectureRules {
                 }
             }
         };
+    }
+
+    /**
+     * ARCH-08b (second review M4): a request body type declared anywhere in the code base, and every
+     * type reachable through its fields and generic arguments, carries no customer identity field.
+     */
+    private static Optional<String> reachableIdentityField(JavaType type, String base, Set<String> visited) {
+        JavaClass raw = type.toErasure();
+        if (type instanceof JavaParameterizedType parameterized) {
+            for (JavaType argument : parameterized.getActualTypeArguments()) {
+                Optional<String> nested = reachableIdentityField(argument, base, visited);
+                if (nested.isPresent()) {
+                    return nested;
+                }
+            }
+        }
+        if (!raw.getName().startsWith(base + ".") || !visited.add(raw.getName())) {
+            return Optional.empty();
+        }
+        for (JavaField field : raw.getAllFields()) {
+            if (field.getModifiers().contains(JavaModifier.STATIC)) {
+                continue;
+            }
+            if (field.getRawType().getSimpleName().equals(CUSTOMER_REF)
+                    || CUSTOMER_PARAMETER.matcher(field.getName()).matches()) {
+                return Optional.of(field.getFullName());
+            }
+            Optional<String> nested = reachableIdentityField(field.getType(), base, visited);
+            if (nested.isPresent()) {
+                return nested;
+            }
+        }
+        return Optional.empty();
     }
 
     private static Parameter[] reflectParameters(JavaMethod method) {

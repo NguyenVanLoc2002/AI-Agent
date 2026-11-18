@@ -114,7 +114,18 @@ class ArchitectureRulesTest {
                 Arguments.of("ARCH-08c", f + "conversation.adapter.web.ChatRequest.customer",
                         f + "conversation.adapter.web.SafeChatRequest"),
                 Arguments.of("ARCH-08c", f + "conversation.adapter.web.ChatRequestWithId.customerId",
-                        f + "conversation.adapter.web.SafeChatRequest"));
+                        f + "conversation.adapter.web.SafeChatRequest"),
+                // Added after the second SEC-01a review.
+                Arguments.of("ARCH-05d", f + "gateway.api.LooseHandleDto.quoteHandle", f + "gateway.api.ProductRef"),
+                Arguments.of("ARCH-05e", f + "gateway.api.ClassTypedDto", f + "gateway.api.NameTypedDto"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerNumberController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.HeaderMapController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.adapter.web.ServletRequestController.chat",
+                        f + "conversation.adapter.web.SafeChatController"),
+                Arguments.of("ARCH-08b", f + "conversation.api.OrderEnvelope$Buyer.buyerId",
+                        f + "conversation.adapter.web.SafeChatController"));
     }
 
     @Test
@@ -129,6 +140,8 @@ class ArchitectureRulesTest {
     @ParameterizedTest(name = "{0} catches {1}")
     @MethodSource("violations")
     void ruleDetectsDeliberateViolation(String ruleId, String violatingClass, String compliantClass) {
+        // Second review L4: a renamed or deleted compliant fixture must not make the check vacuous.
+        assertThat(fixtures.contain(compliantClass)).as("compliant fixture %s exists", compliantClass).isTrue();
         Map<String, ArchRule> rules = ArchitectureRules.forBasePackage(FIXTURE_BASE);
         ArchRule rule = rules.get(ruleId);
         assertThat(rule).as("rule %s exists", ruleId).isNotNull();
