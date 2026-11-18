@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Đặc tả Batch E — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Batch E · Đặc tả màn hình hỗ trợ</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Cập nhật 17/11/2026 theo quyết định Q7, Q8, B6, PF, R10. “Đã rà soát” nghĩa là đã chạy thử thật trên canvas trong Chrome; không mục nào được phê duyệt.</p>
+  </div>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font: var(--type-caption); color: var(--text-secondary);">
+    <span class="tag n">Đã thiết kế</span><span>Có trên canvas</span>
+    <span class="tag p">Đã rà soát</span><span>Đã chạy thử thật trong trình duyệt</span>
+    <span class="tag ok">Đã phê duyệt</span><span>Được người duyệt chấp thuận chính thức</span>
+    <span class="tag x">Bị chặn</span><span>Chờ quyết định nghiệp vụ</span>
+  </div>
+  <div class="card"><h2>Phạm vi và căn cứ</h2><ul class="l"><li>Batch E = màn hình hỗ trợ: DB-01, AU-01, PF-01, SH-03, SH-07, SH-04 và đăng nhập. Áp dụng quyết định 17/11: Q7 (tài khoản nội bộ, 8 giờ, 30 phút — đề xuất cấu hình), Q8 (chấp thuận có điều kiện theo vai trò), B6 (phân quyền nhật ký 4 vai trò), PF (chỉ sửa thông tin không ảnh hưởng phân quyền), R10 (quản lý trực tiếp → IT; quyền đặc biệt cần Giám đốc). Tất cả vẫn là đề xuất, chưa có trong tài liệu gốc.</li><li>Có căn cứ từ các quyết định trước: audit cho mọi thao tác (D54), quản trị không xem nội dung kinh doanh (AI1), timeout và đối soát theo khóa (D57), thao tác của Trợ lý ghi người xác nhận (D42).</li><li>Không thêm năng lực mới cho Trợ lý: bảng Trợ lý không xuất hiện ở Batch E.</li><li>Dữ liệu mô phỏng. Không phải bằng chứng xác thực, phân quyền hay lưu audit đã hoạt động.</li></ul></div>
+  <div class="card"><h2>E1 · DB-01 · Tổng quan — việc cần làm</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E · Prototype, E1 · ba artboard, RE-1024 <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Mục “Tổng quan” trên sidebar (trang mặc định vẫn là Tra cứu phụ tùng — chưa đổi).</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Bấm từng ô để mở đúng danh sách; “Xem tất cả” hoạt động.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Theo vai trò (Q8 chấp thuận có điều kiện). <b>Nhân viên:</b> báo giá đang xử lý, chờ khách xác nhận, hết hạn, đơn nháp, khách được phân công, hoạt động gần đây. <b>Trưởng bộ phận:</b> số liệu tổng hợp bộ phận, việc cần xử lý thay / phân công, bảng đếm việc theo nhân viên (không phải KPI). <b>Quản trị:</b> tình trạng dịch vụ, lỗi 24 giờ, đăng nhập thất bại, từ chối theo quyền ở AI Gateway; không có giá, doanh thu, dữ liệu khách. Không KPI nâng cao, dự báo, phân tích lịch sử mua. Danh sách ô cần đối chiếu widget thực tế.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Ô → Báo giá / Đơn hàng nháp (prototype khác); “Xem tất cả” → E2.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Theo vai trò như trên. Kiểm tra bảo mật: Tổng quan không áp dụng, dẫn sang Hoạt động. Quản trị: “Yêu cầu quyền đặc biệt” (cần Giám đốc).</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Lỗi tải → E6.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Thử lại.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>PageHeader, Badge, Button, Card, Alert</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E2 · AU-01 · Hoạt động (nhật ký audit)</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E2 · sáu artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Mục “Hoạt động” trên sidebar; “Xem tất cả” từ E1.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Lọc theo loại (Báo giá, Đơn nháp, Trợ lý AI, Đăng nhập & quyền); trưởng bộ phận đổi “Của tôi / Cả bộ phận”; bấm dòng để xem chi tiết.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Thời điểm, người thao tác + vai trò + “xử lý thay” (D54), hành động, đối tượng, kết quả (thành công / bị từ chối / chờ đối soát), tham chiếu hoặc khóa chống trùng. Thao tác của Trợ lý ghi người xác nhận. Chỉ xem, không sửa, không xóa.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Chi tiết mở ngay dưới bảng.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>B6 (đề xuất đã chọn): nhân viên — thao tác của mình; trưởng bộ phận — nghiệp vụ của bộ phận; quản trị — <b>nhật ký kỹ thuật riêng</b> (đăng nhập, lỗi hệ thống, metadata AI Gateway đã loại dữ liệu nhạy cảm), không thấy nghiệp vụ, hội thoại, giá; kiểm tra bảo mật — audit theo phạm vi và thời hạn được Giám đốc phê duyệt, mỗi lần xem được ghi audit; nhân viên hạn chế: không có quyền.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Rỗng theo bộ lọc: EmptyState.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>—</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Tabs, Tag, DataTable, Badge, DescriptionList, Alert, EmptyState</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E3 · PF-01 · Hồ sơ cá nhân</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E3 · bốn artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Biểu tượng người dùng trên header.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Sửa mật độ hiển thị, bật/tắt thông báo, “Lưu tùy chọn”; “Đổi mật khẩu” (mật khẩu hiện tại + mới); “Đăng xuất”; “Yêu cầu cấp quyền”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>PF (đề xuất đã chọn): khóa — mã nhân viên, tài khoản, vai trò, bộ phận, chi nhánh / phạm vi khách hàng, trạng thái tài khoản. Phiên: tài khoản nội bộ, tối đa 8 giờ, 30 phút không hoạt động (Q7). Quyền do máy chủ trả về.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>—</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Theo persona.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Mật khẩu hiện tại sai / mật khẩu mới chưa đạt → lỗi tại trường.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Đổi mật khẩu ghi audit; các phiên khác đăng xuất (đề xuất).</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Card, DescriptionList, Badge, Button</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E4 · SH-03 · R10 · Không có quyền · Yêu cầu cấp quyền</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E4 · ba artboard, E2 · không có quyền <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Mở trang không có quyền (ví dụ Quản trị người dùng, Hoạt động với nhân viên hạn chế).</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>“Yêu cầu cấp quyền” → biểu mẫu (quyền đề nghị — chỉ quyền chưa có, phạm vi, lý do bắt buộc); “Về Tổng quan”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>R10 (đề xuất đã chọn): gửi qua quản lý trực tiếp → IT / quản trị theo phê duyệt; quyền đặc biệt với dữ liệu kinh doanh cần Giám đốc. Chưa có hệ thống tiếp nhận nên sau khi gửi hiện <b>“Yêu cầu chưa được gửi đi — điểm nối mô phỏng, quyền không thay đổi”</b>; không bao giờ hiện đã cấp quyền.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Về E1.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>Người dùng không tự cấp quyền.</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Thiếu quyền đề nghị / lý do → lỗi.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>—</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>EmptyState unauthorized, Dialog, Select, Input, Textarea, Alert</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E5 · SH-07 · Phiên đăng nhập hết hạn</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E5 · năm artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Phiên sắp hết hoặc đã hết khi đang ở bất kỳ trang nào.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>“Tiếp tục làm việc” (gia hạn); “Đăng nhập lại”; “Đăng xuất”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Q7: tối đa 8 giờ; hết sau 30 phút không hoạt động (cấu hình đề xuất). Sắp hết: băng cảnh báo 5 phút trước, “Tiếp tục làm việc” chỉ đặt lại thời gian không hoạt động. Hết hạn: hộp thoại chặn thao tác; thay đổi chưa lưu giữ trên thiết bị (đề xuất). Có thao tác đang chờ (ví dụ tạo đơn): không gửi lại tự động; sau khi đăng nhập, đối soát theo khóa chống trùng (D57).</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Đăng nhập lại → về đúng trang đang làm.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>—</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Đăng nhập lại thất bại → lỗi AUTH-401, thử lại.</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Đăng nhập lại; đối soát thao tác đang chờ.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Dialog (DS), Alert, Button</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E7 · SH-06 · Đăng nhập</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E7 · ba artboard <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Mở ứng dụng khi chưa đăng nhập; sau “Đăng xuất”.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>Nhập tài khoản, mật khẩu; Enter hoặc “Đăng nhập”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Tài khoản nhân viên nội bộ, xác thực qua backend, RBAC. Không có nút đăng ký. Quên mật khẩu: liên hệ quản lý / IT. SSO: chờ xác minh hệ thống danh tính.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>Thành công → Tổng quan.</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>—</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>Sai thông tin: một thông báo chung, không nói trường nào sai. Tạm khóa: AUTH-423, thử lại sau 15 phút (đề xuất).</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Thử lại; liên hệ IT.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>Input, Button, Alert</td></tr></tbody></table></div></div>
+  <div class="card"><h2>E6 · SH-04 · Lỗi hệ thống / không tải được</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:var(--type-caption);color:var(--text-secondary)">Artboard: E6 <span class="tag p">Đã thiết kế · Đã rà soát</span></div>
+<div class="tw"><table><tbody><tr><td class="vi" style="width:200px">Điểm vào</td><td>Khi một trang không tải được.</td></tr><tr><td class="vi" style="width:200px">Thao tác người dùng</td><td>“Thử lại”.</td></tr><tr><td class="vi" style="width:200px">Dữ liệu hiển thị</td><td>Thông báo không có thay đổi nào được thực hiện, mã tham chiếu.</td></tr><tr><td class="vi" style="width:200px">Chuyển màn hình</td><td>—</td></tr><tr><td class="vi" style="width:200px">Phụ thuộc quyền</td><td>—</td></tr><tr><td class="vi" style="width:200px">Đang tải & lỗi</td><td>—</td></tr><tr><td class="vi" style="width:200px">Khôi phục</td><td>Thử lại; gửi mã cho hỗ trợ.</td></tr><tr><td class="vi" style="width:200px">Thành phần dùng lại</td><td>EmptyState error</td></tr></tbody></table></div></div>
+  <div class="tw"><table>
+    <caption>Rà soát nhất quán</caption>
+    <thead><tr><th>#</th><th>Phát hiện</th><th>Mức</th><th>Xử lý</th></tr></thead>
+    <tbody>
+<tr><td class="id">V1</td><td>Khung, sidebar, header, băng mô phỏng, toast, nhãn PROPOSED giống Batch C, D.</td><td>—</td><td>Đạt</td></tr>
+<tr><td class="id">V2</td><td>Bốn biểu tượng không có trong design system (user-round, log-in, message-square, x-circle) dùng ở Batch C, D, E — hiển thị trống.</td><td>Trung bình</td><td>Đã sửa cả ba batch bằng biểu tượng có sẵn</td></tr>
+<tr><td class="id">V3</td><td>Tổng quan báo 1 “Chờ đối soát” nhưng Hoạt động ghi đã đối soát xong.</td><td>Thấp</td><td>Đã sửa dữ liệu mẫu</td></tr>
+<tr><td class="id">V4</td><td>Quản trị vẫn thấy cột Tham chiếu (chứa mã báo giá).</td><td>Trung bình</td><td>Đã sửa: ẩn</td></tr>
+<tr><td class="id">V5</td><td>Chuyển trang giữ vị trí cuộn cũ (Hồ sơ mở ở giữa trang).</td><td>Thấp</td><td>Đã sửa: cuộn về đầu</td></tr>
+<tr><td class="id">V6</td><td>Ghi chú trước nói DS chưa có Modal — sai: DS có Dialog. Hộp thoại hết phiên và yêu cầu quyền nay dùng Dialog.</td><td>—</td><td>Đã sửa</td></tr>
+<tr><td class="id">V7</td><td>Biểu mẫu yêu cầu quyền giữ cảnh báo lỗi sau khi đã nhập; liệt kê cả quyền người dùng đã có.</td><td>Thấp</td><td>Đã sửa (chưa chạy lại trong Chrome)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Trạng thái còn thiếu</caption>
+    <thead><tr><th>#</th><th>Trạng thái</th><th>Tình trạng</th></tr></thead>
+    <tbody>
+<tr><td class="id">EM1</td><td>Đặt lại mật khẩu, SSO</td><td>Chưa thiết kế · chờ xác minh hệ thống danh tính</td></tr>
+<tr><td class="id">EM2</td><td>Quản trị người dùng, phân quyền, phân công lại báo giá</td><td>Chưa thiết kế · B6</td></tr>
+<tr><td class="id">EM3</td><td>Xuất nhật ký, lọc theo thời gian, tìm theo mã</td><td>Chưa thiết kế</td></tr>
+<tr><td class="id">EM4</td><td>Phê duyệt quyền đặc biệt phía Giám đốc; hệ thống tiếp nhận yêu cầu quyền</td><td>Chưa có · điểm nối</td></tr>
+<tr><td class="id">EM5</td><td>Danh sách yêu cầu chuyển nhân viên phía người nhận</td><td>Chưa thiết kế · HO</td></tr>
+<tr><td class="id">EM6</td><td>Thông báo ngoài ứng dụng (Zalo, email)</td><td>Chưa quy định</td></tr>
+<tr><td class="id">EM7</td><td>Mất mạng (offline)</td><td>Chưa thiết kế · DS có EmptyState offline</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Kiểm thử cần có khi làm backend</caption>
+    <thead><tr><th>#</th><th>Nội dung</th></tr></thead>
+    <tbody>
+<tr><td class="id">T1</td><td>Audit không sửa, không xóa được qua giao diện hay API</td></tr>
+<tr><td class="id">T2</td><td>Quản trị chỉ nhận siêu dữ liệu audit</td></tr>
+<tr><td class="id">T3</td><td>Hết phiên giữa thao tác ghi: không gửi lại tự động; đối soát theo khóa sau khi đăng nhập</td></tr>
+<tr><td class="id">T4</td><td>Lần truy cập bị từ chối được ghi audit</td></tr>
+<tr><td class="id">T5</td><td>Hết phiên sau 30 phút không hoạt động và 8 giờ tối đa theo cấu hình backend</td></tr>
+<tr><td class="id">T6</td><td>Quản trị không nhận được nội dung kinh doanh trong nhật ký; metadata AI Gateway đã loại dữ liệu nhạy cảm</td></tr>
+<tr><td class="id">T7</td><td>Quyền chỉ thay đổi sau phê duyệt hợp lệ; thay đổi quyền ghi audit</td></tr>
+    </tbody>
+  </table></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":5600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

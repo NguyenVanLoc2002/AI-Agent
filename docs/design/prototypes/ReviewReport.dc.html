@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Báo cáo review Workflow A</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Báo cáo review · Workflow A</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Kết quả sau review có điều kiện. “Đã kiểm tra” nghĩa là đã thao tác thật trên canvas trong trình duyệt; “Một phần” nghĩa là chỉ kiểm tra được một phần như ghi chú.</p>
+  </div>
+  <div class="tw"><table>
+    <caption>A · Những gì đã sửa</caption>
+    <thead><tr><th>Chủ đề</th><th>Thay đổi</th></tr></thead>
+    <tbody>
+<tr><td>Quyền</td><td>4 persona mô phỏng; quyền bật/tắt riêng (Đề xuất / Không / Chưa xác định); băng “Chế độ mô phỏng UX” nói rõ giao diện không thay thế kiểm tra ở máy chủ</td></tr>
+<tr><td>Nguồn dữ liệu ERP</td><td>6 trạng thái: xác nhận mới, bản lưu, dữ liệu cũ, chưa xác minh, quá thời gian, không khả dụng. Mọi nhãn ghi “ERP mô phỏng”. Chỉ “xác nhận mới” cho chọn sản phẩm</td></tr>
+<tr><td>VIN</td><td>Bảng ánh xạ VIN mẫu cố định; 4 trạng thái; AI không suy đoán xe tương thích</td></tr>
+<tr><td>Phạm vi chi nhánh</td><td>Chỉ chi nhánh trong phạm vi được tải; bỏ hàng TP.HCM / Đà Nẵng bị khóa và thẻ công cụ AI nhắc TP.HCM</td></tr>
+<tr><td>VAT</td><td>“VAT: chưa xác định” cạnh giá; không tính thuế, không tính tổng</td></tr>
+<tr><td>Tìm kiếm</td><td>Kết quả lọc đúng theo SKU / OE (bản trước luôn trả 8 dòng)</td></tr>
+<tr><td>Báo giá</td><td>“Thêm vào báo giá” chỉ là điểm nối luồng C, không mô phỏng việc lưu</td></tr>
+<tr><td>Phát hiện khi kiểm tra và đã sửa</td><td>Khung cố định 900 px làm cắt chân drawer → khung theo chiều cao cửa sổ; thẻ ERPResult tự ghi “Đã xác minh từ ERP” → “Đã xác minh từ ERP mô phỏng”; bố cục 1280 / 1024 (sidebar tự thu gọn dưới 1360 px, AI nổi và mặc định đóng dưới 1180 px)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>B · Màn hình / thành phần đã sửa</caption>
+    <thead><tr><th>Tệp</th><th>Nội dung</th></tr></thead>
+    <tbody>
+<tr><td>WorkflowA.dc.html</td><td>Prototype chính: quyền, ERP, VIN, AI, phản hồi theo bề rộng</td></tr>
+<tr><td>PartDetail.dc.html</td><td>Khối chi tiết dùng chung: provenance, phạm vi chi nhánh, VAT</td></tr>
+<tr><td>AppShell.dc.html</td><td>Chiều cao theo cửa sổ</td></tr>
+<tr><td>19 artboard trạng thái</td><td>Cập nhật / thêm mới: A3 ×3, A5 ×5, A6 ×3, A8, R-1280, R-1024</td></tr>
+<tr><td>Tài liệu</td><td>Danh mục màn hình, Quyền & câu hỏi mở (cập nhật); Ma trận trạng thái, Đặc tả tương tác, Nhật ký quyết định, Báo cáo này (mới)</td></tr>
+<tr><td>Design system</td><td>Không sửa thành phần nào</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>C · Tương tác đã kiểm tra thật (Chrome, canvas ở chế độ Play, 16/11/2026)</caption>
+    <thead><tr><th>#</th><th>Luồng</th><th>Kết quả</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+<tr><td>1</td><td>Tìm theo SKU, OE, VIN mô phỏng</td><td><span class="tag p">Đã kiểm tra</span></td><td>BP-1042 → 1 dòng; 43512-0D150 → 1 dòng; VIN mẫu → 8 dòng + dòng xe; VIN không hợp lệ / không hỗ trợ / không có ánh xạ đều hiện đúng</td></tr>
+<tr><td>2</td><td>SKU không tồn tại BP-9999X</td><td><span class="tag p">Đã kiểm tra</span></td><td>EmptyState “Không tìm thấy” + gợi ý; AI báo không tìm thấy</td></tr>
+<tr><td>3</td><td>Chọn sản phẩm</td><td><span class="tag p">Đã kiểm tra</span></td><td>Chọn qua nút trong drawer; thanh công cụ chuyển sang “Đã chọn 1”</td></tr>
+<tr><td>4</td><td>Mở drawer chi tiết</td><td><span class="tag p">Đã kiểm tra</span></td><td>Bằng chuột và bằng phím Enter trên dòng</td></tr>
+<tr><td>5</td><td>Mở trang đầy đủ</td><td><span class="tag p">Đã kiểm tra</span></td><td>Breadcrumb, hai cột, lựa chọn giữ nguyên</td></tr>
+<tr><td>6</td><td>Quay lại, giữ ngữ cảnh</td><td><span class="tag p">Đã kiểm tra</span></td><td>Truy vấn, kết quả và lựa chọn còn nguyên, không tìm lại</td></tr>
+<tr><td>7</td><td>Đổi trạng thái ERP mô phỏng</td><td><span class="tag u">Một phần</span></td><td>Đã xem cả 5 trạng thái qua artboard dùng chung tham số; Thử lại từ bản lưu → xác nhận mới + toast. Chưa thao tác trực tiếp bảng Tweaks</td></tr>
+<tr><td>8</td><td>Đổi quyền mô phỏng</td><td><span class="tag u">Một phần</span></td><td>Đã xem: không có quyền giá & tồn (bảng, drawer, AI), chưa xác định quyền / phạm vi, báo giá chưa xác định và có quyền. Chưa xem artboard “không có quyền báo giá”</td></tr>
+<tr><td>9</td><td>Mở / đóng Trợ lý AI</td><td><span class="tag p">Đã kiểm tra</span></td><td>Ở 1568 px và 1024 px (nổi đè nội dung)</td></tr>
+<tr><td>10</td><td>Đang tải, trống, quá thời gian, không khả dụng, không có quyền</td><td><span class="tag u">Một phần</span></td><td>Trống, quá thời gian, không khả dụng, không có quyền: đã xem. Đang tải: chỉ thấy thoáng qua khi tìm và khi thử lại</td></tr>
+<tr><td>11</td><td>Bàn phím & focus</td><td><span class="tag u">Một phần</span></td><td>Tab đi qua ô tìm, mã mẫu, tiêu đề cột, dòng; Enter mở drawer; Esc đóng drawer. Chưa thấy được vòng focus sau khi drawer mở; focus không quay về dòng khi đóng</td></tr>
+<tr><td>12</td><td>1440 / 1280 / 1024 px</td><td><span class="tag u">Một phần</span></td><td>Đã xem ở chế độ Fit. 1024: đạt. 1280 và 1440 (sidebar mở + AI mở): cột “Nguồn” phải cuộn ngang</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>D · Lỗi hình ảnh / chức năng còn lại</caption>
+    <thead><tr><th>Mức</th><th>Vấn đề</th><th>Hướng xử lý</th></tr></thead>
+    <tbody>
+<tr><td>Trung bình</td><td>Cột “Nguồn” bị đẩy ra ngoài, phải cuộn ngang ở 1280–1440 px khi mở Trợ lý AI</td><td>Thu gọn cột nguồn thành biểu tượng + chú giải, hoặc thu sidebar dưới 1500 px</td></tr>
+<tr><td>Trung bình</td><td>Focus không quay về dòng đã mở khi đóng drawer; vòng focus trong drawer chưa xác nhận được</td><td>Cần Drawer hỗ trợ giữ focus trong vùng nội dung (phụ thuộc design system)</td></tr>
+<tr><td>Trung bình</td><td>Câu cảnh báo của AIComposer (design system) nói giá “chỉ có giá trị khi có nhãn Đã xác minh từ ERP” — mâu thuẫn quy tắc “giờ đồng bộ không chứng minh là hiện tại”</td><td>Sửa chữ trong design system (chưa sửa, ngoài phạm vi canvas)</td></tr>
+<tr><td>Thấp</td><td>Nội dung hội thoại AI là kịch bản cố định: sau khi tìm SKU, AI vẫn hiển thị hội thoại về VIN</td><td>Chấp nhận cho prototype hoặc gắn kịch bản theo truy vấn</td></tr>
+<tr><td>Thấp</td><td>Ô tìm nhanh trên header và chuông thông báo chưa có hành vi</td><td>Thiết kế cùng SH-02 / Q9</td></tr>
+<tr><td>Thấp</td><td>Trong chế độ Play của canvas, phím Esc vừa đóng drawer vừa thoát Play (hành vi của khung xem)</td><td>Không sửa được trong artboard</td></tr>
+<tr><td>—</td><td>Hai sửa nhỏ đăng sau lượt kiểm tra cuối chưa được xem lại: AI hiện “đang tải” khi thử lại ERP; thẻ công cụ dùng trạng thái lỗi cho “dữ liệu cũ / chưa xác minh”</td><td>Xem lại ở lượt review sau</td></tr>
+<tr><td>—</td><td>Chưa bấm thử: Khung ứng dụng (SH-01), lỗi tải danh mục, drawer và trang ở 1024 px, tooltip của nút bị khóa</td><td>Xem lại ở lượt review sau</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>E · Phụ thuộc nghiệp vụ chưa giải quyết</caption>
+    <thead><tr><th>Mã</th><th>Nội dung</th><th>Ảnh hưởng</th></tr></thead>
+    <tbody>
+<tr><td>B6</td><td>Vai trò và quyền chính thức</td><td>Chặn luồng C, D</td></tr>
+<tr><td>R4</td><td>VAT</td><td>Chặn tính tổng báo giá</td></tr>
+<tr><td>E1 · E2</td><td>Ngưỡng hiệu lực dữ liệu ERP; có được hiển thị bản lưu không</td><td>Ảnh hưởng A5</td></tr>
+<tr><td>R1 · R7</td><td>Hàng hết / sắp hết khi báo giá; nguồn mã tương đương</td><td>Luồng C</td></tr>
+<tr><td>B1 · B2 · Q1</td><td>Trạng thái báo giá, giá & chiết khấu, phiên bản</td><td>Chặn luồng C</td></tr>
+<tr><td>B4 · B5</td><td>Thẩm quyền đơn nháp; tạo trên ERP</td><td>Chặn luồng D</td></tr>
+<tr><td>Q5</td><td>Công cụ AI được phép gọi</td><td>Cần cho luồng B</td></tr>
+<tr><td>Q7 · Q8</td><td>Xác thực, hết phiên; Tổng quan, Hồ sơ</td><td>Luồng E</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>F · Ảnh chụp bằng chứng (gửi kèm trong cuộc trò chuyện)</caption>
+    <thead><tr><th>Ảnh</th><th>Artboard</th></tr></thead>
+    <tbody>
+<tr><td>Kết quả VIN mẫu, 1440 px</td><td>A · Prototype</td></tr>
+<tr><td>Tìm BP-9999X</td><td>A4</td></tr>
+<tr><td>Drawer chi tiết BP-1042</td><td>A2</td></tr>
+<tr><td>Trang đầy đủ</td><td>A2</td></tr>
+<tr><td>Quay lại giữ lựa chọn</td><td>A · Prototype</td></tr>
+<tr><td>Bản lưu chưa xác nhận lại</td><td>A5</td></tr>
+<tr><td>Không có quyền giá & tồn</td><td>A6</td></tr>
+<tr><td>Thêm vào báo giá — chờ luồng C</td><td>A8</td></tr>
+<tr><td>1280 px</td><td>R</td></tr>
+<tr><td>1024 px, AI nổi</td><td>R</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h2>G · Mức sẵn sàng</h2>
+    <ul class="l">
+      <li>Workflow A: sẵn sàng cho lượt review UX tiếp theo. Chưa được phê duyệt; còn 3 lỗi mức trung bình ở mục D.</li>
+      <li>Có thể bắt đầu luồng B (Trợ lý AI) khi có câu trả lời Q5. Luồng C và D bị chặn bởi B1, B2, Q1, B4, B5, B6.</li>
+      <li>Không có kiểm tra nào về phân quyền máy chủ, tích hợp ERP hay giao dịch thật. Mọi dữ liệu là dữ liệu mô phỏng.</li>
+      <li>Chưa chuyển sang Workflow B hoặc C — chờ người duyệt quyết định.</li>
+    </ul>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

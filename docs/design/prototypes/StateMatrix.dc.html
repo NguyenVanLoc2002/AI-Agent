@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Ma trận trạng thái — Workflow A</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Ma trận trạng thái màn hình · Workflow A</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Mỗi ô mô tả cách vùng giao diện thể hiện một trạng thái. Hàng cuối chỉ artboard tương ứng trên trang Workflow A.</p>
+  </div>
+  <div class="tw"><table style="min-width: 2200px;">
+    <caption>Ma trận trạng thái Workflow A · tất cả đã thiết kế, trạng thái kiểm tra xem Báo cáo review</caption>
+    <thead><tr><th>Vùng</th><th>Đang tải</th><th>Không có kết quả / trống</th><th>Lỗi</th><th>ERP: xác nhận mới</th><th>ERP: bản lưu</th><th>ERP: dữ liệu cũ</th><th>ERP: chưa xác minh</th><th>ERP: quá thời gian</th><th>ERP: không khả dụng</th><th>Không có quyền</th><th>Chưa xác định quyền / phạm vi</th></tr></thead>
+    <tbody>
+<tr><td class="vi">Ô tìm kiếm (SKU / OE / VIN)</td><td>Nút tìm khóa, spinner; VIN: “Đang tra bảng ánh xạ VIN mẫu…”</td><td>Gợi ý “Nhập mã để tra cứu”</td><td>VIN không hợp lệ: lỗi ngay dưới ô (17 ký tự, không I/O/Q)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td class="vi">Kết quả VIN</td><td>—</td><td>VIN không được hỗ trợ · Không có dữ liệu ánh xạ (EmptyState, gợi ý tìm theo OE)</td><td>—</td><td>Dòng xe + nhãn “Ánh xạ VIN mô phỏng · dữ liệu mẫu”</td><td>như xác nhận mới</td><td>như xác nhận mới</td><td>như xác nhận mới</td><td>như xác nhận mới</td><td>như xác nhận mới</td><td>—</td><td>—</td></tr>
+<tr><td class="vi">Bảng kết quả</td><td>Skeleton các dòng</td><td>“Không tìm thấy …” + Tìm theo mã OE / Hỏi Trợ lý AI</td><td>Lỗi danh mục + Thử lại, mã tham chiếu</td><td>Giá, tồn + nhãn “ERP mô phỏng · xác nhận 09:42”; cho chọn dòng</td><td>Số mờ + nhãn “Bản lưu · chưa xác nhận lại 08:15”; Alert; không cho chọn</td><td>Giá/tồn ẩn “—”, nhãn “Dữ liệu cũ · đã ẩn”; Alert</td><td>Ẩn “—”, nhãn “Chưa xác minh”; Alert</td><td>Ẩn “—”, nhãn “Quá thời gian”; Alert + Thử lại</td><td>Ẩn “—”, nhãn “ERP không khả dụng”; Alert + Thử lại</td><td>Ô khóa “Hạn chế”; Alert trung tính; không chọn</td><td>Ô khóa “Chưa xác định quyền”; Alert trung tính</td></tr>
+<tr><td class="vi">Khối giá & tồn (drawer / trang)</td><td>ERPResult đang tải khi thử lại</td><td>—</td><td>—</td><td>Giá lớn + “VAT: chưa xác định”; bảng tồn chỉ chi nhánh trong phạm vi</td><td>ERPResult “bản lưu”, số mờ, cảnh báo, nút Thử lại</td><td>Ẩn số, giải thích ngưỡng chưa xác nhận</td><td>Ẩn số</td><td>Ẩn số + Thử lại</td><td>Ẩn số + Thử lại</td><td>Giá và/hoặc tồn khóa riêng; cả hai → ERPResult restricted</td><td>Tồn kho: “chưa xác định phạm vi chi nhánh”, không tải chi nhánh nào</td></tr>
+<tr><td class="vi">Mã tương đương (gợi ý AI)</td><td>“Đang kiểm tra…”</td><td>Không có mục khi sản phẩm không có mã tương đương</td><td>“Không có trong danh mục ERP mẫu”</td><td>Nút Kiểm tra ERP → giá + nhãn ERP mô phỏng</td><td>Nút Kiểm tra ERP khóa</td><td>khóa</td><td>khóa</td><td>khóa</td><td>khóa</td><td>Nút khóa “Cần quyền xem giá bán”</td><td>Nút khóa “Chưa xác định quyền xem giá bán”</td></tr>
+<tr><td class="vi">Trợ lý AI</td><td>Công cụ đang chạy</td><td>Công cụ thành công + “không tìm thấy”, không suy đoán xe</td><td>Công cụ lỗi</td><td>Kết quả công cụ + ERPResult (chỉ chi nhánh trong phạm vi)</td><td>Công cụ quá thời gian, chỉ nói có bản lưu, không dùng số liệu</td><td>Công cụ không khả dụng, không đưa số</td><td>như dữ liệu cũ</td><td>Công cụ quá thời gian</td><td>Công cụ không khả dụng</td><td>Công cụ “không có quyền”, không trả dữ liệu</td><td>Công cụ “không có quyền”, không trả dữ liệu</td></tr>
+<tr><td class="vi">Thêm vào báo giá</td><td>—</td><td>—</td><td>—</td><td>Chỉ là điểm nối luồng C: toast thông tin “chưa khả dụng, không có dữ liệu nào được lưu”</td><td>Không chọn được dòng</td><td>Không chọn được</td><td>Không chọn được</td><td>Không chọn được</td><td>Không chọn được</td><td>Nút khóa trung tính</td><td>Nút khóa “quyền chưa được xác định”</td></tr>
+<tr><td class="vi">Artboard</td><td>A7 · Đang tải</td><td>A4 · BP-9999X · A3 · VIN</td><td>A7 · Lỗi danh mục · A3 · VIN không hợp lệ</td><td>Prototype · A2</td><td>A5 · Bản lưu</td><td>A5 · Dữ liệu cũ</td><td>A5 · Chưa xác minh</td><td>A5 · Quá thời gian</td><td>A5 · Không khả dụng</td><td>A6 · Không có quyền · A6 · Báo giá</td><td>A6 · Chưa xác định</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Ma trận trạng thái Batch B · cập nhật 17/11 theo phản hồi nghiệp vụ</caption>
+    <thead><tr><th>Vùng</th><th>Đang chạy</th><th>Trống / ngoài kịch bản</th><th>Lỗi</th><th>Tra cứu được</th><th>ERP: bản lưu</th><th>Một phần quyền</th><th>Không có / chưa xác định quyền</th></tr></thead>
+    <tbody>
+<tr><td class="vi">Hội thoại (B1/B2)</td><td>Bước n/N, “Đang tổng hợp…”, Dừng → “Chưa rõ kết quả”</td><td>Lời chào 3 nhóm; câu ngoài kịch bản → không gọi công cụ + Chuyển nhân viên</td><td>AI quá thời gian: lỗi ở câu trả lời, dữ liệu tra cứu giữ nhãn; AI không khả dụng: EmptyState</td><td>—</td><td>—</td><td>—</td><td>Sửa giá/chiết khấu: không giao cho Trợ lý</td></tr>
+<tr><td class="vi">Công cụ (ToolCall)</td><td>Đang chạy · Chưa gửi</td><td>—</td><td>Thất bại · Quá thời gian · ERP không khả dụng · Chưa rõ kết quả; lịch sử lần thử</td><td>Hoàn tất + “AI nhận: …”</td><td>Quá thời gian + “chỉ có bản lưu · AI nhận can_kiem_tra”</td><td>—</td><td>Không có quyền: máy chủ từ chối, không trả dữ liệu</td></tr>
+<tr><td class="vi">Dữ liệu tra cứu danh mục</td><td>—</td><td>—</td><td>Lỗi danh mục: không đưa mã OE; ERP “Chưa gửi”</td><td>Nhãn Dữ liệu tra cứu; mã “Chưa xác minh”; Tải thêm</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td class="vi">Thẻ dữ liệu ERP mô phỏng</td><td>Thẻ “Đang đọc…”</td><td>—</td><td>Thẻ đỏ + mã tham chiếu + Thử lại</td><td>Dữ liệu tra cứu + thời điểm do hệ thống ghi; giá/tồn chỉ hiện cho người có quyền, không gửi AI</td><td>Thẻ Bản lưu, không trích số</td><td>Chỉ trường được phép; trường khác “Hạn chế”</td><td>Thẻ “Không có quyền xem dữ liệu này”; ngoài phạm vi → Chuyển nhân viên</td></tr>
+<tr><td class="vi">Chọn sản phẩm (B8)</td><td>—</td><td>—</td><td>Chưa tra cứu được giá → nút tắt + Thử lại</td><td>Thêm / Đã chọn · Bỏ chọn — không có hộp xác nhận</td><td>Nút tắt</td><td>—</td><td>Nút khóa “Cần quyền xem giá bán”</td></tr>
+<tr><td class="vi">Chuyển nhân viên (B9)</td><td>Đang gửi</td><td>—</td><td>Thất bại → Thử lại; Chưa rõ → Kiểm tra trạng thái, không gửi lại tự động</td><td>Đã tạo HT-0042 · trạng thái do hệ thống trả về</td><td>—</td><td>—</td><td>Quyền chưa xác định</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Ma trận trạng thái Batch C · Báo giá · cập nhật 17/11 (lần 2)</caption>
+    <thead><tr><th>Vùng</th><th>Đang chạy</th><th>Trống / chưa có</th><th>Lỗi</th><th>Thành công</th><th>Chưa rõ</th><th>Bị chặn theo quy tắc</th><th>Không có quyền</th></tr></thead>
+    <tbody>
+<tr><td class="vi">Danh sách (C1)</td><td>—</td><td>EmptyState</td><td>—</td><td>6 trạng thái báo giá + cột Xử lý đơn (ERP)</td><td>—</td><td>—</td><td>EmptyState, không tải</td></tr>
+<tr><td class="vi">Tính giá nháp</td><td>“Quote Service đang tính…”</td><td>“Chưa tính”</td><td>QS-502 + Thử lại</td><td>Giá cập nhật trên nháp</td><td>Kiểm tra trạng thái</td><td>ERP không khả dụng</td><td>Không quyền xem giá: nút khóa</td></tr>
+<tr><td class="vi">Phát hành & gửi</td><td>“Đang gửi qua Zalo OA…”</td><td>—</td><td>ZOA-503, chưa phát hành</td><td>Đã gửi + mã ZOA, hết hạn +3 ngày</td><td>Đã phát hành · chưa xác nhận gửi → Kiểm tra</td><td>Chưa tính giá; hàng hết/cần kiểm tra (Q4); xung đột nháp</td><td>—</td></tr>
+<tr><td class="vi">Phiên bản</td><td>—</td><td>—</td><td>—</td><td>Hiện hành / Bị thay thế / Khách xác nhận</td><td>—</td><td>Đã phát hành: không sửa (Q1)</td><td>—</td></tr>
+<tr><td class="vi">Khách xác nhận (C7)</td><td>Kiểm tra lại giá, tồn, công nợ</td><td>—</td><td>Phiên bản bị thay thế / hết hạn: từ chối</td><td>Khách xác nhận → sẵn sàng tạo đơn (Batch D)</td><td>—</td><td>Giá đổi → phiên bản mới</td><td>—</td></tr>
+<tr><td class="vi">Khách hàng (C5)</td><td>—</td><td>Không thấy: không tạo khách, chuyển nhân viên</td><td>—</td><td>Một kết quả: chọn</td><td>Nhiều kết quả: cảnh báo + chuyển nhân viên</td><td>—</td><td>—</td></tr>
+<tr><td class="vi">Trợ lý (C6)</td><td>ToolCall đang chạy</td><td>—</td><td>Backend từ chối (VR) · lỗi</td><td>Nháp đã tính giá, mã thay {BAO_GIA_1}</td><td>Kiểm tra trạng thái</td><td>Giảm giá: từ chối + chuyển nhân viên</td><td>Máy chủ từ chối</td></tr>
+<tr><td class="vi">Tổng tiền</td><td>—</td><td>—</td><td>—</td><td>Tiền hàng theo đơn giá ERP</td><td>—</td><td>VAT, tổng thanh toán: BLOCKED (R4)</td><td>“Hạn chế”</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Ma trận trạng thái Batch D · Đơn hàng nháp · 17/11</caption>
+    <thead><tr><th>Vùng</th><th>Đang chạy</th><th>Trống</th><th>Lỗi</th><th>Thành công</th><th>Chưa rõ</th><th>Bị chặn theo quy tắc</th><th>Không có quyền</th></tr></thead>
+    <tbody>
+<tr><td class="vi">Danh sách (D1)</td><td>—</td><td>EmptyState theo tab</td><td>—</td><td>Chờ tạo đơn + đơn theo trạng thái ERP</td><td>—</td><td>—</td><td>EmptyState, không tải</td></tr>
+<tr><td class="vi">Kiểm tra lại (D2)</td><td>“Đang kiểm tra…”</td><td>“Chưa kiểm tra”</td><td>ERP không khả dụng</td><td>4 mục đạt</td><td>—</td><td>Hết hạn → backend lập phiên bản mới · giá đổi · thiếu hàng · công nợ không đạt</td><td>Chỉ xem; trưởng bộ phận / người được phân công: xử lý thay + audit</td></tr>
+<tr><td class="vi">Tạo đơn (D3)</td><td>“Đang tạo trên ERP…”</td><td>—</td><td>ERP-502 + Thử lại cùng khóa</td><td>DN mới → D4</td><td>Chờ đối soát (quá 30 giây) → tra cứu theo khóa; không thấy → tạo lại cùng khóa</td><td>Đã có đơn cho khóa này</td><td>Nút khóa / máy chủ từ chối</td></tr>
+<tr><td class="vi">Đơn (D4)</td><td>“Đang đồng bộ…”</td><td>—</td><td>Không đồng bộ: trạng thái lần cuối</td><td>Chờ duyệt / Nhân viên duyệt / Từ chối (ERP) + thông báo cho nhân viên phụ trách</td><td>—</td><td>Không duyệt, không sửa ở đây</td><td>Giá “Hạn chế”</td></tr>
+<tr><td class="vi">Trợ lý (D5)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Không tạo, không duyệt, không đọc trạng thái</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Ma trận trạng thái Batch E · Màn hình hỗ trợ · 17/11</caption>
+    <thead><tr><th>Vùng</th><th>Đang tải</th><th>Trống</th><th>Lỗi</th><th>Bình thường</th><th>Phiên</th><th>Một phần quyền</th><th>Không có quyền</th></tr></thead>
+    <tbody>
+<tr><td class="vi">Tổng quan (E1)</td><td>—</td><td>Ô có số 0</td><td>E6 + Thử lại</td><td>6 ô việc cần làm</td><td>Sắp hết / hết hạn</td><td>Quản trị: chỉ kết nối</td><td>—</td></tr>
+<tr><td class="vi">Hoạt động (E2)</td><td>—</td><td>EmptyState theo bộ lọc</td><td>—</td><td>Bảng + chi tiết</td><td>—</td><td>Quản trị: nhật ký kỹ thuật · kiểm tra bảo mật: theo phạm vi</td><td>E4 + Yêu cầu cấp quyền (điểm nối)</td></tr>
+<tr><td class="vi">Hồ sơ (E3)</td><td>—</td><td>—</td><td>—</td><td>Thông tin + quyền</td><td>Đăng xuất</td><td>Quyền “Không / Chưa xác định”</td><td>—</td></tr>
+<tr><td class="vi">Phiên (E5) · Đăng nhập (E7)</td><td>“Đang đăng nhập…” / “Đang xác thực…”</td><td>—</td><td>AUTH-401 · sai thông tin · tạm khóa AUTH-423</td><td>Về đúng trang</td><td>30 phút không hoạt động · 8 giờ tối đa · thao tác đang chờ → đối soát</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h2>Quy tắc chung về nguồn dữ liệu</h2>
+    <ul class="l">
+      <li>Giờ đồng bộ một mình không chứng minh dữ liệu là hiện tại. Chỉ trạng thái “xác nhận mới” được dùng để chọn sản phẩm.</li>
+      <li>Bản lưu được hiển thị mờ, có nhãn và cảnh báo; dữ liệu cũ, chưa xác minh, quá thời gian và không khả dụng đều ẩn số.</li>
+      <li>Mọi dữ liệu trong bản mẫu là dữ liệu mô phỏng và được ghi là “ERP mô phỏng”, không bao giờ trình bày như ERP thật.</li>
+      <li>Dữ liệu ngoài quyền hoặc ngoài phạm vi chi nhánh không được truyền vào bảng, drawer, trang, Trợ lý AI, thẻ kết quả công cụ hay thông báo.</li>
+    </ul>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2300}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

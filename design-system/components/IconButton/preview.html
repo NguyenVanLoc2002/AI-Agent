@@ -1,0 +1,52 @@
+<!-- @dsCard group="Core" height=78 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>IconButton — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  IconButton
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement(R, null, React.createElement(IconButton, {
+    icon: "ellipsis",
+    label: "Thao t\xE1c kh\xE1c"
+  }), React.createElement(IconButton, {
+    icon: "filter",
+    label: "L\u1ECDc",
+    variant: "secondary"
+  }), React.createElement(IconButton, {
+    icon: "panel-right",
+    label: "Tr\u1EE3 l\xFD AI",
+    active: true
+  }), React.createElement(IconButton, {
+    icon: "pencil",
+    label: "S\u1EEDa",
+    size: "sm"
+  }), React.createElement(IconButton, {
+    icon: "trash-2",
+    label: "X\xF3a",
+    disabled: true
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

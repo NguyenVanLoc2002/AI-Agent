@@ -1,0 +1,74 @@
+<!-- @dsCard group="Core" height=183 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Button — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Button
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  const [busy, setBusy] = React.useState(false);
+  return React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, React.createElement("div", null, React.createElement(L, {
+    t: "Variants"
+  }), React.createElement(R, null, React.createElement(Button, {
+    iconLeft: "plus"
+  }, "T\u1EA1o b\xE1o gi\xE1"), React.createElement(Button, {
+    variant: "secondary",
+    iconLeft: "download"
+  }, "Xu\u1EA5t Excel"), React.createElement(Button, {
+    variant: "subtle",
+    iconLeft: "sparkles"
+  }, "H\u1ECFi tr\u1EE3 l\xFD AI"), React.createElement(Button, {
+    variant: "ghost"
+  }, "H\u1EE7y"), React.createElement(Button, {
+    variant: "danger",
+    iconLeft: "trash-2"
+  }, "X\xF3a d\xF2ng"))), React.createElement("div", null, React.createElement(L, {
+    t: "Sizes \xB7 loading \xB7 disabled"
+  }), React.createElement(R, null, React.createElement(Button, {
+    size: "sm"
+  }, "Nh\u1ECF"), React.createElement(Button, {
+    size: "md"
+  }, "V\u1EEBa"), React.createElement(Button, {
+    size: "lg"
+  }, "L\u1EDBn"), React.createElement(Button, {
+    loading: busy,
+    onClick: () => {
+      setBusy(true);
+      setTimeout(() => setBusy(false), 1500);
+    }
+  }, busy ? 'Đang gửi…' : 'Gửi duyệt'), React.createElement(Button, {
+    disabled: true
+  }, "Kh\xF4ng kh\u1EA3 d\u1EE5ng"), React.createElement(Button, {
+    restricted: true,
+    restrictedReason: "C\u1EA7n quy\u1EC1n Qu\u1EA3n l\xFD chi nh\xE1nh"
+  }, "T\u1EA1o \u0111\u01A1n tr\xEAn ERP"))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Đặc tả tương tác — Workflow A</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Đặc tả tương tác · Workflow A</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Các chuyển tiếp trong prototype “A · Tra cứu → Chi tiết”. Trạng thái kiểm tra thực tế của từng chuyển tiếp nằm trong Báo cáo review.</p>
+  </div>
+  <div class="tw"><table>
+    <caption>Đặc tả tương tác · Workflow A</caption>
+    <thead><tr><th>Mã</th><th>Chuyển tiếp</th><th>Kích hoạt</th><th>Hành vi hệ thống</th><th>Focus / trợ năng</th></tr></thead>
+    <tbody>
+<tr><td class="id">T01</td><td class="vi">Tìm theo SKU / mã OE / tên</td><td>Nhấn Enter hoặc “Tìm”</td><td>Khóa nút tìm, skeleton 0,9 giây; kết quả lọc đúng theo mã đã nhập (VD 43512-0D150 → 1 dòng); không khớp → A4. Lựa chọn cũ bị xóa.</td><td>Focus ở lại ô tìm</td></tr>
+<tr><td class="id">T02</td><td class="vi">Tìm theo số VIN mô phỏng</td><td>Enter ở chế độ VIN</td><td>Kiểm tra định dạng trước: sai → lỗi dưới ô, không gửi yêu cầu. Mã nhà sản xuất không có trong dữ liệu mẫu → “VIN không được hỗ trợ”. Hợp lệ nhưng không có ánh xạ → “Không tìm thấy dữ liệu ánh xạ”. Có ánh xạ → dòng xe + nhãn “Ánh xạ VIN mô phỏng”.</td><td>Lỗi gắn với ô qua SearchField</td></tr>
+<tr><td class="id">T03</td><td class="vi">Thử nhanh</td><td>Bấm mã mẫu dưới ô tìm</td><td>Điền mã và chế độ tương ứng rồi chạy T01/T02. Chỉ có trong bản mô phỏng.</td><td>Nút thật, Tab tới được</td></tr>
+<tr><td class="id">T04</td><td class="vi">Kết quả → drawer chi tiết</td><td>Bấm hoặc Enter trên dòng</td><td>Drawer 480 px (420 px dưới 1280) mở trên vùng nội dung; Trợ lý AI vẫn mở và đổi ngữ cảnh sang sản phẩm.</td><td>Focus chuyển vào drawer</td></tr>
+<tr><td class="id">T05</td><td class="vi">Đóng drawer</td><td>Esc, nút đóng, bấm lớp phủ</td><td>Giữ nguyên truy vấn, kết quả và lựa chọn.</td><td>Chưa trả focus về dòng đã mở (đã ghi là lỗi còn lại)</td></tr>
+<tr><td class="id">T06</td><td class="vi">Drawer → trang đầy đủ</td><td>“Mở trang đầy đủ”</td><td>Trang hai cột (một cột dưới 1180 px); breadcrumb “Tra cứu phụ tùng / SKU”.</td><td>—</td></tr>
+<tr><td class="id">T07</td><td class="vi">Trang → kết quả</td><td>“Quay lại kết quả “…””, breadcrumb</td><td>Quay về kết quả cũ, không tìm lại; truy vấn và lựa chọn được giữ.</td><td>—</td></tr>
+<tr><td class="id">T08</td><td class="vi">Chọn dòng</td><td>Ô chọn trong bảng</td><td>Chỉ khi có quyền xem giá và ERP đã xác nhận mới. Lựa chọn chỉ lưu tạm trên màn hình.</td><td>Ô chọn có nhãn</td></tr>
+<tr><td class="id">T09</td><td class="vi">Thêm vào lựa chọn</td><td>Nút trong drawer / trang</td><td>Bật/tắt cùng tập lựa chọn với bảng; không gửi gì lên máy chủ.</td><td>Nhãn nút đổi, không chỉ đổi màu</td></tr>
+<tr><td class="id">T10</td><td class="vi">Kiểm tra mã tương đương</td><td>“Kiểm tra ERP”</td><td>Đang kiểm tra… → giá + nhãn ERP mô phỏng + trạng thái tồn + “Xem”. Khóa khi không có quyền hoặc ERP chưa xác nhận mới.</td><td>—</td></tr>
+<tr><td class="id">T11</td><td class="vi">Thêm vào báo giá</td><td>Nút trên thanh công cụ khi đã chọn dòng</td><td>Không có quyền / chưa xác định: nút khóa trung tính. Có quyền (đề xuất): toast thông tin “chưa khả dụng, thuộc Workflow C, không có dữ liệu nào được lưu”. Không mô phỏng việc lưu báo giá.</td><td>—</td></tr>
+<tr><td class="id">T12</td><td class="vi">Thử lại ERP</td><td>“Thử lại” trong Alert hoặc khối giá</td><td>Ô và khối chuyển sang đang kiểm tra; bản lưu / dữ liệu cũ / chưa xác minh / quá thời gian → xác nhận mới + toast. Không khả dụng → vẫn không khả dụng, ghi số lần thử.</td><td>Nút aria-busy</td></tr>
+<tr><td class="id">T13</td><td class="vi">Bật / tắt Trợ lý AI</td><td>Nút ✦ trên header, nút đóng của panel</td><td>Từ 1280 px: panel 400 px đẩy nội dung. Dưới 1280 px: sidebar tự thu gọn, panel nổi đè lên nội dung.</td><td>Nút có trạng thái bật</td></tr>
+<tr><td class="id">T14</td><td class="vi">Đổi kịch bản</td><td>Tweaks của artboard</td><td>Đặt lại prototype theo màn hình bắt đầu, trạng thái ERP, persona và từng quyền.</td><td>—</td></tr>
+<tr><td class="id">T15</td><td class="vi">Module khác trên sidebar</td><td>Bấm mục ngoài Tra cứu</td><td>Toast “Ngoài phạm vi Workflow A”.</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card">
+    <h2>Ghi chú</h2>
+    <ul class="l">
+      <li>Tài liệu này thay thế “Interaction Spec” của Workflow A trong design system cho dự án Employee Workspace; bản cũ trong design system được giữ nguyên, không sửa.</li>
+      <li>Chuyển động dùng token của design system (120 / 180 / 240 ms), tắt khi người dùng bật giảm chuyển động.</li>
+      <li>Mọi giới hạn quyền ở đây chỉ là mô phỏng giao diện; máy chủ vẫn phải kiểm tra quyền cho từng yêu cầu.</li>
+    </ul>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

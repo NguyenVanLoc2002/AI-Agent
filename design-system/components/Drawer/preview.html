@@ -1,0 +1,47 @@
+<!-- @dsCard group="Feedback" height=210 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Drawer — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Drawer
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      background: 'var(--overlay-scrim)',
+      borderRadius: 10,
+      padding: 16,
+      display: 'flex',
+      justifyContent: 'flex-end'
+    }
+  }, React.createElement(Drawer, {
+    inline: true,
+    width: 360,
+    title: "Chi ti\u1EBFt s\u1EF1 ki\u1EC7n",
+    subtitle: "AUD-88213",
+    onClose: () => {}
+  }, "\u2026"));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

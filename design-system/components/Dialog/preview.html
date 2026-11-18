@@ -1,0 +1,55 @@
+<!-- @dsCard group="Feedback" height=256 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Dialog — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  Dialog,
+  Button
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      background: 'var(--overlay-scrim)',
+      borderRadius: 10,
+      padding: 16,
+      display: 'flex',
+      justifyContent: 'center'
+    }
+  }, React.createElement(Dialog, {
+    inline: true,
+    width: 340,
+    tone: "warning",
+    title: "T\u1EA1o \u0111\u01A1n h\xE0ng nh\xE1p?",
+    description: "\u0110\u01A1n nh\xE1p s\u1EBD \u0111\u01B0\u1EE3c ghi v\xE0o ERP v\xE0 c\u1EA7n ng\u01B0\u1EDDi c\xF3 th\u1EA9m quy\u1EC1n duy\u1EC7t.",
+    onClose: () => {},
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "secondary",
+      size: "sm"
+    }, "H\u1EE7y"), React.createElement(Button, {
+      size: "sm"
+    }, "X\xE1c nh\u1EADn t\u1EA1o"))
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

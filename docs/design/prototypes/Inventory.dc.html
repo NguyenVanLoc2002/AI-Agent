@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Danh mục màn hình — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+table{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+caption{text-align:left;padding:12px 14px;font:var(--type-card-title);color:var(--text-primary)}
+th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap;vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+td.id{font:var(--type-code);color:var(--text-primary);white-space:nowrap}
+td.vi{color:var(--text-primary);font-weight:500}
+.tw{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;overflow-x:auto}
+.tag{display:inline-flex;font:var(--type-badge);padding:1px 8px;border-radius:6px;border:1px solid;white-space:nowrap}
+.tag.x{color:var(--status-error-fg);background:var(--status-error-bg);border-color:var(--status-error-border)}
+.tag.u{color:var(--status-warning-fg);background:var(--status-warning-bg);border-color:var(--status-warning-border)}
+.tag.p{color:var(--status-info-fg);background:var(--status-info-bg);border-color:var(--status-info-border)}
+.tag.n{color:var(--status-neutral-fg);background:var(--status-neutral-bg);border-color:var(--status-neutral-border)}
+.tag.ok{color:var(--status-success-fg);background:var(--status-success-bg);border-color:var(--status-success-border)}
+ul.l{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font:var(--type-table);color:var(--text-body)}
+.card{background:var(--bg-surface);border:1px solid var(--border-card);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font:var(--type-card-title);color:var(--text-primary)}
+</style>
+</helmet>
+<div style="box-sizing: border-box; max-width: 1440px; margin: 0 auto; padding: 40px 40px 56px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font: var(--type-page-title); color: var(--text-primary);">Danh mục màn hình</h1>
+    <p style="margin: 0; max-width: 960px; font: var(--type-body); color: var(--text-secondary);">Cập nhật sau review có điều kiện ngày 16/11/2026 , Batch B, C, D và E ngày 17/11/2026. “Đã rà soát” nghĩa là đã chạy thử thật trên canvas trong trình duyệt; không mục nào được phê duyệt chính thức.</p>
+  </div>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font: var(--type-caption); color: var(--text-secondary);">
+    <span class="tag n">Đã thiết kế</span><span>Có trên canvas</span>
+    <span class="tag p">Đã rà soát</span><span>Đã chạy thử thật trong trình duyệt</span>
+    <span class="tag ok">Đã phê duyệt</span><span>Được người duyệt chấp thuận chính thức</span>
+    <span class="tag x">Bị chặn</span><span>Chờ quyết định nghiệp vụ</span>
+  </div>
+  <div class="tw"><table>
+    <caption>Workflow A và khung ứng dụng · không mục nào ở trạng thái “Đã phê duyệt”</caption>
+    <thead><tr><th>Mã</th><th>Màn hình / trạng thái</th><th>Thành phần design system</th><th>Artboard</th><th>Tình trạng</th><th>Bằng chứng</th></tr></thead>
+    <tbody>
+<tr><td class="id">SH-01</td><td class="vi">Khung ứng dụng</td><td>Sidebar, AppHeader, AIPanel, ToastViewport</td><td>SH-01 · Khung</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ xem trên canvas; không bấm thử trong lần review này</td></tr>
+<tr><td class="id">A1 · PL-01</td><td class="vi">Tra cứu — kết quả (SKU, OE, VIN)</td><td>SearchField, DataTable, TableToolbar, Pagination, SourceTag</td><td>A · Prototype</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: VIN mẫu → 8 dòng; BP-1042 → 1 dòng; 43512-0D150 → 1 dòng</td></tr>
+<tr><td class="id">A3 · PL-02</td><td class="vi">VIN mô phỏng: không hợp lệ / không hỗ trợ / không có ánh xạ / có ánh xạ</td><td>SearchField error, EmptyState, Badge</td><td>A3 · ba artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy cả 4 trạng thái</td></tr>
+<tr><td class="id">A4</td><td class="vi">Không tìm thấy (BP-9999X)</td><td>EmptyState</td><td>A4</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy</td></tr>
+<tr><td class="id">A · nhãn</td><td class="vi">Đổi sang 3 nhãn: AI nhận diện · Dữ liệu tra cứu · Đã xác minh; tên công cụ theo tài liệu 1.0</td><td>SourceTag lookup, ERPResult lookup, ChatMessage label</td><td>A · Prototype, A2 · chi tiết</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>17/11 theo quyết định của bạn. Đã chạy: bảng Trợ lý, cột Nguồn, drawer chi tiết. Lỗi danh mục chạy lại vẫn đúng</td></tr>
+<tr><td class="id">A7</td><td class="vi">Đang tải · Lỗi tải danh mục</td><td>DataTable loading, EmptyState</td><td>A7 · hai artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>17/11: sửa lỗi lặp “Mã tham chiếu”, đã chạy lại — mã hiện một lần, Thử lại vẫn tải kết quả</td></tr>
+<tr><td class="id">A2 · PL-03</td><td class="vi">Chi tiết — drawer</td><td>Drawer, ERPResult, DataTable, DescriptionList</td><td>A2 · drawer</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Mở bằng chuột và phím Enter; Esc đóng drawer (khung xem cũng thoát Play)</td></tr>
+<tr><td class="id">A2 · PL-03</td><td class="vi">Chi tiết — trang đầy đủ</td><td>PageHeader, ERPResult, Card</td><td>A2 · trang</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy; quay lại giữ truy vấn, kết quả, lựa chọn</td></tr>
+<tr><td class="id">PL-04</td><td class="vi">Giá & tồn trong phạm vi chi nhánh</td><td>ERPResult, DataTable</td><td>A2 · nội dung</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Chỉ hiện Long Biên; không có chi nhánh ngoài phạm vi</td></tr>
+<tr><td class="id">PL-05</td><td class="vi">Mã tương đương (gợi ý AI)</td><td>Card nested, SourceTag, Button</td><td>A2 · nội dung</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>“Kiểm tra ERP” → giá + nhãn ERP mô phỏng</td></tr>
+<tr><td class="id">A5</td><td class="vi">ERP: bản lưu, dữ liệu cũ, chưa xác minh, quá thời gian, không khả dụng</td><td>Alert, SourceTag, ERPResult</td><td>A5 · năm artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã xem cả 5; Thử lại từ bản lưu → xác nhận mới + toast</td></tr>
+<tr><td class="id">A6</td><td class="vi">Không có quyền · chưa xác định quyền/phạm vi · không có quyền báo giá</td><td>Alert neutral, Button restricted, ERPResult restricted</td><td>A6 · ba artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã xem; drawer khi không có quyền không lộ giá/tồn</td></tr>
+<tr><td class="id">A8 · PL-06</td><td class="vi">Thêm vào báo giá — điểm nối luồng C</td><td>Button, Toast</td><td>A8</td><td><span class="tag x">Bị chặn</span></td><td>Toast “chưa khả dụng, không lưu gì” đã chạy. Thiết kế thật bị chặn bởi B1, B2, R1</td></tr>
+<tr><td class="id">AI-01</td><td class="vi">Trợ lý AI theo ngữ cảnh trong Workflow A</td><td>AIPanel, ChatMessage, ToolCall, ERPResult</td><td>Mọi artboard A</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Mở/đóng đã chạy; nội dung đổi theo trạng thái ERP và quyền</td></tr>
+<tr><td class="id">R</td><td class="vi">Bố cục 1440 · 1280 · 1024</td><td>—</td><td>R · hai artboard + Prototype</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã xem ở chế độ Fit; còn cột “Nguồn” phải cuộn ngang khi mở AI (xem báo cáo)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Batch B · Không gian làm việc AI · cập nhật theo phản hồi nghiệp vụ 17/11/2026 · không mục nào ở trạng thái “Đã phê duyệt”</caption>
+    <thead><tr><th>Mã</th><th>Màn hình / trạng thái</th><th>Thành phần design system</th><th>Artboard</th><th>Tình trạng</th><th>Bằng chứng</th></tr></thead>
+    <tbody>
+<tr><td class="id">B1 · AI-01</td><td class="vi">Không gian hội thoại · lịch sử của bạn · lịch sử bộ phận (trưởng bộ phận) · không có quyền xem phiên người khác · quản trị không xem nội dung kinh doanh</td><td>ChatMessage, AIComposer, Alert, EmptyState, Tag</td><td>B · Prototype, B1 · sáu artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: câu hỏi VIN, phiên cũ, tra cứu lại; trưởng bộ phận lọc theo nhân viên và mở phiên của Lê Thu Hà; nhân viên bị từ chối khi mở phiên người khác; quản trị thấy ghi chú khóa</td></tr>
+<tr><td class="id">B2 · AI-01</td><td class="vi">Trợ lý theo ngữ cảnh</td><td>AIPanel, PartDetail</td><td>B2, B2 · 1024</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: so sánh dạng xếp dọc trong bảng; 1024 px breadcrumb rút gọn, Mở Không gian. Esc chưa xác minh (Esc thoát Play)</td></tr>
+<tr><td class="id">B3 · AI-03</td><td class="vi">Dữ liệu tra cứu danh mục · tải thêm · so sánh</td><td>Bảng theo token, SourceTag lookup/ai</td><td>B3 · ba artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: nhãn “Dữ liệu tra cứu”, cột “Chưa xác minh”, Tải thêm 5 mã → 8/8 + ghi chú AI chỉ dựa trên 3 mã đầu</td></tr>
+<tr><td class="id">B4 · AI-03</td><td class="vi">Tiến độ · dừng (chưa rõ kết quả)</td><td>ToolCall pending/unknown</td><td>B4 · hai artboard, B7 · chậm</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: bấm Dừng khi đang chạy → “Chưa rõ kết quả / Chưa gửi” → Chạy lại hoàn tất</td></tr>
+<tr><td class="id">B5 · AI-03</td><td class="vi">Dữ liệu tra cứu ERP mô phỏng</td><td>ERPResult lookup</td><td>B3 · VIN, B5 · ba artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: thẻ “Dữ liệu tra cứu · ERP mô phỏng”, “Tra cứu lúc … (hệ thống ghi)”, AI chỉ nói “còn hàng”. Bản lưu, dữ liệu cũ, mã thay thế chưa xem lại sau sửa</td></tr>
+<tr><td class="id">B6 · AI-03</td><td class="vi">Từ chối theo quyền · ngoài phạm vi (AI5) · sửa giá</td><td>ToolCall, ERPResult restricted</td><td>B6 · bốn artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: hỏi Cầu Giấy → máy chủ từ chối + câu trả lời AI5; sửa giá → không giao cho Trợ lý. Không quyền giá & tồn chưa xem lại</td></tr>
+<tr><td class="id">B7 · AI-03</td><td class="vi">Lỗi danh mục · ERP · dịch vụ AI</td><td>ERPResult error, EmptyState, ChatMessage error</td><td>B7 · sáu artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: lỗi danh mục → Thử lại; ERP quá thời gian → Thử lại → dữ liệu tra cứu mới, giữ lịch sử; AI quá thời gian → Tạo lại câu trả lời</td></tr>
+<tr><td class="id">B8 · AI-02</td><td class="vi">Chọn sản phẩm trực tiếp · điểm nối lập báo giá</td><td>Button restricted, Tag, ToolCall pending</td><td>B8 · năm artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: Thêm vào lựa chọn, điểm nối lap_bao_gia; không có quyền xem giá → nút khóa “Hạn chế”</td></tr>
+<tr><td class="id">B9 · AI-02</td><td class="vi">Chuyển nhân viên</td><td>ToolCall, Tag, Button</td><td>B9 · bốn artboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: Chuyển → HT-0042; chưa rõ → Kiểm tra trạng thái; thất bại → Thử lại → HT-0042</td></tr>
+<tr><td class="id">RB</td><td class="vi">Bố cục 1440 · 1280 · 1024</td><td>—</td><td>B · 1280, B2 · 1024</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>1440 và 1024 đã chạy sau sửa; 1280 đã chạy ở vòng trước</td></tr>
+<tr><td class="id">C · điểm nối</td><td class="vi">Lập báo giá · xác nhận báo giá · tạo đơn nháp · nhận diện ảnh</td><td>—</td><td>B8 · điểm nối</td><td><span class="tag n">Đã thiết kế</span></td><td>Lập báo giá đã thiết kế ở Batch C (theo đề xuất, chờ B1, B2, Q1). Tạo đơn nháp → Batch D; nhận diện ảnh vẫn là điểm nối</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Batch C · Báo giá · cập nhật 17/11 theo quyết định B1, B2, Q1–Q6, VR, R4 · không mục nào “Đã phê duyệt”</caption>
+    <thead><tr><th>Mã</th><th>Màn hình / trạng thái</th><th>Thành phần design system</th><th>Artboard</th><th>Tình trạng</th><th>Bằng chứng</th></tr></thead>
+    <tbody>
+<tr><td class="id">C1 · QT-01</td><td class="vi">Danh sách · trạng thái báo giá (B1) · cột Xử lý đơn (ERP)</td><td>DataTable, Tabs, Badge</td><td>C1-List</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 2: 6 tab trạng thái, cột Xử lý đơn tách riêng</td></tr>
+<tr><td class="id">C1</td><td class="vi">Cả bộ phận · rỗng · không có quyền</td><td>Tag, EmptyState</td><td>C1-ListTeam, C1-Empty, C1-NoAccess</td><td><span class="tag n">Đã thiết kế</span></td><td>Vòng 2 chỉ render tự động (NoAccess đã chạy ở vòng 1)</td></tr>
+<tr><td class="id">C2 · QT-02</td><td class="vi">Nháp đã tính giá → phát hành & gửi qua Zalo OA</td><td>Card, DataTable, Button</td><td>C2-Ready</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: BG-0417 phát hành v1, toast “Dịch vụ gửi đã xác nhận”, trạng thái Đã gửi, hết hạn +3 ngày</td></tr>
+<tr><td class="id">C2</td><td class="vi">Đã gửi → tạo phiên bản mới → sửa → tính giá → phát hành (v1 bị thay thế)</td><td>Button, Input</td><td>C2-Quote, C2-NewVer, C4-Versions</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: v2 tạo, FO-2210 10→12, tính giá, phát hành; tab Phiên bản: v1 “Bị thay thế”</td></tr>
+<tr><td class="id">C2</td><td class="vi">Nháp có dòng hết hàng / cần kiểm tra (Q4)</td><td>Alert, Badge</td><td>C2-Draft</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: nút phát hành tắt, Alert + Chuyển nhân viên kinh doanh</td></tr>
+<tr><td class="id">C2</td><td class="vi">Có thay đổi chưa tính giá · không quyền xem giá · hết hạn · của người khác · hủy</td><td>Alert, EmptyState</td><td>C2-Dirty, C2-NoPrice, C2-Expired, C2-OtherDenied, C2-Cancelled</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">C3</td><td class="vi">Gửi Zalo OA chưa có xác nhận → kiểm tra trạng thái gửi</td><td>Alert, Badge</td><td>C3-SendUnknown</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: “Đã phát hành · chưa xác nhận gửi” → Kiểm tra → Đã gửi, không gửi lại</td></tr>
+<tr><td class="id">C3</td><td class="vi">Đang gửi · gửi lỗi · đang tính · chưa rõ tính giá · lỗi Quote Service · ERP không khả dụng · xung đột nháp · giá khác phiên bản trước</td><td>Alert, Button loading</td><td>C3-Sending, C3-SendError, C3-Recalc, C3-Unknown, C3-Error, C3-ErpDown, C3-Conflict, C3-PriceChange</td><td><span class="tag n">Đã thiết kế</span></td><td>Vòng 2 chỉ render tự động; luồng tính giá thành công đã chạy trong C2</td></tr>
+<tr><td class="id">C4 · QT-04</td><td class="vi">Lịch sử phiên bản · so sánh · hoạt động</td><td>DataTable, Tabs</td><td>C4-Versions, C4-Activity</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: trạng thái từng phiên bản, mã ZOA riêng mỗi lần gửi</td></tr>
+<tr><td class="id">C5 · QT-02</td><td class="vi">Tra cứu khách ERP: một / nhiều / không thấy</td><td>Input, Alert, Button</td><td>C5-New, C5-NewMulti, C5-NewNone, C5-NewInvalid</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: nhiều khớp → cảnh báo + chuyển nhân viên; không thấy → không tạo khách; KH-00321 → chọn được</td></tr>
+<tr><td class="id">C6 · AI-02</td><td class="vi">Yêu cầu giảm giá → Trợ lý từ chối, chuyển nhân viên (B2)</td><td>ChatMessage, ToolCall</td><td>C6-AiDiscount</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: chuyen_nhan_vien → HT-0058</td></tr>
+<tr><td class="id">C6</td><td class="vi">lap_bao_gia · tóm tắt khác biệt</td><td>ActionConfirmation, ToolCall</td><td>C6-AiLap, C6-AiLapDone, C6-AiLapRefused, C6-AiDiff</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy ở vòng 1; vòng 2 chỉ đổi chữ (kết quả là Nháp, Trợ lý không phát hành) — render tự động</td></tr>
+<tr><td class="id">C6</td><td class="vi">Không quyền lập qua Trợ lý · chưa rõ đã tạo</td><td>ToolCall</td><td>C6-AiLapUnauth, C6-AiLapUnknown</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">C7</td><td class="vi">Khách xác nhận phiên bản bị thay thế → từ chối; xác nhận phiên bản hiện hành → Khách xác nhận</td><td>Alert</td><td>C7-RejectSuperseded, C7-ConfirmedNew</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy trên BG-0417: v1 bị từ chối, v2 được nhận</td></tr>
+<tr><td class="id">C7</td><td class="vi">Kiểm tra lại giá, tồn, công nợ trước tạo đơn: không đổi / giá đổi → v3</td><td>Button, Alert</td><td>C7-ConfirmedNew, C7-PrecheckChange</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: không đổi → toast; preset giá đổi → v2 bị thay thế, v3 nháp</td></tr>
+<tr><td class="id">C7</td><td class="vi">Xác nhận báo giá hết hạn → từ chối · đơn nháp chờ duyệt / đã duyệt / từ chối (ERP)</td><td>Alert, Badge</td><td>C7-RejectExpired, C2-Confirmed</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">RC</td><td class="vi">Bố cục 1024</td><td>—</td><td>RC-1024</td><td><span class="tag n">Đã thiết kế</span></td><td>Đã xem ở vòng 1; chưa xem lại sau thay đổi</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Batch D · Đơn hàng nháp · 17/11 · B4, B5 theo lựa chọn của bạn (PROPOSED) · cập nhật 4 quyết định 17/11 · không mục nào “Đã phê duyệt”</caption>
+    <thead><tr><th>Mã</th><th>Màn hình / trạng thái</th><th>Thành phần design system</th><th>Artboard</th><th>Tình trạng</th><th>Bằng chứng</th></tr></thead>
+    <tbody>
+<tr><td class="id">D1 · DO-01</td><td class="vi">Chờ tạo đơn · đơn chờ duyệt / duyệt / từ chối</td><td>DataTable, Tabs, Badge</td><td>D1-Todo, D1-Orders</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: 4 báo giá chờ tạo (1 hết hạn), mở xem lại từ danh sách</td></tr>
+<tr><td class="id">D1</td><td class="vi">Cả bộ phận · rỗng · quyền chưa xác định</td><td>Tag, EmptyState</td><td>D1-Team, D1-Empty, D1-NoAccess</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">D2 · DO-02</td><td class="vi">Kiểm tra giá, tồn kho, công nợ → đạt</td><td>Card, Badge, Button</td><td>D2-Review, D2-Checking, D2-Ok</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: BG-0418 v2 kiểm tra → 4 mục đạt</td></tr>
+<tr><td class="id">D2</td><td class="vi">Công nợ không đạt → chuyển nhân viên</td><td>Badge, Button</td><td>D2-Credit</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: BG-0420, không hiện số dư công nợ, nút tạo đơn tắt</td></tr>
+<tr><td class="id">D2</td><td class="vi">Giá đổi · thiếu hàng · hết hạn · không có quyền tạo đơn</td><td>Alert, Badge, Button restricted</td><td>D2-PriceChange, D2-Stock, D2-Expired, D2-NoPerm</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">D3 · DO-05</td><td class="vi">Xác nhận tạo đơn nháp trên ERP → DN-2026-0241</td><td>ActionConfirmation, Toast</td><td>D3-Confirm, D3-Creating, D4-Created</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: thẻ xác nhận có khóa chống trùng; tạo xong mở đơn, toast</td></tr>
+<tr><td class="id">D3</td><td class="vi">Quá 30 giây → Chờ đối soát → tra cứu theo khóa: thấy đơn / không thấy → tạo lại cùng khóa</td><td>Alert, Button</td><td>D3-Unknown, D3-NotFound</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy cả hai nhánh; không tạo đơn trùng</td></tr>
+<tr><td class="id">D3</td><td class="vi">ERP lỗi · đơn đã tồn tại · ERP không khả dụng</td><td>Alert</td><td>D3-Error, D3-Duplicate, D3-ErpDown</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">D4 · DO-06</td><td class="vi">Đơn chờ duyệt · bị từ chối (ERP)</td><td>Card, DescriptionList, Alert</td><td>D4-Pending, D4-Rejected</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: từ chối hiện người, thời điểm, lý do từ ERP + chuyển nhân viên</td></tr>
+<tr><td class="id">D4</td><td class="vi">Đã duyệt · không đồng bộ được · không quyền xem giá</td><td>Alert, Badge</td><td>D4-Approved, D4-SyncDown, D4-NoPrice</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động; “Làm mới trạng thái” chưa bấm trong Chrome</td></tr>
+<tr><td class="id">D5 · AI-02</td><td class="vi">Nhờ Trợ lý duyệt đơn → không giao cho Trợ lý</td><td>ChatMessage</td><td>D5-AiApprove</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy</td></tr>
+<tr><td class="id">D5</td><td class="vi">Nhờ Trợ lý tạo đơn</td><td>ChatMessage</td><td>D5-AiCreate</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">RD</td><td class="vi">Bố cục 1024</td><td>—</td><td>RD-1024</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã xem: hai thẻ xếp dọc hợp lý, sidebar thu gọn</td></tr>
+<tr><td class="id">D2</td><td class="vi">Trưởng bộ phận xử lý thay người lập vắng mặt · audit</td><td>Alert, ActionConfirmation</td><td>D2-Acting</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: tạo DN-2026-0241, Hoạt động ghi người thao tác + dòng Audit</td></tr>
+<tr><td class="id">D2</td><td class="vi">Nhân viên được phân công lại</td><td>Alert</td><td>D2-Reassigned</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">D2</td><td class="vi">Khách xác nhận nhưng hết hạn → backend kiểm tra lại & lập v2, chờ khách xác nhận lại</td><td>Alert, Button</td><td>D2-Expired, D2-ExpiredRenewed</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: không có nút tạo đơn; lập BG-2026-0410 v2</td></tr>
+<tr><td class="id">D4</td><td class="vi">Thông báo ERP duyệt / từ chối (chuông, khối Thông báo, toast)</td><td>IconButton, Card</td><td>D4-Notify</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: chuông có số 1, khối Thông báo, mở đơn. Nhánh từ chối qua “Làm mới” chỉ render tự động</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Batch E · Màn hình hỗ trợ · cập nhật 17/11 theo Q7, Q8, B6, PF, R10 (đề xuất đã chọn) · không mục nào “Đã phê duyệt”</caption>
+    <thead><tr><th>Mã</th><th>Màn hình / trạng thái</th><th>Thành phần design system</th><th>Artboard</th><th>Tình trạng</th><th>Bằng chứng</th></tr></thead>
+    <tbody>
+<tr><td class="id">E1 · DB-01</td><td class="vi">Tổng quan nhân viên (Q8 có điều kiện)</td><td>Badge, Button, Card</td><td>E1-Dashboard</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 2: 5 ô theo Q8, hoạt động gần đây</td></tr>
+<tr><td class="id">E1</td><td class="vi">Tổng quan trưởng bộ phận: tổng hợp + bảng theo nhân viên</td><td>Card, bảng theo token</td><td>E1-DashTeam</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy</td></tr>
+<tr><td class="id">E1</td><td class="vi">Tổng quan quản trị: tình trạng hệ thống · 1024</td><td>Card, Badge</td><td>E1-DashAdmin, RE-1024</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">E2 · AU-01</td><td class="vi">Hoạt động nhân viên · chi tiết</td><td>Tabs, DataTable, DescriptionList</td><td>E2-Audit, E2-AuditDetail</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 1; vòng 2 đổi phạm vi theo B6, chưa chạy lại</td></tr>
+<tr><td class="id">E2</td><td class="vi">Nhật ký kỹ thuật quản trị (B6)</td><td>Tabs, DataTable, Alert</td><td>E2-AuditAdmin</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: đăng nhập, lỗi hệ thống, AI Gateway; không có nghiệp vụ</td></tr>
+<tr><td class="id">E2</td><td class="vi">Kiểm tra bảo mật theo phạm vi được phê duyệt</td><td>Alert, DataTable</td><td>E2-AuditAuditor</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: băng phạm vi 15/11–17/11, hết hạn 20/11</td></tr>
+<tr><td class="id">E2</td><td class="vi">Cả bộ phận · không có quyền</td><td>Tag, EmptyState</td><td>E2-AuditTeam, E2-AuditDenied</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">E3 · PF-01</td><td class="vi">Hồ sơ: trường khóa, tùy chọn, thông báo, phiên (PF, Q7)</td><td>Select, Switch, DescriptionList</td><td>E3-Profile</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 2</td></tr>
+<tr><td class="id">E3</td><td class="vi">Đổi mật khẩu · hồ sơ trưởng bộ phận · nhân viên hạn chế</td><td>Input, Alert</td><td>E3-Password, E3-ProfileSupervisor, E3-ProfileRestricted</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">E4 · SH-03 · R10</td><td class="vi">Yêu cầu cấp quyền → “chưa gửi đi — điểm nối mô phỏng”</td><td>Dialog, Select, Textarea</td><td>E4-Request, E4-RequestSent</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: lỗi khi để trống, gửi → không hiện đã cấp quyền</td></tr>
+<tr><td class="id">E4</td><td class="vi">Không có quyền truy cập</td><td>EmptyState</td><td>E4-Denied</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 1</td></tr>
+<tr><td class="id">E5 · SH-07</td><td class="vi">Sắp hết phiên · hết phiên khi đang tạo đơn</td><td>Dialog, Alert</td><td>E5-Warning, E5-Inflight</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy vòng 2: Dialog DS, nội dung Q7; bỏ nút đóng (X) vì phiên phải đăng nhập lại</td></tr>
+<tr><td class="id">E5</td><td class="vi">Hết 30 phút không hoạt động · hết 8 giờ · đăng nhập lại thất bại</td><td>Dialog</td><td>E5-Expired, E5-ExpiredMax, E5-ReloginFail</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">E7 · SH-06</td><td class="vi">Đăng nhập: sai thông tin → thành công</td><td>Input, Button, Alert</td><td>E7-Login, E7-LoginError</td><td><span class="tag p">Đã thiết kế · Đã rà soát</span></td><td>Đã chạy: Đăng xuất → đăng nhập sai → đúng → Tổng quan</td></tr>
+<tr><td class="id">E7</td><td class="vi">Tài khoản tạm khóa</td><td>Alert</td><td>E7-LoginLocked</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+<tr><td class="id">E6 · SH-04</td><td class="vi">Lỗi hệ thống</td><td>EmptyState error</td><td>E6-Error</td><td><span class="tag n">Đã thiết kế</span></td><td>Chỉ render tự động</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tw"><table>
+    <caption>Các luồng sau · chưa thiết kế, chờ quyết định nghiệp vụ</caption>
+    <thead><tr><th>Mã</th><th>Màn hình</th><th>Luồng</th><th>Chặn bởi</th><th>Tình trạng</th></tr></thead>
+    <tbody>
+    </tbody>
+  </table></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

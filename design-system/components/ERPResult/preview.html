@@ -1,0 +1,53 @@
+<!-- @dsCard group="AI" height=144 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>ERPResult — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  ERPResult,
+  DescriptionList
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      maxWidth: 460
+    }
+  }, React.createElement(ERPResult, {
+    title: "T\u1ED3n kho",
+    syncedAt: "09:44"
+  }, React.createElement(DescriptionList, {
+    columns: 3,
+    items: [{
+      label: 'Hà Nội — Long Biên',
+      value: '24 bộ'
+    }, {
+      label: 'Giá bán',
+      value: '1.250.000 ₫'
+    }, {
+      label: 'Đang về',
+      value: '40 bộ · 20/11'
+    }]
+  })));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

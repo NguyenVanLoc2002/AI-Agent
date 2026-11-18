@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Batch B · Không gian làm việc AI — AutoParts Agent</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:var(--bg-app)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+.bb-prompt{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px 14px;border:1px solid var(--border-card);border-radius:10px;background:var(--bg-surface);cursor:pointer;font:var(--type-body);color:var(--text-primary)}
+.bb-prompt:hover{background:var(--bg-hover);border-color:var(--border-strong)}
+.bb-prompt:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.bb-prompt small{font:var(--type-caption);color:var(--text-secondary)}
+.bb-tbl{width:100%;border-collapse:collapse;font:var(--type-table);color:var(--text-body)}
+.bb-tbl th{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);text-align:left;padding:6px 10px;border-bottom:1px solid var(--border-default);background:var(--bg-subtle);white-space:nowrap}
+.bb-tbl td{padding:7px 10px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+.bb-tbl tr:last-child td{border-bottom:0}
+.bb-wrap{border:1px solid var(--border-card);border-radius:10px;overflow:hidden;background:var(--bg-surface)}
+.bb-scroll{overflow-x:auto}
+.bb-sec{font:var(--type-table-header);letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);margin:0}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="height: 100vh; min-height: 560px; display: flex; overflow: hidden; font-family: var(--font-sans); color: var(--text-body); background: var(--bg-app); position: relative;">
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sections}}" active-key="{{navKey}}" collapsed="{{collapsed}}" on-toggle-collapsed="{{toggleSidebar}}" on-select="{{selectNav}}" footer="{{sidebarFooter}}"></x-import>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" on-search="{{headerSearch}}" search-placeholder="Tìm SKU, mã OE hoặc số VIN" actions="{{headerActions}}" user="{{user}}"></x-import>
+    <div style="flex: 1 1 0; min-height: 0; display: flex; position: relative;">
+
+      <sc-if value="{{isWorkspace}}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 1 1 0; min-width: 0; display: flex; min-height: 0;">
+          <sc-if value="{{showRail}}" hint-placeholder-val="{{ true }}">
+            <aside aria-label="Phiên làm việc" style="width: 248px; flex-shrink: 0; border-right: 1px solid var(--border-default); background: var(--bg-surface); display: flex; flex-direction: column; min-height: 0;">{{railNode}}</aside>
+          </sc-if>
+          <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; min-height: 0;">
+            <div style="padding: 12px 24px 0; display: flex; flex-direction: column; gap: 8px;">{{simBanner}}{{wsTopNode}}</div>
+            <div ref="{{threadRef}}" role="log" aria-live="polite" aria-label="Cuộc trò chuyện với Trợ lý AI" style="flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 16px 24px 24px;">
+              <div style="max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">{{threadNode}}</div>
+            </div>
+            <div style="border-top: 1px solid var(--border-default); background: var(--bg-surface); padding: 12px 24px 12px;">
+              <div style="max-width: 820px; margin: 0 auto;">{{composerNode}}</div>
+            </div>
+          </div>
+          <sc-if value="{{showSide}}" hint-placeholder-val="{{ true }}">
+            <aside aria-label="Nguồn dữ liệu và công cụ" style="width: 320px; flex-shrink: 0; border-left: 1px solid var(--border-default); background: var(--bg-surface); overflow-y: auto; position: {{sidePos}}; top: 0; right: 0; bottom: 0; z-index: 25; box-shadow: {{sideShadow}};">{{sideNode}}</aside>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isContext}}" hint-placeholder-val="{{ false }}">
+       <div style="display: contents;">
+        <div style="flex: 1 1 0; min-width: 0; position: relative;">
+          <main style="position: absolute; inset: 0; overflow-y: auto; padding: 16px 24px 40px;">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              {{simBanner}}
+              <div>{{backNode}}</div>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.PageHeader" title="{{ctxTitle}}" meta="{{ctxMeta}}"></x-import>
+              <dc-import name="PartDetail" sku="{{ctxSku}}" erp="{{erp}}" cap-price="{{capPrice}}" cap-stock="{{capStock}}" branch-scope="{{branchScope}}" retrying="{{retrying}}" confirmed-at="{{confirmedAt}}" layout="{{ctxLayout}}" on-retry="{{retryErp}}" on-open-sku="{{openCtxSku}}" hint-size="100%,900px"></dc-import>
+            </div>
+          </main>
+        </div>
+        <sc-if value="{{panelOpen}}" hint-placeholder-val="{{ true }}">
+          <div onKeyDown="{{panelKey}}" style="position: {{panelPos}}; top: 0; right: 0; bottom: 0; z-index: 30; box-shadow: {{panelShadow}}; display: flex; height: 100%;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIPanel" context="{{panelContext}}" status="{{aiStatus}}" on-close="{{closePanel}}" actions="{{panelActions}}" composer="{{composerNode}}" style="height: 100%;">{{threadNode}}</x-import>
+          </div>
+        </sc-if>
+       </div>
+      </sc-if>
+
+    </div>
+  </div>
+  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToastViewport">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="{{t.tone}}" title="{{t.title}}" description="{{t.description}}" on-close="{{t.close}}"></x-import>
+    </sc-for>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"start": {"editor": "enum", "options": ["idle", "running", "stopped", "vin", "more", "compare", "alt", "select", "select-done", "quote", "edit", "branch", "catalog-error", "handoff-draft", "handoff-sent", "handoff-unknown", "handoff-error", "history", "unsupported", "history-team", "history-denied", "context"], "default": "idle", "section": "Màn hình"}, "erp": {"editor": "enum", "options": ["fresh", "cached", "stale", "unverified", "timeout", "down"], "default": "fresh", "section": "Dữ liệu ERP mô phỏng"}, "catalog": {"editor": "enum", "options": ["ok", "error"], "default": "ok", "section": "Dữ liệu ERP mô phỏng"}, "aiService": {"editor": "enum", "options": ["ok", "slow", "timeout", "down"], "default": "ok", "section": "Dịch vụ AI mô phỏng"}, "handoff": {"editor": "enum", "options": ["ok", "timeout", "error"], "default": "ok", "section": "Dịch vụ AI mô phỏng"}, "persona": {"editor": "enum", "options": ["sales", "restricted", "supervisor", "admin"], "default": "sales", "section": "Quyền mô phỏng"}, "capPrice": {"editor": "enum", "options": ["granted", "denied", "unknown"], "default": "granted", "section": "Quyền mô phỏng"}, "capStock": {"editor": "enum", "options": ["granted", "denied", "unknown"], "default": "granted", "section": "Quyền mô phỏng"}, "branchScope": {"editor": "enum", "options": ["own", "own-plus", "unknown"], "default": "own", "section": "Quyền mô phỏng"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.rootRef = React.createRef();
+    this.threadRef = React.createRef();
+    this.timers = [];
+    this.savedScroll = null;
+    this.state = { ...this.initial(props), w: 1440, col: null, panel: null, side: null };
+  }
+  // ---------- fixtures (fictional) ----------
+  static P() {
+    return {
+      'BP-1042': { sku: 'BP-1042', oe: '04465-0D130', pname: 'Má phanh trước', brand: 'Toyota', origin: 'Hàng chính hãng', price: 1250000, stock: 24, unit: 'bộ' },
+      'BP-1043': { sku: 'BP-1043', oe: '04465-0D140', pname: 'Má phanh trước bản G', brand: 'Toyota', origin: 'Hàng chính hãng', price: 1390000, stock: 6, unit: 'bộ' },
+      'BP-2210A': { sku: 'BP-2210A', oe: 'AN-2210', pname: 'Má phanh trước ceramic', brand: 'Akebono', origin: 'Hàng thay thế', price: 890000, stock: 41, unit: 'bộ' },
+      'BP-3318T': { sku: 'BP-3318T', oe: 'TR-3318', pname: 'Má phanh trước tiêu chuẩn', brand: 'TRW', origin: 'Hàng thay thế', price: 760000, stock: 18, unit: 'bộ' },
+      'BS-0402': { sku: 'BS-0402', oe: '04947-0D010', pname: 'Bộ lò xo má phanh', brand: 'Toyota', origin: 'Hàng chính hãng', price: 215000, stock: 3, unit: 'bộ' },
+      'BD-0771': { sku: 'BD-0771', oe: '43512-0D150', pname: 'Đĩa phanh trước', brand: 'Toyota', origin: 'Hàng chính hãng', price: 1720000, stock: 0, unit: 'cái' },
+      'BF-0118': { sku: 'BF-0118', oe: '90080-91212', pname: 'Dầu phanh DOT 3 · 1 lít', brand: 'Toyota', origin: 'Hàng chính hãng', price: 185000, stock: 62, unit: 'chai' },
+      'BC-2050': { sku: 'BC-2050', oe: '47750-0D090', pname: 'Cụm kẹp phanh trước trái', brand: 'Toyota', origin: 'Hàng chính hãng', price: 3480000, stock: 2, unit: 'cái' },
+    };
+  }
+  // tool: [label, name, kind, type]  type: 'agent' = công cụ Agent (allowlist) · 'backend' = tra cứu nội bộ do backend gọi
+  static T() {
+    return {
+      vin: ['Tra xe theo VIN (dữ liệu mẫu)', 'tra_xe_theo_vin', 'vin', 'agent'],
+      search: ['Tìm phụ tùng theo xe', 'tim_phu_tung', 'search', 'agent'],
+      specs: ['Đọc thông số, đối chiếu OE', 'tim_phu_tung', 'specs', 'agent'],
+      price: ['Tra giá bán', 'erp.gia_ban', 'price', 'backend'],
+      stock: ['Tra tồn kho trong phạm vi được cấp', 'erp.ton_kho', 'stock', 'backend'],
+      stockCG: ['Tra tồn kho · Cầu Giấy', 'erp.ton_kho', 'stockCG', 'backend'],
+    };
+  }
+  static SCEN() {
+    const T = Component.T();
+    return {
+      vin: { q: 'Xe VIN MR8YB3JF5N0123456 dùng má phanh trước nào? Long Biên còn hàng không?', tools: [T.vin, T.search, T.price, T.stock], sku: 'BP-1042', hint: 'Tra VIN → dữ liệu tra cứu giá, tồn' },
+      compare: { q: 'So sánh BP-1042 với các mã thay thế', tools: [T.specs], sku: 'BP-1042', hint: 'Bảng so sánh thông số' },
+      alt: { q: 'Kiểm tra giá và tồn cho BP-2210A', tools: [T.price, T.stock], sku: 'BP-2210A', hint: 'Mã thay thế' },
+      select: { q: 'Thêm BP-1042 và BS-0402 vào lựa chọn tạm', tools: [T.price], sku: 'BP-1042', hint: 'Bạn tự chọn trên thẻ' },
+      branch: { q: 'Chi nhánh Cầu Giấy còn BP-1042 không?', tools: [T.stockCG], sku: 'BP-1042', hint: 'Dữ liệu ngoài phạm vi' },
+      quote: { q: 'Lập báo giá cho Garage Minh Phát gồm 2 bộ BP-1042', tools: [], hint: 'Điểm nối Batch C' },
+      edit: { q: 'Sửa giá BP-1042 thành 1.100.000 ₫', tools: [], hint: 'Không giao cho Trợ lý' },
+      handoff: { q: 'Chuyển yêu cầu này cho nhân viên phụ trách', tools: [], hint: 'Chuyển nhân viên' },
+      unsupported: { q: 'Tuần này bán được bao nhiêu má phanh?', tools: [], hint: '' },
+    };
+  }
+  static HIST() {
+    return [
+      { id: 'h1', title: 'Má phanh trước Vios 2019', when: '15/11 · 09:12', at: '09:12 ngày 15/11' },
+      { id: 'h2', title: 'Lọc gió động cơ Innova 2020', when: '14/11 · 16:40', at: '16:40 ngày 14/11' },
+      { id: 't1', team: true, owner: 'Trần Quốc Bảo', title: 'Lọc dầu Hilux 2021', when: '16/11 · 15:20', at: '15:20 ngày 16/11', q: 'Hilux 2021 máy dầu dùng lọc dầu mã nào? Còn hàng không?', sku: 'FO-2210', pname: 'Lọc dầu động cơ', price: 165000, stock: 30, unit: 'cái' },
+      { id: 't2', team: true, owner: 'Lê Thu Hà', title: 'Đĩa phanh Vios 2018', when: '16/11 · 10:05', at: '10:05 ngày 16/11', q: 'Đĩa phanh trước Vios 2018 có hàng thay thế không?', sku: 'BD-0771', pname: 'Đĩa phanh trước', price: 1720000, stock: 0, unit: 'cái', ho: 'HT-0039' },
+    ];
+  }
+  ctxFrom(props, erp) { return { erp, capPrice: props.capPrice || 'granted', capStock: props.capStock || 'granted', branchScope: props.branchScope || 'own', catalogErr: (props.catalog || 'ok') === 'error' }; }
+  initial(props) {
+    const start = props.start || 'idle';
+    const s = { route: start === 'context' ? 'context' : 'workspace', from: null, turns: [], toasts: [], erp: props.erp || 'fresh', confirmedAt: '09:42',
+      retrying: false, attempts: 0, lastAttempt: '', selection: [], aiRecovered: false, catalogRecovered: false, hoRecovered: false, aiChecks: 0, ctxSku: 'BP-1042', draft: '', viewing: null, teamFilter: 'all' };
+    const ctx = this.ctxFrom(props, s.erp);
+    const svc = props.aiService || 'ok';
+    const done = (key, extra, c) => this.makeTurn(key, c || ctx, { phase: svc === 'timeout' ? 'aifail' : 'done', ...extra });
+    if (svc === 'down') return s;
+    if (start === 'running') s.turns = [this.makeTurn('vin', ctx, { phase: 'running', step: 2, held: true })];
+    if (start === 'stopped') s.turns = [this.makeTurn('vin', ctx, { phase: 'stopped', step: 2 })];
+    if (start === 'vin') s.turns = [done('vin')];
+    if (start === 'more') s.turns = [done('vin', { more: true })];
+    if (start === 'compare') s.turns = [done('vin'), done('compare')];
+    if (start === 'alt') s.turns = [done('compare'), done('alt')];
+    if (start === 'select') s.turns = [done('select')];
+    if (start === 'select-done') { s.turns = [done('select')]; s.selection = ['BP-1042', 'BS-0402']; }
+    if (start === 'quote') { s.turns = [done('quote')]; s.selection = ['BP-1042']; }
+    if (start === 'edit') s.turns = [done('edit')];
+    if (start === 'branch') s.turns = [done('branch')];
+    if (start === 'catalog-error') s.turns = [done('vin', {}, { ...ctx, catalogErr: true })];
+    if (start === 'unsupported') s.turns = [done('unsupported')];
+    if (start.indexOf('handoff') === 0) {
+      const st = { 'handoff-draft': 'draft', 'handoff-sent': 'sent', 'handoff-unknown': 'unknown', 'handoff-error': 'error' }[start];
+      s.turns = [done('edit'), done('handoff', { ho: st, reason: 'Yêu cầu vượt quyền của Trợ lý', code: st === 'sent' ? 'HT-0042' : null, hoAt: '09:43' })];
+    }
+    if (start === 'history') s.viewing = 'h1';
+    if (start === 'history-team') s.viewing = 't1';
+    if (start === 'history-denied') s.viewing = 't2';
+    return s;
+  }
+  outcome(kind, ctx) {
+    if (kind === 'vin' || kind === 'search' || kind === 'specs') {
+      if (ctx.catalogErr && kind !== 'vin') return { status: 'error', msg: 'Danh mục không phản hồi (mô phỏng). Không có mã nào được trả về.' };
+      return { status: 'success', duration: '0,2 giây', ai: { vin: 'AI nhận: dòng xe, đời, động cơ (dữ liệu mẫu).', search: 'AI nhận: mã hàng, mã OE, tên, hãng.', specs: 'AI nhận: thông số kỹ thuật.' }[kind] };
+    }
+    const cap = kind === 'price' ? ctx.capPrice : ctx.capStock;
+    const what = kind === 'price' ? 'xem giá bán' : 'xem tồn kho';
+    if (cap !== 'granted') return { status: 'unauthorized', msg: 'Máy chủ từ chối (mô phỏng): ' + (cap === 'unknown' ? 'quyền ' + what + ' chưa được xác định.' : 'tài khoản không có quyền ' + what + '.') + ' Không có dữ liệu nào được trả về.' };
+    if (kind === 'stock' && ctx.branchScope === 'unknown') return { status: 'unauthorized', msg: 'Máy chủ từ chối (mô phỏng): phạm vi chi nhánh chưa được xác định. Không có dữ liệu nào được trả về.' };
+    if (kind === 'stockCG' && ctx.branchScope !== 'own-plus') return { status: 'unauthorized', msg: 'Máy chủ từ chối (mô phỏng): dữ liệu nằm ngoài phạm vi quyền của bạn. Không có dữ liệu nào tới giao diện hay Trợ lý.' };
+    const okAi = kind === 'price' ? 'AI nhận: không có — giá chỉ hiển thị trên thẻ dữ liệu.' : 'AI nhận: trạng thái “con_hang”. Không nhận số lượng, tên kho.';
+    return {
+      fresh: { status: 'success', duration: '0,8 giây', ai: okAi },
+      cached: { status: 'timeout', msg: 'Hệ thống chưa xác nhận lại. Chỉ có bản lưu lúc 08:15. AI nhận: “can_kiem_tra”.' },
+      stale: { status: 'error', msg: 'Chỉ có dữ liệu cũ (17:30 ngày 15/11), quá ngưỡng hiệu lực giả lập. AI nhận: “can_kiem_tra”.' },
+      unverified: { status: 'error', msg: 'Hệ thống chưa xác nhận dữ liệu cho mã này. AI nhận: “can_kiem_tra”.' },
+      timeout: { status: 'timeout', msg: 'Quá thời gian (ngưỡng chưa chốt · giả lập). Không có dữ liệu nào được thay đổi.' },
+      down: { status: 'unavailable', msg: 'ERP mô phỏng không phản hồi. Không có dữ liệu nào được thay đổi.' },
+    }[ctx.erp];
+  }
+  outcomesFor(tools, ctx) {
+    let blocked = false;
+    return tools.map((x) => {
+      if (blocked) return { status: 'pending', msg: 'Không gửi vì chưa xác định được mã hàng.' };
+      const o = this.outcome(x[2], ctx);
+      if ((x[2] === 'search' || x[2] === 'specs') && o.status === 'error') blocked = true;
+      return o;
+    });
+  }
+  makeTurn(key, ctx, extra) {
+    const sc = Component.SCEN()[key];
+    const q = (extra && extra.q) || sc.q;
+    return { id: Math.random().toString(36).slice(2), key, q, time: (extra && extra.time) || '09:41', tools: sc.tools, sku: (extra && extra.sku) || sc.sku,
+      outcomes: this.outcomesFor(sc.tools, ctx), phase: 'done', step: sc.tools.length, at: '09:42', ...extra };
+  }
+  componentDidMount() {
+    const el = this.rootRef.current;
+    if (el && window.ResizeObserver) {
+      this.ro = new ResizeObserver((e) => { const w = Math.round(e[0].contentRect.width); if (Math.abs(w - this.state.w) > 4) this.setState({ w }); });
+      this.ro.observe(el);
+    }
+    setTimeout(() => this.toBottom(), 400);
+  }
+  componentWillUnmount() { if (this.ro) this.ro.disconnect(); this.timers.forEach(clearTimeout); }
+  componentDidUpdate(prev, prevState) {
+    const keys = ['start', 'erp', 'aiService', 'persona', 'capPrice', 'capStock', 'branchScope', 'catalog', 'handoff'];
+    if (keys.some((k) => prev[k] !== this.props[k])) { this.timers.forEach(clearTimeout); this.timers = []; this.setState(this.initial(this.props)); return; }
+    if (prevState.route !== this.state.route && this.state.route === 'workspace') {
+      setTimeout(() => { const el = this.logEl(); if (el && this.savedScroll !== null) el.scrollTop = this.savedScroll; }, 60);
+      return;
+    }
+    if (this.state.turns.length !== prevState.turns.length || this.state.turns.some((t, i) => prevState.turns[i] && (t.phase !== prevState.turns[i].phase || t.step !== prevState.turns[i].step))) setTimeout(() => this.toBottom(), 50);
+  }
+  restoreScroll() { this.later(() => { const el = this.logEl(); if (el && this.savedScroll !== null) el.scrollTop = this.savedScroll; }, 120); }
+  logEl() { const root = this.rootRef.current; return (root && root.querySelector('[role="log"]')) || this.threadRef.current; }
+  toBottom() { const el = this.logEl(); if (el) el.scrollTop = el.scrollHeight; }
+  later(fn, ms) { const id = setTimeout(fn, ms); this.timers.push(id); }
+  toast(x) {
+    const id = Date.now() + Math.random();
+    this.setState({ toasts: [...this.state.toasts, { ...x, id }] });
+    this.later(() => this.setState({ toasts: this.state.toasts.filter((t) => t.id !== id) }), 5000);
+  }
+  now() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  ctx() { return { ...this.ctxFrom(this.props, this.state.erp), catalogErr: (this.props.catalog || 'ok') === 'error' && !this.state.catalogRecovered }; }
+  patch(id, p) { this.setState({ turns: this.state.turns.map((t) => (t.id === id ? { ...t, ...(typeof p === 'function' ? p(t) : p) } : t)) }); const q = typeof p === 'function' ? {} : p; if ('phase' in q || 'step' in q || 'ho' in q) this.later(() => this.toBottom(), 80); }
+  run(key, extra) {
+    const svc = this.props.aiService || 'ok';
+    if (svc === 'down') return;
+    if (this.state.turns.some((t) => t.phase === 'running' || t.phase === 'composing')) { this.toast({ tone: 'info', title: 'Trợ lý đang xử lý yêu cầu trước', description: 'Chờ hoàn tất hoặc bấm “Dừng”.' }); return; }
+    const turn = this.makeTurn(key, this.ctx(), { phase: 'running', step: 0, time: this.now(), at: this.state.confirmedAt, ...extra });
+    this.setState({ turns: [...this.state.turns, turn], draft: '', viewing: null });
+    this.later(() => this.toBottom(), 80);
+    const gap = svc === 'slow' ? 1600 : 700;
+    const tick = () => {
+      const cur = this.state.turns.find((t) => t.id === turn.id);
+      if (!cur || cur.phase !== 'running') return;
+      if (cur.step < cur.tools.length) { this.patch(turn.id, { step: cur.step + 1 }); this.later(tick, gap); return; }
+      this.patch(turn.id, { phase: 'composing' });
+      this.later(() => {
+        const failAi = (this.props.aiService || 'ok') === 'timeout' && !this.state.aiRecovered;
+        const anyOk = cur.outcomes.some((o, i) => cur.tools[i][3] === 'backend' && o.status === 'success');
+        const at = this.now();
+        if (anyOk) this.setState({ confirmedAt: at });
+        this.patch(turn.id, { phase: failAi ? 'aifail' : 'done', at: anyOk ? at : this.state.confirmedAt, ho: key === 'handoff' ? 'draft' : undefined });
+      }, svc === 'slow' ? 1800 : 700);
+    };
+    this.later(tick, turn.tools.length ? gap : 0);
+  }
+  route(text) {
+    const s = (text || '').trim(); const u = s.toUpperCase();
+    const P = Component.P();
+    if (/MR8YB3JF5N0123456/.test(u)) return ['vin'];
+    if (/SO SÁNH/i.test(s)) return ['compare'];
+    if (/CHUYỂN/i.test(s) && /NHÂN VIÊN/i.test(s)) return ['handoff', { reason: 'Cần xử lý thủ công' }];
+    if (/BÁO GIÁ/i.test(s)) return ['quote'];
+    if (/(SỬA|ĐỔI|CẬP NHẬT|GIẢM).*(GIÁ|TỒN|CHIẾT KHẤU)/i.test(s) || /CHIẾT KHẤU/i.test(s)) return ['edit'];
+    if (/CẦU GIẤY/i.test(s)) return ['branch'];
+    if (/THÊM/i.test(s) && /LỰA CHỌN/i.test(s)) return ['select'];
+    const code = Object.keys(P).find((k) => u.includes(k));
+    if (code) return ['alt', { sku: code, q: s }];
+    return ['unsupported', { q: s }];
+  }
+  handoff(reason) { this.run('handoff', { reason }); }
+  sendHandoff(t) {
+    this.patch(t.id, { ho: 'sending' });
+    this.later(() => {
+      const mode = this.state.hoRecovered ? 'ok' : (this.props.handoff || 'ok');
+      const at = this.now();
+      if (mode === 'ok') { this.patch(t.id, { ho: 'sent', code: 'HT-0042', hoAt: at }); this.toast({ tone: 'success', title: 'Đã tạo yêu cầu hỗ trợ HT-0042', description: 'Trạng thái do hệ thống trả về (mô phỏng): chờ tiếp nhận.' }); }
+      else if (mode === 'error') { this.setState({ hoRecovered: true }); this.patch(t.id, { ho: 'error', hoAt: at }); }
+      else { this.setState({ hoRecovered: true }); this.patch(t.id, { ho: 'unknown', hoAt: at }); }
+    }, 1200);
+  }
+  retryErp(turnId) {
+    this.setState({ retrying: true });
+    if (turnId) this.patch(turnId, { retry: true });
+    this.later(() => {
+      const was = this.state.erp;
+      const ok = was !== 'down';
+      const at = this.now();
+      const erp = ok ? 'fresh' : was;
+      const ctx = { ...this.ctx(), erp };
+      this.setState({ retrying: false, attempts: this.state.attempts + 1, lastAttempt: at, erp, confirmedAt: ok ? at : this.state.confirmedAt,
+        turns: this.state.turns.map((t) => (t.id === turnId || (!turnId && ok) ? { ...t, retry: false, at: ok ? at : t.at, prev: t.outcomes.some((o) => o.status !== 'success') ? [...(t.prev || []), { outcomes: t.outcomes, at }] : t.prev, outcomes: this.outcomesFor(t.tools, ctx) } : t)) });
+      if (ok) this.toast({ tone: 'success', title: 'Đã tra cứu lại dữ liệu', description: 'ERP mô phỏng · thời điểm tra cứu ' + at });
+      else this.toast({ tone: 'warning', title: 'ERP vẫn không khả dụng', description: 'Lần thử ' + (this.state.attempts) + ' lúc ' + at + '. Không có dữ liệu nào được thay đổi.' });
+    }, 1300);
+  }
+  retryCatalog(t) {
+    this.setState({ catalogRecovered: true });
+    this.later(() => this.run(t.key, { sku: t.sku, q: t.q }), 50);
+  }
+  renderVals() {
+    const h = React.createElement;
+    const NS = window.AutoPartsAgentDesignSystem_aa8546 || {};
+    const B = NS.Button, S = this.state, P = Component.P(), SC = Component.SCEN();
+    const svc = this.props.aiService || 'ok';
+    const capPrice = this.props.capPrice || 'granted', capStock = this.props.capStock || 'granted', branchScope = this.props.branchScope || 'own';
+    const persona = this.props.persona || 'sales';
+    const erp = S.erp;
+    const narrow = S.w < 1360, overlay = S.w < 1180;
+    const isWorkspace = S.route === 'workspace';
+    const aiDown = svc === 'down';
+    const busy = S.turns.some((t) => t.phase === 'running' || t.phase === 'composing');
+    const vnd = (n) => n.toLocaleString('vi-VN') + ' ₫';
+    const cap = { font: 'var(--type-caption)', color: 'var(--text-secondary)' };
+    const icon = (n, c, sz) => NS.Icon ? h(NS.Icon, { name: n, size: sz || 14, color: c }) : null;
+    const tag = (source, label, time) => NS.SourceTag ? h(NS.SourceTag, { source, label, time, variant: 'inline' }) : null;
+    const aiTag = () => tag('ai', 'AI nhận diện');
+    const aiBlock = (children, extra) => h('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 8, background: 'var(--source-ai-bg)', border: '1px solid var(--source-ai-border)' } },
+      h('div', { style: { flex: '1 1 0', display: 'flex', flexDirection: 'column', gap: 6, font: 'var(--type-helper)', color: 'var(--text-body)' } }, children, extra || null), aiTag());
+    const locked = (c) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 4, font: 'var(--type-caption)', color: 'var(--status-restricted-fg)' } }, icon('lock'), c === 'unknown' ? 'Chưa xác định quyền' : 'Hạn chế');
+    const code = (x) => h('span', { className: 'ap-code' }, x);
+    const handoffBtn = (reason) => B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'users', disabled: busy || aiDown, onClick: () => this.handoff(reason) }, 'Chuyển nhân viên') : null;
+    const fresh = erp === 'fresh' && !S.retrying;
+    const stockWord = { con_hang: 'còn hàng', het_hang: 'hết hàng', can_kiem_tra: 'cần kiểm tra' };
+    const stockCode = (p) => (p.stock > 0 ? 'con_hang' : 'het_hang');
+
+    // ---------- structured lookup tables ----------
+    const tableBlock = (title, headers, rows, foot, compact) => h('div', { className: 'bb-wrap' },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', flexWrap: 'wrap' } },
+        h('span', { style: { font: '600 12px/1.4 var(--font-sans)', color: 'var(--text-primary)', flex: '1 1 auto' } }, title), tag('lookup', 'Dữ liệu tra cứu · danh mục mẫu')),
+      compact ? rows : h('div', { className: 'bb-scroll' }, h('table', { className: 'bb-tbl' },
+        h('thead', null, h('tr', null, headers.map((x, i) => h('th', { key: i, scope: 'col' }, x)))),
+        h('tbody', null, rows.map((r, i) => h('tr', { key: i }, r.map((c, j) => h(j === 0 ? 'th' : 'td', { key: j, scope: j === 0 ? 'row' : undefined, style: j === 0 ? { font: 'var(--type-table)', textTransform: 'none', letterSpacing: 0, background: 'transparent', color: 'var(--text-primary)', fontWeight: 500, borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'normal' } : undefined }, c))))))),
+      foot ? h('div', { style: { padding: '8px 12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', ...cap } }, foot) : null);
+    const unverifiedBadge = NS.Badge ? h(NS.Badge, { size: 'sm', tone: 'neutral', icon: false }, 'Chưa xác minh') : 'Chưa xác minh';
+    const catalogResult = (t) => {
+      const all = ['BP-1042', 'BP-1043', 'BP-2210A', 'BP-3318T', 'BS-0402', 'BD-0771', 'BF-0118', 'BC-2050'];
+      const shown = t.more ? all : all.slice(0, 3);
+      return tableBlock('Kết quả danh mục · ' + shown.length + '/8 mã cho Toyota Vios 1.5G 2019', ['SKU / OE', 'Sản phẩm', 'Hãng', 'Trạng thái mã'],
+        shown.map((k) => [h('div', null, code(k), h('div', { style: cap }, 'OE ' + P[k].oe)), P[k].pname, P[k].brand + ' · ' + P[k].origin.toLowerCase(), unverifiedBadge]),
+        h(React.Fragment, null, h('span', { style: { flex: '1 1 260px' } }, 'Xe xác định từ bảng ánh xạ VIN mẫu. “Đã xác minh” chỉ gắn khi đạt quy tắc đối chiếu được duyệt — quy tắc chưa có.'),
+          !t.more && B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'download', onClick: () => this.patch(t.id, { more: true }) }, 'Tải thêm 5 mã') : null));
+    };
+    const SPEC = [['Hãng', 'Toyota · chính hãng', 'Akebono · thay thế', 'TRW · thay thế'], ['Vật liệu', 'Bán kim loại', 'Ceramic', 'Bán kim loại'], ['Kích thước (mm)', '131,2 × 52,6 × 17,0', '131,2 × 52,6 × 17,0', '131,0 × 52,6 × 16,5'], ['Cảm biến mòn', 'Có', 'Có', 'Không'], ['Đời xe Vios', '2014–2022', '2014–2022', '2014–2018']];
+    const compareResult = (compact) => {
+      const codes = ['BP-1042', 'BP-2210A', 'BP-3318T'];
+      if (compact) return tableBlock('So sánh thông số · 3 mã', null, h('div', { style: { display: 'flex', flexDirection: 'column' } }, codes.map((c, ci) => h('div', { key: c, style: { padding: '8px 12px', borderBottom: ci < 2 ? '1px solid var(--border-subtle)' : 0 } },
+        h('div', { style: { marginBottom: 4 } }, code(c)), NS.DescriptionList ? h(NS.DescriptionList, { columns: 2, items: SPEC.map((r) => ({ label: r[0], value: r[ci + 1] })) }) : null))), 'Chỉ có thông số; giá và tồn của mã thay thế chưa tra.', true);
+      return tableBlock('So sánh thông số · BP-1042 với 2 mã thay thế', ['Thông số', ...codes], SPEC, 'Chỉ có thông số từ danh mục mẫu. Giá và tồn của mã thay thế chưa tra.');
+    };
+
+    // ---------- data card (backend-rendered, not sent to AI) ----------
+    const selBtn = (sku, priceOk) => {
+      if (!B) return null;
+      if (capPrice !== 'granted') return h(B, { size: 'sm', restricted: true, restrictedReason: capPrice === 'unknown' ? 'Chưa xác định quyền xem giá bán' : 'Cần quyền xem giá bán để chọn sản phẩm' }, 'Thêm vào lựa chọn');
+      if (!priceOk || !fresh) return h(B, { size: 'sm', iconLeft: 'plus', disabled: true }, 'Thêm vào lựa chọn');
+      const on = S.selection.includes(sku);
+      return h(B, { size: 'sm', variant: on ? 'secondary' : 'primary', iconLeft: on ? 'check' : 'plus', onClick: () => { this.setState({ selection: on ? S.selection.filter((x) => x !== sku) : [...S.selection, sku] }); if (!on) this.toast({ tone: 'success', title: 'Đã thêm ' + sku + ' vào lựa chọn tạm', description: 'Chỉ lưu tạm trên màn hình. Không tạo báo giá, không ghi ERP.' }); } }, on ? 'Đã chọn · Bỏ chọn' : 'Thêm vào lựa chọn');
+    };
+    const branchItems = (p, o, cg) => {
+      if (o.status !== 'success') return [{ label: cg ? 'Tồn · Cầu Giấy' : 'Tồn kho', value: locked(o.status === 'unauthorized' && (capStock === 'unknown' || branchScope === 'unknown') ? 'unknown' : 'denied') }];
+      if (cg) return [{ label: 'Tồn · Cầu Giấy', value: Math.max(0, Math.round(p.stock / 3)) + ' ' + p.unit }];
+      const lb = [{ label: 'Tồn · Long Biên', value: p.stock + ' ' + p.unit }];
+      if (branchScope === 'own-plus') lb.push({ label: 'Tồn · Cầu Giấy', value: Math.max(0, Math.round(p.stock / 3)) + ' ' + p.unit });
+      return lb;
+    };
+    const dataCard = (t) => {
+      const p = P[t.sku] || P['BP-1042'];
+      const find = (k) => { const i = t.tools.findIndex((x) => x[2] === k); return i >= 0 ? t.outcomes[i] : null; };
+      const pO = find('price'), sO = find('stock') || find('stockCG');
+      const cg = !!find('stockCG');
+      const os = [pO, sO].filter(Boolean);
+      if (!os.length || !NS.ERPResult) return null;
+      const retryBtn = B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', loading: !!t.retry, onClick: () => this.retryErp(t.id) }, t.retry ? 'Đang tra cứu lại…' : 'Thử lại') : null;
+      const detailBtn = B ? h(B, { size: 'sm', variant: 'ghost', iconRight: 'chevron-right', onClick: () => { const el = this.logEl(); this.savedScroll = el ? el.scrollTop : null; this.setState({ route: 'context', ctxSku: p.sku, from: 'workspace', panel: true }); } }, 'Xem chi tiết ' + p.sku) : null;
+      const note = h('div', { style: { ...cap, marginTop: 8 } }, 'Hiển thị bởi hệ thống theo quyền của bạn — không gửi cho Trợ lý AI.');
+      if (t.retry) return h(NS.ERPResult, { state: 'loading', source: 'ERP mô phỏng', title: p.sku });
+      if (os.every((o) => o.status === 'unauthorized')) return h(NS.ERPResult, { state: 'restricted', title: cg ? 'Cầu Giấy · ' + p.sku : p.sku, footer: cg ? handoffBtn('Yêu cầu vượt quyền của Trợ lý') : detailBtn },
+        h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-secondary)' } }, 'Máy chủ từ chối truy vấn theo quyền của tài khoản. Không có dữ liệu nào được tải về giao diện hay Trợ lý AI.'));
+      if (os.some((o) => o.status === 'success')) {
+        const items = [];
+        if (pO) items.push({ label: 'Giá bán', value: pO.status === 'success' ? vnd(p.price) + ' · VAT: chưa xác định' : locked(capPrice === 'unknown' ? 'unknown' : 'denied') });
+        if (sO) branchItems(p, sO, cg).forEach((x) => items.push(x));
+        return h(NS.ERPResult, { state: 'lookup', source: 'ERP mô phỏng', title: p.sku + ' · ' + p.pname, syncedAt: 'Tra cứu lúc ' + t.at + ' (hệ thống ghi)',
+          footer: h(React.Fragment, null, detailBtn, cg ? null : selBtn(p.sku, pO && pO.status === 'success')) },
+          NS.DescriptionList ? h(NS.DescriptionList, { columns: 2, items }) : null, note);
+      }
+      const o = os.find((x) => x.status !== 'unauthorized') || os[0];
+      const isCached = erp === 'cached';
+      return h(NS.ERPResult, { state: isCached ? 'stale' : 'error', source: 'ERP mô phỏng', title: p.sku, footer: h(React.Fragment, null, erp === 'down' ? handoffBtn('Dữ liệu không đáng tin cậy') : null, detailBtn, retryBtn) },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, font: 'var(--type-helper)', color: 'var(--text-secondary)' } },
+          h('span', null, isCached ? 'Chỉ có bản lưu đồng bộ lúc 08:15 (mô phỏng), chưa được tra cứu lại. Không hiển thị số liệu từ bản lưu trong hội thoại.' : o.msg + ' Giá và tồn kho bị ẩn.'),
+          h('span', null, 'Chưa có thay đổi nào được ghi. Mã tham chiếu: REQ-7F2A' + (S.attempts > 0 ? ' · Lần thử gần nhất ' + S.lastAttempt + ' (' + S.attempts + ' lần)' : ''))));
+    };
+    const selectCard = (t) => {
+      const pO = t.outcomes[0];
+      const ok = pO && pO.status === 'success';
+      const rows = ['BP-1042', 'BS-0402'].map((k) => h('div', { key: k, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' } },
+        h('div', { style: { flex: '1 1 180px', minWidth: 0 } }, code(k), h('div', { style: cap }, P[k].pname + ' · ' + P[k].brand)),
+        h('span', { style: { font: 'var(--type-table)', fontWeight: 500, color: 'var(--text-primary)', minWidth: 110, textAlign: 'right' } }, pO.status === 'success' ? vnd(P[k].price) : pO.status === 'unauthorized' ? locked(capPrice === 'unknown' ? 'unknown' : 'denied') : '—'),
+        selBtn(k, ok)));
+      return h('div', { className: 'bb-wrap' },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-subtle)', flexWrap: 'wrap' } },
+          h('span', { style: { font: '600 12px/1.4 var(--font-sans)', color: 'var(--text-primary)', flex: '1 1 auto' } }, 'Chọn sản phẩm'), tag('lookup', 'Dữ liệu tra cứu · ERP mô phỏng', ok ? t.at : undefined)),
+        ...rows,
+        h('div', { style: { padding: '8px 12px', borderTop: '1px solid var(--border-subtle)', ...cap } }, !ok && pO.status !== 'unauthorized' ? 'Chỉ chọn được khi giá được tra cứu mới. ' : '', 'Lựa chọn chỉ lưu tạm trên màn hình Tra cứu; không tạo báo giá, không ghi ERP. Giá hiển thị bởi hệ thống, không gửi cho Trợ lý.'),
+        !ok && pO.status !== 'unauthorized' && B ? h('div', { style: { padding: '0 12px 10px' } }, h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', loading: !!t.retry, onClick: () => this.retryErp(t.id) }, 'Thử lại')) : null);
+    };
+    const quoteBridge = () => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+      NS.ToolCall ? h(NS.ToolCall, { label: 'Yêu cầu lập báo giá — điểm nối Batch C', name: 'lap_bao_gia', status: 'pending', message: 'Chưa thiết kế trong bản mô phỏng. Không có yêu cầu nào được gửi.' }) : null,
+      h('div', { style: { padding: '10px 12px', borderRadius: 8, border: '1px dashed var(--border-strong)', background: 'var(--bg-nested)', display: 'flex', flexDirection: 'column', gap: 4 } },
+        h('span', { style: { font: '600 12px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, 'Theo tài liệu giải pháp 1.0 — sẽ thiết kế ở Batch C'),
+        h('ul', { style: { margin: 0, paddingLeft: 16, font: 'var(--type-helper)', color: 'var(--text-body)' } },
+          h('li', null, 'Trợ lý chỉ gửi yêu cầu lap_bao_gia; backend quyết định có đủ điều kiện hay không.'),
+          h('li', null, 'Quote Service tính giá và quản lý phiên bản — không phải AI.'),
+          h('li', null, 'Chỉ mã hàng “Đã xác minh” được đưa vào báo giá tự động.'),
+          h('li', null, 'Tạo đơn nháp cần khách xác nhận theo mã và phiên bản báo giá, ví dụ “Xác nhận BG-2026-001234 v1”.')),
+        S.selection.length ? h('span', { style: cap }, 'Lựa chọn tạm hiện có: ' + S.selection.join(', ') + ' — sẽ là đầu vào khi luồng C được thiết kế.') : null));
+    const HOREASONS = ['Không xác định được mã hàng', 'Yêu cầu vượt quyền của Trợ lý', 'Dữ liệu không đáng tin cậy', 'Cần xử lý thủ công'];
+    const handoffCard = (t) => {
+      const st = t.ho || 'draft';
+      const head = { draft: ['users', 'var(--text-primary)', 'Chuyển cho nhân viên phụ trách'], sending: ['loader-circle', 'var(--text-secondary)', 'Đang gửi yêu cầu…'], sent: ['circle-check', 'var(--status-success-fg)', 'Đã tạo yêu cầu ' + (t.code || '')], error: ['circle-x', 'var(--status-error-fg)', 'Chưa tạo được yêu cầu'], unknown: ['circle-help', 'var(--status-warning-fg)', 'Chưa rõ yêu cầu đã được tạo hay chưa'] }[st];
+      const reasonSel = st === 'draft' ? h('div', { role: 'radiogroup', 'aria-label': 'Lý do chuyển', style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, HOREASONS.map((r) => NS.Tag ? h(NS.Tag, { key: r, selected: t.reason === r, onClick: () => this.patch(t.id, { reason: r }) }, r) : r)) : h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-body)' } }, 'Lý do: ' + (t.reason || '—'));
+      const body = {
+        draft: 'Yêu cầu gồm: câu hỏi gần nhất, mã đã tra (' + (S.turns.find((x) => x.sku) || {}).sku + '), lý do. Không gồm giá, số lượng tồn hay thông tin khách hàng. Người nhận do hệ thống điều phối — quy tắc chưa xác định.',
+        sending: 'Đang chờ hệ thống phản hồi.',
+        sent: 'Trạng thái do hệ thống trả về (mô phỏng): chờ tiếp nhận · ' + (t.hoAt || '') + '. Bạn vẫn có thể tiếp tục hỏi Trợ lý.',
+        error: 'Hệ thống từ chối hoặc lỗi (mô phỏng). Không có yêu cầu nào được tạo. Mã tham chiếu: HO-5C1.',
+        unknown: 'Quá thời gian chờ (ngưỡng chưa chốt · giả lập). Yêu cầu có thể đã được tạo. Không gửi lại tự động — hãy kiểm tra trạng thái trước.',
+      }[st];
+      const actions = {
+        draft: h(React.Fragment, null, B ? h(B, { size: 'sm', iconLeft: 'send', onClick: () => this.sendHandoff(t) }, 'Chuyển') : null, B ? h(B, { size: 'sm', variant: 'ghost', onClick: () => this.patch(t.id, { ho: 'cancelled' }) }, 'Không chuyển') : null),
+        sending: B ? h(B, { size: 'sm', loading: true, disabled: true }, 'Đang chuyển') : null,
+        sent: null,
+        error: B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.sendHandoff(t) }, 'Thử lại') : null,
+        unknown: B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'search', onClick: () => { this.patch(t.id, { ho: 'sending' }); this.later(() => { this.patch(t.id, { ho: 'sent', code: 'HT-0042', hoAt: this.now() }); this.toast({ tone: 'info', title: 'Đã tìm thấy yêu cầu HT-0042', description: 'Yêu cầu đã được tạo ở lần trước. Không tạo thêm.' }); }, 900); } }, 'Kiểm tra trạng thái') : null,
+      }[st];
+      if (st === 'cancelled') return h('span', { style: cap }, 'Bạn đã không chuyển. Không có yêu cầu nào được tạo.');
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        NS.ToolCall ? h(NS.ToolCall, { label: 'Chuyển nhân viên', name: 'chuyen_nhan_vien', status: { draft: 'pending', sending: 'running', sent: 'success', error: 'error', unknown: 'unknown' }[st], message: st === 'draft' ? 'Chờ bạn bấm “Chuyển”. Chưa gửi gì.' : undefined }) : null,
+        h('div', { style: { border: '1px solid var(--border-card)', borderRadius: 10, background: 'var(--bg-surface)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, font: '600 13px/1.4 var(--font-sans)', color: head[1] } }, icon(head[0], head[1], 16), head[2]),
+          reasonSel, h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-secondary)' } }, body),
+          actions ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, actions) : null));
+    };
+
+    // ---------- tool rows ----------
+    const LB = { success: 'Hoàn tất', error: 'Thất bại', unauthorized: 'Không có quyền', timeout: 'Quá thời gian', unavailable: 'ERP không khả dụng', pending: 'Chưa gửi' };
+    const DETAIL = { agent: 'Công cụ Agent (allowlist, đề xuất). Tool Manager kiểm tra quyền và tham số trước khi gọi.', backend: 'Tra cứu nội bộ do backend gọi ERP Connector theo quyền người dùng. Giá, số lượng tồn và tên kho không được gửi cho AI.' };
+    const toolRows = (t, limit) => t.tools.map((x, i) => {
+      const kindTxt = x[3] === 'agent' ? 'Agent' : 'Nội bộ';
+      if (i < limit) {
+        const o = t.outcomes[i];
+        const hist = (t.prev || []).filter((p) => p.outcomes[i].status !== 'success' || o.status !== 'success').map((p, k) => 'Lần ' + (k + 1) + ': ' + LB[p.outcomes[i].status] + ' · thử lại lúc ' + p.at);
+        const msg = [o.status === 'success' ? o.ai : o.msg, hist.length ? hist.join(' · ') : null].filter(Boolean).join(' — ');
+        return NS.ToolCall ? h(NS.ToolCall, { key: i, label: x[0], name: kindTxt + ' · ' + x[1], status: o.status, duration: o.duration, message: msg || undefined, detail: DETAIL[x[3]] }) : null;
+      }
+      if (i === limit && t.phase === 'running') return NS.ToolCall ? h(NS.ToolCall, { key: i, label: x[0], name: kindTxt + ' · ' + x[1], status: 'running' }) : null;
+      if (t.phase === 'stopped') return NS.ToolCall ? h(NS.ToolCall, { key: i, label: x[0], name: kindTxt + ' · ' + x[1], status: i === limit ? 'unknown' : 'pending', message: i === limit ? 'Đã gửi; máy chủ chưa xác nhận hủy. Truy vấn có thể vẫn hoàn tất.' : 'Chưa gửi.' }) : null;
+      return NS.ToolCall ? h(NS.ToolCall, { key: i, label: x[0], name: kindTxt + ' · ' + x[1], status: 'pending' }) : null;
+    });
+    const okAll = (t, k) => t.tools.every((x, i) => x[2] !== k || t.outcomes[i].status === 'success');
+    const anyUnauth = (t) => t.outcomes.some((o) => o.status === 'unauthorized');
+    const anyFail = (t) => t.outcomes.some((o) => o.status !== 'success' && o.status !== 'unauthorized');
+    const catalogFailed = (t) => t.tools.some((x, i) => (x[2] === 'search' || x[2] === 'specs') && t.outcomes[i].status === 'error');
+    const caveat = (t) => {
+      const parts = [];
+      if (anyUnauth(t)) parts.push('Tôi không thể cung cấp dữ liệu mà tài khoản của bạn chưa có quyền xem.');
+      if (anyFail(t)) parts.push('Tình trạng tồn: cần kiểm tra. Tôi không đưa ra số liệu ước đoán.');
+      return parts.join(' ');
+    };
+    const narrative = (t) => {
+      const p = P[t.sku] || P['BP-1042'];
+      if (catalogFailed(t)) return [aiBlock(h('span', null, 'Tôi không tra được danh mục lúc này nên không đưa ra mã hàng hay mã OE nào.'),
+        h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', disabled: busy, onClick: () => this.retryCatalog(t) }, 'Thử lại') : null, handoffBtn('Không xác định được mã hàng')))];
+      if (t.key === 'vin') {
+        const sOk = okAll(t, 'stock');
+        return [aiBlock(h('span', null, 'Theo dữ liệu tra cứu VIN mẫu, xe là Toyota Vios 1.5G 2019 và mã phù hợp là ', h('b', null, 'BP-1042'), ' (OE 04465-0D130). ',
+          sOk ? 'Tình trạng tồn: ' + stockWord[stockCode(p)] + '. Giá bán hiển thị ở thẻ dữ liệu — tôi không nhận giá.' : caveat(t)),
+          t.more ? h('span', { style: cap }, 'Đã tải 8/8 mã. Phần tóm tắt này chỉ dựa trên 3 mã đầu; tôi chưa tổng hợp các mã tải thêm.') : h('span', { style: cap }, 'Tôi mới xem 3/8 mã; chưa tổng hợp phần chưa tải.')),
+          aiBlock(h('span', null, 'BP-2210A (Akebono, ceramic) có kích thước giống BP-1042 — đây là nhận định từ thông số, chưa tra giá và tồn.'),
+            h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'layers', disabled: busy || aiDown, onClick: () => this.run('compare') }, 'So sánh thông số') : null))];
+      }
+      if (t.key === 'compare') return [aiBlock(h('span', null, 'Khác biệt chính: BP-2210A dùng vật liệu ceramic; BP-3318T không có cảm biến mòn và chỉ khớp Vios 2014–2018.'),
+        h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'database', disabled: busy || aiDown, onClick: () => this.run('alt') }, 'Tra giá và tồn BP-2210A') : null))];
+      if (t.key === 'alt') return [aiBlock(h('span', null, t.outcomes.every((o) => o.status === 'success') ? p.sku + ': tình trạng tồn ' + stockWord[stockCode(p)] + '. Giá hiển thị ở thẻ dữ liệu.' : p.sku + ': ' + caveat(t)))];
+      if (t.key === 'select') return [aiBlock(h('span', null, 'Tôi không thêm sản phẩm thay bạn. Bấm “Thêm vào lựa chọn” ở từng dòng; lựa chọn chỉ lưu tạm, không tạo báo giá.'))];
+      if (t.key === 'branch') {
+        if (t.outcomes[0].status === 'unauthorized') return [h('span', { key: 'a' }, 'Tôi không thể tra cứu dữ liệu này trong phạm vi quyền truy cập hiện tại. Vui lòng liên hệ nhân viên hoặc người quản lý có thẩm quyền để được hỗ trợ.'),
+          h('span', { key: 'b', style: cap }, 'Mô hình phân quyền chi nhánh/kho chưa được chốt (AI5) — đây là phương án bảo mật đề xuất.')];
+        return [aiBlock(h('span', null, okAll(t, 'stockCG') ? 'Cầu Giấy: tình trạng tồn ' + stockWord[stockCode(p)] + '.' : caveat(t)))];
+      }
+      if (t.key === 'quote') return [h('span', { key: 'a' }, 'Lập báo giá thuộc phạm vi MVP nhưng chưa được thiết kế trong bản mô phỏng này. Tôi chưa gửi yêu cầu nào.'), quoteBridge()];
+      if (t.key === 'edit') return [h('span', { key: 'a' }, 'Sửa giá, chiết khấu hoặc duyệt đơn không được giao cho Trợ lý; việc này do nhân viên có quyền thực hiện theo quy trình ERP.'),
+        h('div', { key: 'b', style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' } }, h('span', { style: cap }, 'Không có công cụ nào được gọi.'), handoffBtn('Yêu cầu vượt quyền của Trợ lý'))];
+      if (t.key === 'handoff') return [handoffCard(t)];
+      return [h('span', { key: 'a' }, 'Bản mô phỏng chỉ có các kịch bản mẫu, nên tôi chưa trả lời được câu hỏi này.'),
+        h('div', { key: 'b', style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' } }, h('span', { style: cap }, 'Không có công cụ nào được gọi.'), handoffBtn('Cần xử lý thủ công'))];
+    };
+    const turnNodes = (t, compact) => {
+      const out = [h(NS.ChatMessage, { key: t.id + 'u', role: 'user', time: t.time }, t.q)];
+      const n = t.tools.length;
+      if (t.phase === 'running' || t.phase === 'composing' || t.phase === 'stopped') {
+        const lim = t.phase === 'composing' ? n : t.step;
+        const head = t.phase === 'stopped'
+          ? h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 8, font: 'var(--type-helper)', color: 'var(--text-secondary)' } }, icon('circle-pause', 'var(--text-secondary)'), h('span', null, 'Đã ngừng nhận kết quả ở bước ' + Math.min(n, t.step + 1) + '/' + n + '. Đây không phải xác nhận hủy ở máy chủ; truy vấn đã gửi có thể vẫn hoàn tất.'))
+          : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+              NS.Spinner ? h(NS.Spinner, { size: 16 }) : null,
+              h('span', { style: { font: '600 13px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, t.phase === 'composing' ? 'Đang tổng hợp câu trả lời…' : 'Đang chạy công cụ · bước ' + Math.min(n, t.step + 1) + '/' + n),
+              svc === 'slow' ? h('span', { style: { font: 'var(--type-caption)', color: 'var(--status-warning-fg)' } }, 'Phản hồi chậm hơn bình thường') : null,
+              h('span', { style: { flex: '1 1 0' } }),
+              t.phase === 'running' && B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'circle-pause', onClick: () => this.patch(t.id, { phase: 'stopped' }) }, 'Dừng') : null);
+        const bar = n ? h('div', { role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': n, 'aria-valuenow': lim, 'aria-label': 'Tiến độ chạy công cụ', style: { height: 4, borderRadius: 2, background: 'var(--bg-muted)', overflow: 'hidden' } },
+          h('div', { style: { width: Math.round((lim / n) * 100) + '%', height: '100%', background: t.phase === 'stopped' ? 'var(--border-strong)' : 'var(--action-primary)', transition: 'width .3s' } })) : null;
+        out.push(h(NS.ChatMessage, { key: t.id + 'a', time: t.time, label: false }, head, bar, ...toolRows(t, lim),
+          t.phase === 'stopped' && B ? h('div', { key: 'r' }, h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', disabled: busy, onClick: () => this.run(t.key, { sku: t.sku, q: t.q }) }, 'Chạy lại truy vấn đọc')) : null));
+        return out;
+      }
+      const results = [];
+      if (t.key === 'vin' && !catalogFailed(t)) results.push(h('div', { key: 'cat' }, catalogResult(t)));
+      if (t.key === 'compare' && !catalogFailed(t)) results.push(h('div', { key: 'cmp' }, compareResult(compact)));
+      if (t.key === 'select') results.push(h('div', { key: 'sel' }, selectCard(t)));
+      else if (!catalogFailed(t)) { const dc = dataCard(t); if (dc) results.push(h('div', { key: 'erp' }, dc)); }
+      if (t.phase === 'aifail') {
+        out.push(h(NS.ChatMessage, { key: t.id + 'a', time: t.time, label: false }, ...toolRows(t, n), ...results));
+        out.push(h(NS.ChatMessage, { key: t.id + 'f', status: 'error', time: t.time, label: false },
+          h('span', null, 'Trợ lý không trả lời trong thời gian chờ (ngưỡng chưa chốt · giả lập). Dữ liệu tra cứu ở trên vẫn giữ nhãn nguồn; không có thao tác nào được thực hiện.'),
+          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => { this.setState({ aiRecovered: true }); this.patch(t.id, { phase: 'composing' }); this.later(() => this.patch(t.id, { phase: 'done' }), 900); } }, 'Tạo lại câu trả lời') : null, handoffBtn('Cần xử lý thủ công'))));
+        return out;
+      }
+      out.push(h(NS.ChatMessage, { key: t.id + 'a', time: t.time, label: false }, ...toolRows(t, n), ...results, ...narrative(t)));
+      return out;
+    };
+    const welcome = () => {
+      const keys = ['vin', 'compare', 'branch', 'quote'];
+      const box = (title, items) => h('div', { style: { padding: '10px 12px', borderRadius: 8, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 4 } },
+        h('span', { style: { font: '600 12px/1.4 var(--font-sans)', color: 'var(--text-primary)' } }, title),
+        h('ul', { style: { margin: 0, paddingLeft: 16, font: 'var(--type-helper)', color: 'var(--text-body)' } }, items.map((x, i) => h('li', { key: i }, x))));
+      return [
+        h(NS.ChatMessage, { key: 'sys', role: 'system' }, 'Phiên làm việc · 17/11/2026 · dữ liệu mô phỏng'),
+        h(NS.ChatMessage, { key: 'w', label: false },
+          h('span', null, 'Tôi hỗ trợ tra cứu phụ tùng trong phạm vi quyền của tài khoản bạn.'),
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 } },
+            box('Trong bản mô phỏng này', ['Tra xe theo VIN (dữ liệu mẫu)', 'Tìm phụ tùng, đối chiếu mã OE', 'Hiển thị giá và tồn trong quyền của bạn — hệ thống tra, AI không nhận giá', 'Chuyển nhân viên phụ trách']),
+            box('Thuộc MVP, chưa thiết kế ở đây', ['Nhận diện phụ tùng từ ảnh', 'Yêu cầu lập báo giá', 'Xác nhận báo giá, tạo đơn nháp']),
+            box('Không giao cho Trợ lý', ['Sửa giá, chiết khấu, duyệt đơn', 'Xem dữ liệu ngoài quyền', 'Suy đoán giá, tồn kho hoặc xe tương thích']))),
+        isWorkspace ? h('div', { key: 'p', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 8 } },
+          keys.map((k) => h('button', { key: k, type: 'button', className: 'bb-prompt', disabled: aiDown, onClick: () => this.run(k) }, h('span', null, SC[k].q), h('small', null, SC[k].hint)))) : null,
+      ];
+    };
+    const downNode = () => h('div', { key: 'down', style: { paddingTop: 24 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'ai-unavailable', title: 'Trợ lý AI không khả dụng',
+      description: 'Dịch vụ AI không phản hồi (mô phỏng). Tra cứu phụ tùng, giá và tồn kho vẫn dùng được trực tiếp. Không có thao tác nào bị ảnh hưởng.' + (S.aiChecks ? ' Đã kiểm tra lại ' + S.aiChecks + ' lần.' : ''), code: 'AI-503-2C1',
+      action: h(React.Fragment, null, B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => { this.setState({ aiChecks: S.aiChecks + 1 }); this.toast({ tone: 'warning', title: 'Trợ lý AI vẫn không khả dụng', description: 'Kiểm tra lúc ' + this.now() + '.' }); } }, 'Kiểm tra lại') : null,
+        B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'search', onClick: () => this.toast({ tone: 'info', title: 'Mở Tra cứu phụ tùng', description: 'Thuộc prototype Workflow A.' }) }, 'Mở Tra cứu phụ tùng') : null) }) : null);
+    // ---------- history (read-only past session) ----------
+    const HI = Component.HIST();
+    const hv = S.viewing ? HI.find((x) => x.id === S.viewing) : null;
+    const isSup = persona === 'supervisor';
+    const historyNode = () => {
+      if (hv.team && !isSup) return [h('div', { key: 'den', style: { paddingTop: 24 } }, NS.EmptyState ? h(NS.EmptyState, { variant: 'unauthorized', title: 'Bạn không có quyền xem phiên này',
+        description: 'Phiên thuộc một nhân viên khác. Chỉ trưởng bộ phận được xem hội thoại của bộ phận (đề xuất theo AI1). Máy chủ đã từ chối; không có nội dung nào được tải.', code: 'AUTH-403-H2',
+        action: B ? h(B, { size: 'sm', variant: 'secondary', onClick: () => this.setState({ viewing: null }) }, 'Về phiên của bạn') : null }) : null)];
+      const own = !hv.team;
+      const p = own ? P['BP-1042'] : hv;
+      const priceVal = capPrice === 'granted' ? vnd(own ? 1230000 : p.price) + ' · VAT: chưa xác định' : locked(capPrice === 'unknown' ? 'unknown' : 'denied');
+      const stockVal = capStock === 'granted' ? (own ? '27 bộ' : p.stock + ' ' + p.unit) : locked(capStock === 'unknown' ? 'unknown' : 'denied');
+      return [
+        NS.Alert ? h(NS.Alert, { key: 'hb', tone: 'neutral', icon: 'history', title: own ? 'Phiên cũ của bạn · chỉ xem' : 'Phiên của ' + hv.owner + ' · chỉ xem' },
+          (own ? '' : 'Bạn xem theo quyền trưởng bộ phận (đề xuất theo AI1); có ghi nhật ký truy cập hay không: chưa xác định. ') + 'Giá và tồn là dữ liệu tại thời điểm tra cứu (' + hv.at + '), không phải hiện tại; chỉ hiện theo quyền của bạn.') : null,
+        h('div', { key: 'hact', style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'refresh-cw', onClick: () => this.run(own ? 'vin' : 'unsupported', own ? {} : { q: hv.q }) }, 'Tra cứu lại trong phiên của bạn') : null, B ? h(B, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ viewing: null }) }, 'Về phiên hiện tại') : null),
+        h(NS.ChatMessage, { key: 'hu', role: 'user', time: hv.when }, own ? 'Xe VIN MR8YB3JF5N0123456 dùng má phanh trước nào?' : hv.q),
+        h(NS.ChatMessage, { key: 'ha', time: hv.when, label: false },
+          NS.ToolCall ? h(NS.ToolCall, { label: own ? 'Tra xe theo VIN (dữ liệu mẫu)' : 'Tìm phụ tùng theo xe', name: own ? 'Agent · tra_xe_theo_vin' : 'Agent · tim_phu_tung', status: 'success' }) : null,
+          NS.ToolCall ? h(NS.ToolCall, { label: 'Tra giá bán', name: 'Nội bộ · erp.gia_ban', status: capPrice === 'granted' ? 'success' : 'unauthorized' }) : null,
+          NS.ERPResult ? h(NS.ERPResult, { state: 'lookup', label: 'Dữ liệu tra cứu lúc ' + hv.at + ' · không phải hiện tại', source: 'ERP mô phỏng', title: p.sku },
+            NS.DescriptionList ? h(NS.DescriptionList, { columns: 2, items: [{ label: 'Giá bán lúc tra cứu', value: priceVal }, { label: 'Tồn · Long Biên lúc tra cứu', value: stockVal }] }) : null) : null,
+          aiBlock(h('span', null, own ? 'Mã phù hợp là BP-1042 (OE 04465-0D130).' : hv.ho ? 'BD-0771 hết hàng; chưa có mã thay thế đáng tin cậy trong danh mục mẫu.' : 'Mã phù hợp là ' + hv.sku + ' (' + hv.pname + '). Tình trạng tồn lúc đó: còn hàng.')),
+          hv.ho && NS.ToolCall ? h(NS.ToolCall, { label: 'Chuyển nhân viên · Không xác định được mã hàng', name: 'Agent · chuyen_nhan_vien', status: 'success', message: 'Đã tạo ' + hv.ho + ' lúc ' + hv.at + '.' }) : null),
+      ];
+    };
+    const threadNode = h(React.Fragment, null,
+      aiDown ? downNode() : null,
+      !aiDown && hv && isWorkspace ? historyNode() : null,
+      !aiDown && !hv && (!isWorkspace ? [h(NS.ChatMessage, { key: 'ctx', role: 'system' }, 'Ngữ cảnh: ' + (P[S.ctxSku] || P['BP-1042']).pname + ' · ' + S.ctxSku)] : null),
+      !aiDown && !(hv && isWorkspace) && S.turns.length === 0 ? welcome() : null,
+      !aiDown && !(hv && isWorkspace) ? S.turns.map((t) => turnNodes(t, !isWorkspace)) : null);
+
+    // ---------- composer ----------
+    const asked = (q) => S.turns.some((t) => t.q === q);
+    const baseSug = !isWorkspace ? ['So sánh ' + S.ctxSku + ' với các mã thay thế', 'Kiểm tra giá và tồn cho BP-2210A'] : S.turns.length ? ['Thêm BP-1042 và BS-0402 vào lựa chọn tạm', 'Chi nhánh Cầu Giấy còn BP-1042 không?', 'Chuyển yêu cầu này cho nhân viên phụ trách'] : [];
+    const suggestions = aiDown || busy ? [] : baseSug.filter((q) => !asked(q));
+    const submit = (v) => { const r = this.route(v); this.run(r[0], { ...(r[1] || {}), q: v }); };
+    const composerNode = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+      NS.AIComposer ? h(NS.AIComposer, { value: S.draft, onChange: (v) => this.setState({ draft: v }), onSubmit: submit, disabled: aiDown, busy,
+        placeholder: 'Hỏi về phụ tùng, xe, giá hoặc tồn kho…', context: isWorkspace ? [...(S.turns.some((t) => t.key === 'vin') ? ['VIN MR8YB3JF5N0123456'] : []), ...(S.from === 'context' ? [S.ctxSku] : [])] : [S.ctxSku],
+        suggestions, onSuggestion: (s) => submit(s), disclaimer: 'AI có thể sai. Giá và tồn kho chỉ lấy từ thẻ dữ liệu, kèm thời điểm tra cứu do hệ thống ghi.' }) : null,
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', ...cap } },
+        B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'scan-line', restricted: true, restrictedReason: 'Nhận diện phụ tùng từ ảnh thuộc MVP — chưa thiết kế trong bản mô phỏng' }, 'Nhận diện từ ảnh') : null,
+        h('span', null, 'Điểm nối · chưa thiết kế. Kết quả ảnh sẽ là “AI nhận diện”, không tự thành mã đã xác minh.')));
+
+    // ---------- side panel ----------
+    const tone = { success: 'success', error: 'error', unauthorized: 'restricted', timeout: 'warning', unavailable: 'warning', running: 'neutral', unknown: 'warning', pending: 'neutral' };
+    const lbl = { success: 'Hoàn tất', error: 'Thất bại', unauthorized: 'Không có quyền', timeout: 'Quá thời gian', unavailable: 'ERP không khả dụng', running: 'Đang chạy', unknown: 'Chưa rõ', pending: 'Chưa gửi' };
+    const runs = [];
+    S.turns.forEach((t) => (t.prev || []).forEach((p, k) => t.tools.forEach((x, i) => { if (x[3] === 'backend') runs.push({ k: t.id + 'p' + k + i, label: x[0], name: x[1], type: x[3], st: p.outcomes[i].status, time: k === 0 ? t.time : t.prev[k - 1].at }); })));
+    S.turns.forEach((t) => {
+      t.tools.forEach((x, i) => {
+        const doneN = t.phase === 'composing' || t.phase === 'done' || t.phase === 'aifail' ? t.tools.length : t.step;
+        const st = i < doneN ? t.outcomes[i].status : t.phase === 'running' && i === t.step ? 'running' : t.phase === 'stopped' && i === t.step ? 'unknown' : null;
+        if (st) runs.push({ k: t.id + i, label: x[0], name: x[1], type: x[3], st, time: t.prev && t.prev.length && x[3] === 'backend' ? t.prev[t.prev.length - 1].at : t.time });
+      });
+      if (t.key === 'handoff' && t.ho && t.ho !== 'draft' && t.ho !== 'cancelled') runs.push({ k: t.id + 'ho', label: 'Chuyển nhân viên', name: 'chuyen_nhan_vien', type: 'agent', st: { sending: 'running', sent: 'success', error: 'error', unknown: 'unknown' }[t.ho], time: t.hoAt || t.time });
+    });
+    const CAPL = { granted: 'Đề xuất: có', denied: 'Không', unknown: 'Chưa xác định' };
+    const sec = (title, body) => h('section', { style: { display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' } }, h('h2', { className: 'bb-sec' }, title), body);
+    const kv = (k, v) => h('div', { style: { display: 'flex', gap: 8, font: 'var(--type-helper)' } }, h('span', { style: { color: 'var(--text-secondary)', flex: '1 1 0' } }, k), h('span', { style: { color: 'var(--text-primary)', fontWeight: 500, textAlign: 'right' } }, v));
+    const legendRow = (t, d) => h('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-start' } }, h('span', { style: { flexShrink: 0, minWidth: 120 } }, t), h('span', { style: cap }, d));
+    const tickets = S.turns.filter((t) => t.key === 'handoff' && t.ho === 'sent');
+    const sideNode = h('div', null,
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 16px', height: 48, borderBottom: '1px solid var(--border-default)' } },
+        h('span', { style: { font: '600 14px/1.3 var(--font-sans)', color: 'var(--text-primary)', flex: '1 1 0' } }, 'Nguồn & công cụ'),
+        narrow && NS.IconButton ? h(NS.IconButton, { icon: 'x', label: 'Đóng Nguồn & công cụ', size: 'sm', onClick: () => this.setState({ side: false }) }) : null),
+      sec('Công cụ đã gọi trong phiên (' + runs.length + ')', runs.length ? h('ul', { style: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 } },
+        runs.map((r) => h('li', { key: r.k, style: { display: 'flex', flexDirection: 'column', gap: 2, padding: '6px 8px', borderRadius: 6, background: 'var(--bg-subtle)' } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } }, h('span', { style: { font: 'var(--type-helper)', color: 'var(--text-primary)', flex: '1 1 0' } }, r.label), NS.Badge ? h(NS.Badge, { size: 'sm', tone: tone[r.st], icon: false }, lbl[r.st]) : null),
+          h('span', { style: cap }, (r.type === 'agent' ? 'Agent · ' : 'Nội bộ · '), h('span', { className: 'ap-code', style: { fontSize: 12, fontWeight: 400 } }, r.name), ' · ' + r.time))))
+        : h('span', { style: cap }, 'Chưa có công cụ nào được gọi.')),
+      sec('Ranh giới dữ liệu với AI', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, font: 'var(--type-helper)', color: 'var(--text-body)' } },
+        h('span', null, h('b', { style: { fontWeight: 600 } }, 'AI nhận: '), 'thông số kỹ thuật, mã hàng/OE, trạng thái tồn (con_hang · het_hang · can_kiem_tra), tham chiếu báo giá.'),
+        h('span', null, h('b', { style: { fontWeight: 600 } }, 'AI không nhận: '), 'giá bán, giá vốn, giá theo khách, số lượng tồn, tên kho, công nợ, danh sách và lịch sử mua của khách.'),
+        h('span', { style: cap }, 'Hệ thống hiển thị giá/tồn trực tiếp cho người có quyền. Mọi công cụ đều qua kiểm tra quyền ở máy chủ.'))),
+      sec('Nhãn nguồn', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        legendRow(tag('ai', 'AI nhận diện'), 'Nội dung do AI nhận diện hoặc suy luận'),
+        legendRow(tag('lookup'), 'Kết quả từ catalog VIN/OE hoặc ERP; ở đây là ERP mô phỏng'),
+        legendRow(tag('verified'), 'Đạt quy tắc đối chiếu được duyệt — quy tắc chưa có, nên chưa phần nào mang nhãn này'),
+        legendRow(tag('cache', 'Bản lưu'), 'Không trích số, không chọn'))),
+      sec('Quyền trong phiên (mô phỏng)', h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        kv('Xem giá bán', CAPL[capPrice]), kv('Xem tồn kho', CAPL[capStock]),
+        kv('Phạm vi', { own: 'Đề xuất: Long Biên', 'own-plus': 'Đề xuất: Long Biên + Cầu Giấy', unknown: 'Chưa xác định' }[branchScope]),
+        h('span', { style: { ...cap, marginTop: 4 } }, 'Mô hình chi nhánh/kho chưa chốt (AI5).'))),
+      sec('Lựa chọn tạm', S.selection.length ? h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, S.selection.map((k) => NS.Tag ? h(NS.Tag, { key: k, onRemove: () => this.setState({ selection: S.selection.filter((x) => x !== k) }), removeLabel: 'Bỏ ' + k }, k) : k)) : h('span', { style: cap }, 'Chưa có sản phẩm nào.')),
+      sec('Yêu cầu hỗ trợ', tickets.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } }, tickets.map((t) => kv(t.code, 'Chờ tiếp nhận · ' + (t.hoAt || '')))) : h('span', { style: cap }, 'Chưa chuyển yêu cầu nào.')));
+
+    // ---------- rail ----------
+    const svcDot = { ok: ['var(--status-success)', 'Trợ lý AI · sẵn sàng'], slow: ['var(--status-warning)', 'Trợ lý AI · phản hồi chậm'], timeout: ['var(--status-warning)', 'Trợ lý AI · phản hồi chậm'], down: ['var(--status-error)', 'Trợ lý AI · không khả dụng'] }[svc];
+    const newSession = () => { this.timers.forEach(clearTimeout); this.timers = []; this.setState({ turns: [], selection: [], viewing: null }); };
+    const railItem = (key, title, sub, active, onClick) => h('button', { key, type: 'button', 'aria-current': active ? 'true' : undefined, onClick, style: { textAlign: 'left', border: 0, cursor: 'pointer', padding: '8px 10px', borderRadius: 8, background: active ? 'var(--bg-selected)' : 'transparent', display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
+      h('span', { style: { font: '500 13px/1.4 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 210 } }, title), h('span', { style: cap }, sub));
+    const railNode = h(React.Fragment, null,
+      h('div', { role: 'status', style: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', font: 'var(--type-caption)', color: 'var(--text-secondary)' } },
+        h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: svcDot[0] } }), svcDot[1]),
+      h('div', { style: { padding: 12, borderBottom: '1px solid var(--border-subtle)' } }, B ? h(B, { variant: 'secondary', iconLeft: 'plus', fullWidth: true, disabled: busy, onClick: newSession }, 'Phiên mới') : null),
+      h('div', { style: { padding: '12px', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' } },
+        h('h2', { className: 'bb-sec', style: { padding: '0 4px' } }, 'Phiên hiện tại'),
+        railItem('cur', S.turns.length ? S.turns[0].q : 'Cuộc trò chuyện mới', S.turns.length + ' câu hỏi · hôm nay', !hv, () => this.setState({ viewing: null })),
+        h('h2', { className: 'bb-sec', style: { padding: '8px 4px 0' } }, 'Lịch sử của bạn'),
+        ...HI.filter((x) => !x.team).map((x) => railItem(x.id, x.title, x.when + ' · chỉ xem', S.viewing === x.id, () => this.setState({ viewing: x.id }))),
+        isSup ? h('h2', { className: 'bb-sec', style: { padding: '8px 4px 0' } }, 'Lịch sử bộ phận') : null,
+        isSup ? h('div', { role: 'radiogroup', 'aria-label': 'Lọc theo nhân viên', style: { display: 'flex', gap: 4, flexWrap: 'wrap', padding: '0 4px' } },
+          [['all', 'Tất cả'], ['Trần Quốc Bảo', 'Q. Bảo'], ['Lê Thu Hà', 'T. Hà']].map(([k, l]) => NS.Tag ? h(NS.Tag, { key: k, selected: S.teamFilter === k, onClick: () => this.setState({ teamFilter: k }) }, l) : l)) : null,
+        ...(isSup ? HI.filter((x) => x.team && (S.teamFilter === 'all' || x.owner === S.teamFilter)).map((x) => railItem(x.id, x.title, x.owner + ' · ' + x.when, S.viewing === x.id, () => this.setState({ viewing: x.id }))) : []),
+        persona === 'admin' ? h('div', { style: { margin: '6px 4px 0', padding: 10, borderRadius: 8, border: '1px dashed var(--border-strong)', display: 'flex', gap: 8, alignItems: 'flex-start', ...cap } }, icon('lock', 'var(--text-secondary)'),
+          h('span', null, 'Quản trị hệ thống không xem nội dung kinh doanh theo mặc định. Mở quyền tạm thời cần Giám đốc duyệt và ghi nhật ký — chưa thiết kế.')) : null,
+        h('span', { style: { ...cap, padding: '4px' } }, isSup ? 'Bạn thấy phiên của mình và của bộ phận (đề xuất theo AI1). Thời hạn lưu hội thoại nội bộ chưa xác định.' : 'Chỉ hiện phiên của bạn (đề xuất theo AI1). Thời hạn lưu hội thoại nội bộ chưa xác định.')),
+      h('div', { style: { marginTop: 'auto', padding: 12, borderTop: '1px solid var(--border-subtle)', ...cap } }, 'Câu trả lời của Trợ lý là mô phỏng theo kịch bản cố định — không dùng mô hình AI thật.'));
+
+    // ---------- shell ----------
+    const PERSONA = { sales: 'Nhân viên kinh doanh', restricted: 'Nhân viên hạn chế', supervisor: 'Giám sát kinh doanh', admin: 'Quản trị hệ thống' };
+    const ERPL = { fresh: 'tra cứu được', cached: 'bản lưu', stale: 'dữ liệu cũ', unverified: 'chưa xác nhận', timeout: 'quá thời gian', down: 'không khả dụng' };
+    const SVCL = { ok: 'bình thường', slow: 'chậm', timeout: 'quá thời gian khi trả lời', down: 'không khả dụng' };
+    const b = (x) => h('b', { style: { color: 'var(--text-primary)', fontWeight: 500 } }, x);
+    const simBanner = h('div', { role: 'note', style: { display: 'flex', alignItems: 'center', gap: '6px 12px', flexWrap: 'wrap', padding: '8px 12px', border: '1px dashed var(--border-strong)', borderRadius: 8, background: 'var(--bg-nested)', font: 'var(--type-caption)', color: 'var(--text-secondary)' } },
+      h('span', { style: { fontWeight: 600, color: 'var(--text-primary)' } }, 'Chế độ mô phỏng UX'),
+      h('span', null, 'Persona: ', b(PERSONA[persona] + ' (mô phỏng)')), h('span', null, 'Xem giá: ', b(CAPL[capPrice])), h('span', null, 'Xem tồn: ', b(CAPL[capStock])),
+      h('span', null, 'ERP: ', b('mô phỏng · ' + ERPL[erp])), h('span', null, 'Dịch vụ AI: ', b('mô phỏng · ' + SVCL[svc])),
+      h('span', { style: { flexBasis: '100%' } }, 'Câu trả lời AI theo kịch bản cố định. Danh sách công cụ theo tài liệu giải pháp 1.0 (đề xuất); quyền là ĐỀ XUẤT; giao diện không thay thế kiểm tra quyền ở máy chủ. Chưa kiểm tra API ERP đích hay dịch vụ AI thật.'));
+    const collapsed = S.col !== null ? S.col : narrow;
+    const panelOpen = S.panel !== null ? S.panel : !overlay;
+    const showSide = isWorkspace && (S.side !== null ? S.side : !narrow);
+    const dotMap = { fresh: ['var(--status-success)', 'ERP mô phỏng · đã kết nối'], cached: ['var(--status-warning)', 'ERP mô phỏng · bản lưu'], stale: ['var(--status-warning)', 'ERP mô phỏng · dữ liệu cũ'], unverified: ['var(--status-warning)', 'ERP mô phỏng · chưa xác nhận'], timeout: ['var(--status-warning)', 'ERP mô phỏng · phản hồi chậm'], down: ['var(--status-error)', 'ERP mô phỏng · không khả dụng'] };
+    const dot = dotMap[erp];
+    const ctxP = P[S.ctxSku] || P['BP-1042'];
+    const aiStatus = aiDown ? 'offline' : svc === 'slow' || svc === 'timeout' ? 'degraded' : 'online';
+    const sections = [{ items: [
+      { key: 'dashboard', label: 'Tổng quan', icon: 'layout-dashboard' },
+      { key: 'lookup', label: 'Tra cứu phụ tùng', icon: 'search' },
+      { key: 'quote', label: 'Báo giá', icon: 'file-text' },
+      { key: 'orders', label: 'Đơn hàng nháp', icon: 'package' },
+      { key: 'audit', label: 'Hoạt động', icon: 'history' },
+    ] }];
+    return {
+      rootRef: this.rootRef, threadRef: this.threadRef,
+      sections, navKey: isWorkspace ? '' : 'lookup', collapsed,
+      sidebarFooter: collapsed ? null : h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, font: 'var(--type-caption)', color: 'var(--text-secondary)' } }, h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: dot[0] } }), dot[1]),
+      crumbs: isWorkspace ? (overlay ? [{ label: 'Trợ lý AI' }] : [{ label: 'Trợ lý AI' }, { label: hv ? 'Lịch sử' : 'Không gian làm việc' }]) : (overlay ? [{ label: S.ctxSku }] : [{ label: 'Tra cứu phụ tùng' }, { label: S.ctxSku }]),
+      headerActions: NS.IconButton ? h(React.Fragment, null,
+        isWorkspace && narrow ? h(NS.IconButton, { icon: 'panel-right', label: showSide ? 'Ẩn Nguồn & công cụ' : 'Hiện Nguồn & công cụ', active: showSide, onClick: () => this.setState({ side: !showSide }) }) : null,
+        h(NS.IconButton, { icon: 'bell', label: 'Thông báo (chưa thiết kế)', disabled: true }), h(NS.IconButton, { icon: 'circle-help', label: 'Trợ giúp (chưa thiết kế)', disabled: true }),
+        h(NS.IconButton, { icon: 'sparkles', label: isWorkspace ? 'Đang ở Không gian Trợ lý AI' : panelOpen ? 'Đóng Trợ lý AI' : 'Mở Trợ lý AI', active: isWorkspace || panelOpen, onClick: () => { if (!isWorkspace) this.setState({ panel: !panelOpen }); } })) : null,
+      user: { name: 'Nguyễn Minh Anh', role: PERSONA[persona] + ' (mô phỏng)', initials: 'MA' },
+      headerSearch: () => this.toast({ tone: 'info', title: 'Tìm nhanh thuộc Workflow A', description: 'Ô tìm trên header chưa có hành vi trong bản mô phỏng.' }),
+      wsTopNode: (S.from === 'context' || overlay) ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+        S.from === 'context' && B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'arrow-left', onClick: () => { const el = this.logEl(); this.savedScroll = el ? el.scrollTop : null; this.setState({ route: 'context' }); } }, 'Quay lại ' + S.ctxSku) : null,
+        h('span', { style: { flex: '1 1 0' } }),
+        overlay ? h('span', { role: 'status', style: { display: 'inline-flex', alignItems: 'center', gap: 6, font: 'var(--type-caption)', color: 'var(--text-secondary)' } }, h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: svcDot[0] } }), svcDot[1]) : null,
+        overlay && B ? h(B, { size: 'sm', variant: 'secondary', iconLeft: 'plus', disabled: busy, onClick: newSession }, 'Phiên mới') : null) : null,
+      isWorkspace, isContext: !isWorkspace,
+      showRail: isWorkspace && !overlay, showSide, sidePos: narrow ? 'absolute' : 'relative', sideShadow: narrow ? 'var(--shadow-lg)' : 'none',
+      railNode, sideNode, threadNode, composerNode, simBanner,
+      backNode: B ? h(B, { size: 'sm', variant: 'ghost', iconLeft: 'arrow-left', onClick: () => { this.setState({ route: 'workspace' }); this.restoreScroll(); } }, S.from === 'workspace' ? 'Quay lại Không gian Trợ lý AI' : 'Mở Không gian Trợ lý AI') : null,
+      ctxSku: S.ctxSku, ctxTitle: ctxP.pname + ' ' + ctxP.brand,
+      ctxMeta: h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', font: 'var(--type-helper)', color: 'var(--text-secondary)' } },
+        NS.Badge ? h(NS.Badge, { size: 'sm', tone: ctxP.origin === 'Hàng chính hãng' ? 'info' : 'neutral', icon: false }, ctxP.origin) : null,
+        h('span', { className: 'ap-code', style: { color: 'var(--text-primary)' } }, ctxP.sku), h('span', { className: 'ap-code', style: { fontWeight: 400 } }, 'OE ' + ctxP.oe)),
+      ctxLayout: S.w < 1180 || (panelOpen && S.w < 1360) ? 'drawer' : 'page',
+      erp, capPrice, capStock, branchScope, retrying: S.retrying, confirmedAt: S.confirmedAt,
+      retryErp: () => this.retryErp(null), openCtxSku: (s) => this.setState({ ctxSku: P[s] ? s : S.ctxSku }),
+      panelOpen, panelPos: overlay ? 'absolute' : 'relative', panelShadow: overlay ? 'var(--shadow-lg)' : 'none',
+      panelKey: (e) => { if (e.key === 'Escape') { e.stopPropagation(); this.setState({ panel: false }); const r = this.rootRef.current; const btn = r && r.querySelector('button[aria-label="Mở Trợ lý AI"], button[aria-label="Đóng Trợ lý AI"]'); setTimeout(() => { const b2 = r && r.querySelector('button[aria-label="Mở Trợ lý AI"]'); if (b2) b2.focus(); }, 50); } },
+      panelContext: 'Đang xem: ' + ctxP.pname + ' · ' + ctxP.sku, aiStatus,
+      panelActions: NS.IconButton ? h(NS.IconButton, { icon: 'arrow-up-right', label: 'Mở rộng thành Không gian Trợ lý AI', size: 'sm', onClick: () => { this.setState({ route: 'workspace', from: 'context' }); this.later(() => this.toBottom(), 120); } }) : null,
+      closePanel: () => this.setState({ panel: false }),
+      toasts: S.toasts.map((t) => ({ ...t, close: () => this.setState({ toasts: this.state.toasts.filter((x) => x.id !== t.id) }) })),
+      toggleSidebar: () => this.setState({ col: !collapsed }),
+      selectNav: (k) => { if (k === 'lookup') this.setState({ route: 'context' }); else this.toast({ tone: 'info', title: 'Ngoài phạm vi Batch B', description: 'Màn hình này chưa được thiết kế.' }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

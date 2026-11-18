@@ -1,0 +1,148 @@
+<!-- @dsCard group="Data" height=318 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>DataTable — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  DataTable,
+  TableToolbar,
+  Pagination,
+  Button,
+  Badge
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+const rows = [{
+  id: 1,
+  sku: 'BP-1042',
+  name: 'Má phanh trước Toyota Vios',
+  stock: 24,
+  price: 1250000,
+  st: 'ok'
+}, {
+  id: 2,
+  sku: 'OF-2210',
+  name: 'Lọc dầu động cơ Honda City',
+  stock: 3,
+  price: 185000,
+  st: 'low'
+}, {
+  id: 3,
+  sku: 'SP-0877',
+  name: 'Bugi Iridium NGK',
+  stock: 0,
+  price: 320000,
+  st: 'out'
+}];
+const vnd = n => n.toLocaleString('vi-VN') + ' ₫';
+const stB = {
+  ok: React.createElement(Badge, {
+    shape: "pill",
+    tone: "success",
+    size: "sm"
+  }, "C\xF2n h\xE0ng"),
+  low: React.createElement(Badge, {
+    shape: "pill",
+    tone: "warning",
+    size: "sm"
+  }, "S\u1EAFp h\u1EBFt"),
+  out: React.createElement(Badge, {
+    shape: "pill",
+    tone: "error",
+    size: "sm"
+  }, "H\u1EBFt h\xE0ng")
+};
+function Demo() {
+  const [p, setP] = React.useState(1);
+  const [sel, setSel] = React.useState([]);
+  const [f, setF] = React.useState([{
+    key: 'b',
+    label: 'Hãng: Toyota'
+  }, {
+    key: 'c',
+    label: 'Danh mục: Phanh'
+  }]);
+  return React.createElement(DataTable, {
+    selectable: true,
+    selected: sel,
+    onSelectedChange: setSel,
+    caption: "Danh s\xE1ch s\u1EA3n ph\u1EA9m",
+    toolbar: React.createElement(TableToolbar, {
+      search: {
+        placeholder: 'Tìm SKU, tên sản phẩm…'
+      },
+      onAddFilter: () => {},
+      filters: f,
+      onRemoveFilter: k => setF(f.filter(x => x.key !== k)),
+      onClearFilters: () => setF([]),
+      selectedCount: sel.length,
+      bulkActions: React.createElement(Button, {
+        size: "sm",
+        variant: "secondary",
+        iconLeft: "file-plus"
+      }, "Th\xEAm v\xE0o b\xE1o gi\xE1"),
+      onClearSelection: () => setSel([]),
+      actions: React.createElement(Button, {
+        size: "sm",
+        variant: "ghost",
+        iconLeft: "download"
+      }, "Xu\u1EA5t Excel")
+    }),
+    footer: React.createElement(Pagination, {
+      page: p,
+      total: 1284,
+      pageSize: 20,
+      onPageChange: setP
+    }),
+    columns: [{
+      key: 'sku',
+      header: 'SKU',
+      sortable: true,
+      render: r => React.createElement("span", {
+        style: {
+          font: 'var(--type-code)'
+        }
+      }, r.sku)
+    }, {
+      key: 'name',
+      header: 'Tên sản phẩm',
+      sortable: true
+    }, {
+      key: 'stock',
+      header: 'Tồn',
+      align: 'right',
+      sortable: true
+    }, {
+      key: 'price',
+      header: 'Giá bán',
+      align: 'right',
+      sortable: true,
+      render: r => vnd(r.price)
+    }, {
+      key: 'st',
+      header: 'Trạng thái',
+      render: r => stB[r.st]
+    }],
+    rows: rows
+  });
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

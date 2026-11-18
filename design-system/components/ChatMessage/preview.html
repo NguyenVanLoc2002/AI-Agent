@@ -1,0 +1,46 @@
+<!-- @dsCard group="AI" height=181 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>ChatMessage — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-surface)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  ChatMessage
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+function Demo() {
+  return React.createElement("div", {
+    style: {
+      maxWidth: 460,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, React.createElement(ChatMessage, {
+    role: "user",
+    time: "09:43"
+  }, "C\xF2n bao nhi\xEAu m\xE1 phanh BP-1042 \u1EDF H\xE0 N\u1ED9i? Th\xEAm 2 b\u1ED9 v\xE0o b\xE1o gi\xE1 \u0111ang m\u1EDF."), React.createElement(ChatMessage, {
+    role: "assistant",
+    time: "09:44"
+  }, "T\xF4i t\xECm th\u1EA5y 3 m\xE3 m\xE1 phanh ph\xF9 h\u1EE3p v\u1EDBi VIN n\xE0y."));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

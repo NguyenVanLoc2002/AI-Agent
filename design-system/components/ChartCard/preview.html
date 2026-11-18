@@ -1,0 +1,158 @@
+<!-- @dsCard group="Dashboard" height=457 -->
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>ChartCard — preview</title>
+<style>body{margin:0;padding:20px;background:var(--bg-app)}.lbl{font:var(--type-overline);color:var(--text-secondary);text-transform:uppercase;letter-spacing:var(--tracking-caps);margin-bottom:8px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  ChartCard,
+  Button
+} = window.AutoPartsAgentDesignSystem_aa8546;
+const R = p => React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: p.gap || 10,
+    alignItems: p.align || 'center',
+    flexWrap: 'wrap',
+    ...p.style
+  }
+}, p.children);
+const L = ({
+  t
+}) => React.createElement("div", {
+  className: "lbl"
+}, t);
+const DATA = {
+  '7d': [[42, 35], [55, 40], [48, 44], [63, 47], [58, 50], [71, 52], [66, 49]],
+  '30d': [[38, 30], [44, 39], [52, 41], [49, 45], [61, 46], [68, 50], [74, 55]]
+};
+const DAYS = {
+  '7d': ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
+  '30d': ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+};
+function Bars({
+  p
+}) {
+  return React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 14,
+      height: '100%',
+      borderBottom: '1px solid var(--chart-grid)',
+      padding: '0 4px',
+      backgroundImage: 'linear-gradient(var(--chart-grid) 1px, transparent 1px)',
+      backgroundSize: '100% 25%'
+    }
+  }, DATA[p].map(([a, b], i) => React.createElement("div", {
+    key: i,
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+      height: '100%',
+      justifyContent: 'flex-end'
+    }
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 3,
+      height: '85%',
+      width: '100%',
+      justifyContent: 'center'
+    }
+  }, React.createElement("div", {
+    style: {
+      width: '38%',
+      height: b + '%',
+      background: 'var(--chart-neutral)',
+      borderRadius: '3px 3px 0 0'
+    }
+  }), React.createElement("div", {
+    style: {
+      width: '38%',
+      height: a + '%',
+      background: 'var(--chart-primary)',
+      borderRadius: '3px 3px 0 0'
+    }
+  })), React.createElement("span", {
+    style: {
+      font: 'var(--type-caption)',
+      color: 'var(--chart-axis)'
+    }
+  }, DAYS[p][i]))));
+}
+function Demo() {
+  const [p, setP] = React.useState('7d');
+  const [st, setSt] = React.useState('ready');
+  return React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      maxWidth: 560
+    }
+  }, React.createElement(ChartCard, {
+    title: "Gi\xE1 tr\u1ECB b\xE1o gi\xE1",
+    subtitle: "Chi nh\xE1nh H\xE0 N\u1ED9i \u2014 Long Bi\xEAn",
+    value: p === '7d' ? '412,6 triệu ₫' : '1,72 tỷ ₫',
+    periods: [{
+      value: '7d',
+      label: '7 ngày'
+    }, {
+      value: '30d',
+      label: '30 ngày'
+    }],
+    period: p,
+    onPeriodChange: setP,
+    legend: [{
+      label: 'Kỳ này',
+      color: 'var(--chart-primary)'
+    }, {
+      label: 'Kỳ trước',
+      color: 'var(--chart-neutral)'
+    }],
+    source: {
+      source: 'erp',
+      time: '09:42'
+    },
+    state: st,
+    height: 180,
+    summary: "Gi\xE1 tr\u1ECB b\xE1o gi\xE1 k\u1EF3 n\xE0y cao h\u01A1n k\u1EF3 tr\u01B0\u1EDBc \u1EDF t\u1EA5t c\u1EA3 c\xE1c ng\xE0y.",
+    retryAction: React.createElement(Button, {
+      size: "sm",
+      variant: "secondary",
+      iconLeft: "refresh-cw",
+      onClick: () => setSt('ready')
+    }, "Th\u1EED l\u1EA1i")
+  }, React.createElement(Bars, {
+    p: p
+  })), React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, ['ready', 'loading', 'empty', 'error', 'restricted'].map(s => React.createElement(Button, {
+    key: s,
+    size: "sm",
+    variant: st === s ? 'subtle' : 'ghost',
+    onClick: () => setSt(s)
+  }, {
+    ready: 'Có dữ liệu',
+    loading: 'Đang tải',
+    empty: 'Trống',
+    error: 'Lỗi ERP',
+    restricted: 'Không có quyền'
+  }[s]))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Demo, null));
+</script>
+</body>
+</html>

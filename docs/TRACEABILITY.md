@@ -16,6 +16,7 @@
 - Use cases & rules: `docs/requirements/USE_CASES.md`, `docs/requirements/BUSINESS_RULES.md`.
 - FR → UC → BR → control → test → SEC matrix: `docs/backlog/IMPLEMENTATION_PLAN.md` §3–§4.
 - Contracts: `docs/contracts/`; security: `docs/security/`; architecture & ADRs: `docs/architecture/`.
+- UI design (Claude Design, replaces the Stitch plan in `docs/03_UI_UX_Stitch.md@af2d09f`): `design-system/` and `docs/design/` (entry `docs/design/DESIGN_GUIDE.md`). Screen → UC mapping: `docs/design/specs/90-danh-muc-man-hinh.md` §Ánh xạ UC. Design conflicts with ADR/contract/RBAC: `docs/DECISIONS_REQUIRED.md` §UX. Design artifacts are DESIGN PROPOSAL, never SOURCE FACT.
 - All test IDs are NOT RUN until executed with recorded command and exit code.
 
 ## Evidence vocabulary
