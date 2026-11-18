@@ -1,7 +1,7 @@
 # ERP connector contract (ports) — v0.1 DRAFT
 
 > **Đây KHÔNG phải tài liệu API của bất kỳ ERP vendor nào.** Không có tài liệu API ERP thật nào được cung cấp. Mọi khả năng của ERP đích là **OPEN** (D-01..D-03, `docs/DECISIONS_REQUIRED.md`). Tài liệu này định nghĩa các *port nội bộ* vendor-neutral. Mock ERP connector (PoC) và một adapter ERP thật trong tương lai (MVP, gated G4) phải hiện thực các port này.
-> Tên thiết kế mục tiêu: `ErpConnector` (tên khái niệm cho tập port, theo BRD §12; ADR-005 vẫn tách port, A-07), `MockErpConnector`, `RealErpConnector`. Các class này **chưa tồn tại trong code**.
+> Tên thiết kế mục tiêu: `ErpConnector` (tên khái niệm cho tập port, theo BRD §12; ADR-005 vẫn tách port, A-07), `MockErpConnector`, `RealErpConnector`. `MockErpConnector` tồn tại từ SEC-01a (`erp.internal`, chỉ port catalog); `RealErpConnector` **chưa tồn tại**.
 > 2026-11-13. Nhãn mặc định: DESIGN PROPOSAL (ADR-005, ADR-009).
 
 ## 1. Nguồn và khác biệt với BRD
@@ -65,6 +65,7 @@
 - Dữ liệu synthetic có **sentinel** (SOURCE FACT SECURITY_TEST_MATRIX): giá vốn `987654321`, công nợ `123456789`; thêm sentinel giá theo khách **riêng cho từng khách** (A, B — để SEC-02 phân biệt được rò giá của ai) và tên khách giả (honeytoken registry trong `policy`).
 - Fault injection có cấu hình: timeout trước/sau commit, lỗi với message chứa sentinel, trả field thừa (để chứng minh strip tại biên), duplicate response.
 - Adapter phải **strip field nhạy cảm tại biên** trước khi persist/log (rule 20).
+- **SEC-01a (2026-11-18):** `erp.internal.MockErpConnector` hiện thực `VerifiedProductPort` + `AvailabilityBucketPort` trên backend giả **in-memory** (trả JSON thô có field thừa và sentinel); schema `mock_erp` chưa tạo (cần khi có draft order, EP-07). Fault mode: `ERROR_WITH_SENTINEL`, `TIMEOUT`, `DUPLICATE_RESPONSE`, `MALFORMED_ROWS` (chỉ test đặt; không có trong cấu hình chung). Provenance do adapter gán từ cấu hình, **không** đọc từ nội dung dòng ERP (review M7). Backend giả trả toàn bộ dòng rồi adapter lọc: đây là giả định của Mock, adapter thật **không** được liệt kê toàn bộ catalog. Ngưỡng bucket (≥3 CON_HANG, 1–2 CAN_KIEM_TRA, 0 HET_HANG): DESIGN PROPOSAL, D-12 OPEN. T-ERP-01..03 đã chạy.
 
 ## 6. Adapter ERP thật (tên mục tiêu `RealErpConnector`) — OPEN, gated G4
 Điều kiện tối thiểu trước khi viết: tài liệu API được ERP vendor/IT phê duyệt (D-01), tài khoản tích hợp không có quyền giá vốn/duyệt đơn hoặc có compensating control (D-02), xác nhận idempotency/lookup (D-03), sandbox, contract tests chạy cùng bộ test của Mock.

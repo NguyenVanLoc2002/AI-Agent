@@ -5,6 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.secureerp.agent.gateway.AiGateway;
+import com.secureerp.agent.gateway.EgressFixtures;
+import com.secureerp.agent.gateway.GatewayResult;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +20,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * Full application context against a real PostgreSQL (Testcontainers): Flyway baseline applied,
- * health endpoint UP, other actuator endpoints not exposed, no business tables created.
+ * health endpoint UP, other actuator endpoints not exposed, only approved tables created, and the
+ * gateway fails closed while no Fake provider is configured.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -30,18 +34,30 @@ class ApplicationBootstrapIT {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    AiGateway gateway;
+
     @Test
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1");
+        assertThat(applied).containsExactly("1", "2", "3");
     }
 
     @Test
-    void noBusinessTablesBeforeSchemaApproval() {
+    void onlyApprovedTablesExist() {
+        // V2 (SEC-01a, ADR-012 ACCEPTED): egress_record is the only application table so far.
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
-        assertThat(tables).containsExactly("flyway_schema_history");
+        assertThat(tables).containsExactlyInAnyOrder("flyway_schema_history", "egress_record");
+    }
+
+    @Test
+    void gatewayWithoutConfiguredProviderFailsClosedButAudits() {
+        GatewayResult result = gateway.complete(EgressFixtures.request("xin chao"));
+        assertThat(result).isEqualTo(new GatewayResult.Failed(GatewayResult.FailureReason.PROVIDER_UNAVAILABLE));
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where trace_id = ?", Integer.class,
+                EgressFixtures.TRACE_ID)).isPositive();
     }
 
     @Test

@@ -11,15 +11,15 @@
 | conversation | Endpoint chat, dedup, trạng thái hội thoại (kể cả `bot_locked`), ghép response | `ChannelPort` | INTERNAL, sanitized text |
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `AgentApi.handleTurn(...)` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
-| policy | Phân loại, DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
+| policy | DLP inbound/outbound, VIN extractor/validator, honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolRegistry`, `ToolAuthorizationPolicy` | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum) | APPROVED_TECHNICAL |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
 | order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `OrderApi.submit(quoteId, version)` | RESTRICTED, INTERNAL |
 | handoff | Queue, reason code, claim/resolve; publish `HandoffOpened/Resolved` | `HandoffApi` | INTERNAL |
-| audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `AuditSink`, `AuditQueryApi` (read) | metadata |
+| audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
-| platform | KillSwitch, Clock, correlation ID, error mapping | `KillSwitch`, `Clock` | — |
+| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | — |
 | erp | **Leaf adapter:** Mock ERP (PoC), ERP thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
 | bootstrap | Ứng dụng Spring Boot + wiring; module duy nhất được phụ thuộc mọi module | — | — |
 
@@ -31,12 +31,12 @@ conversation ─► agent ─► gateway ─► policy
       ├─► handoff (HandoffApi.open)          handoff ──(event HandoffOpened/Resolved)──► conversation (listener)
       └─► quote (render quote card)
 quote ─► order (OrderApi.submit)
-gateway ──(event EgressDecision)──► audit       securityinspector ─► audit (AuditQueryApi)
+gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
 mọi module ─► identity.api, platform.api, audit.api (publish)
 erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi
 bootstrap ─► mọi module (wiring)
 ```
-- Không vòng: handoff không gọi conversation trực tiếp; khóa bot qua event. gateway không ghi bảng audit; publish event.
+- Không vòng: handoff không gọi conversation trực tiếp; khóa bot qua event. gateway không ghi bảng audit trực tiếp: nó gọi port `audit.EgressAuditLog`, do `audit.internal` hiện thực (audit không phụ thuộc gateway, ARCH-10).
 
 ## 3. Quy tắc (mỗi quy tắc = một ArchUnit/Modulith test, ID ARCH-xx)
 | ID | Quy tắc | Lý do / nguồn |
@@ -45,10 +45,10 @@ bootstrap ─► mọi module (wiring)
 | ARCH-02 | **Allowlist:** chỉ `quote..`, `order..`, `erp..`, `bootstrap..` được phụ thuộc `quote.spi..`; chỉ `order..`, `erp..`, `bootstrap..` được phụ thuộc `order.spi..` | SOURCE FACT giá/công nợ nội bộ; review: denylist không đủ |
 | ARCH-03 | Không module nào import `erp..` trừ `bootstrap` | DESIGN PROPOSAL |
 | ARCH-04 | Chỉ `conversation..` (và `bootstrap`) được phụ thuộc `agent..` | DESIGN PROPOSAL |
-| ARCH-05 | Kiểu trong `gateway.api..` và `tools.api.dto..` (kể cả field lồng nhau, generic type argument): không `BigDecimal`, `Money`, `AuthenticatedCustomerRef`, `Map`, `Object`, `JsonNode`, entity; field số (`int/long/double/Integer/...`) chỉ được phép nếu có trong allowlist tên (`requestedQuantity`, `lineCount`, `quantity`) | SOURCE FACT rule 30 §1; DESIGN PROPOSAL |
+| ARCH-05 | Kiểu trong `gateway.api..` và `tools.api.dto..` (kể cả field lồng nhau, generic type argument): không `BigDecimal`, `Money`, `AuthenticatedCustomerRef`, `Map`, `Object`, `JsonNode`, entity; field số (`int/long/double/Integer/...`) chỉ được phép cho cặp `Type.field` đã duyệt, tính theo package gốc (`gateway.api.TechnicalContext.requestedQuantity`, `gateway.api.QuoteRequestResult.lineCount`). Bổ sung SEC-01a: ARCH-05b (hình dạng đóng), 05c (annotation Jackson), 05d (tên field miễn quét chỉ trên cặp đã duyệt), 05e (`@JsonTypeInfo` chỉ `Id.NAME`, property `type`, kể cả trên field) | SOURCE FACT rule 30 §1; DESIGN PROPOSAL |
 | ARCH-06 | Mọi record trong `gateway.api..`, `tools.api.dto..` có `@EgressClassified(APPROVED_TECHNICAL)` | DESIGN PROPOSAL ADR-003 |
 | ARCH-07 | JPA `@Entity` chỉ trong `..internal..` của module sở hữu | SOURCE FACT |
-| ARCH-08 | `AuthenticatedCustomerRef` chỉ được khởi tạo trong `identity..`; controller không có tham số kiểu `AuthenticatedCustomerRef`; (lớp phụ) không tham số tên `customerId`/`tenantId` | SOURCE FACT; review: chặn theo tên dễ bị né |
+| ARCH-08 | `AuthenticatedCustomerRef` chỉ được khởi tạo trong `identity..`; controller không có tham số kiểu `AuthenticatedCustomerRef`; không tham số/field body (kể cả lồng nhau, mảng, tên `@JsonProperty`/`@JsonAlias`) mang định danh khách (`customer`/`tenant`/`account`/`buyer`/`user`/`khachHang` + `Id`/`Ref`/`Code`/`No`/`Number`/`Key`); không `Map`, `HttpServletRequest`, `HttpHeaders`, `WebRequest`, `HttpEntity`, `InputStream`/`Reader`, `JsonNode`, `byte[]`. Principal phía server (`@AuthenticationPrincipal`, `Principal`, `Authentication`) và `@ExceptionHandler`/`@InitBinder` được miễn | SOURCE FACT; review: chặn theo tên dễ bị né |
 | ARCH-09 | Port ERP không có phương thức `getCost`, `list*Customers`, `approve*`, `updatePrice` | SOURCE FACT rule 20 |
 | ARCH-10 | `audit` không phụ thuộc module nghiệp vụ | DESIGN PROPOSAL |
 | ARCH-11 | Không `Method.invoke`/reflection gọi tool trong `tools..` | SOURCE FACT rule 20 |
@@ -57,7 +57,7 @@ bootstrap ─► mọi module (wiring)
 
 ## 4. Giao tiếp
 - Đồng bộ qua `api` (typed command/result); spi do module sở hữu định nghĩa và erp hiện thực.
-- Sự kiện (audit, handoff, egress decision) qua Spring application events; outbox cho thao tác ERP stateful (rule 20; ADR-009).
+- Sự kiện (audit, handoff) qua Spring application events; quyết định egress **không** qua event mà qua lời gọi đồng bộ `audit.EgressAuditLog` (thiếu listener/bean không được phép làm mất bản ghi, review SEC-01a vòng 2); outbox cho thao tác ERP stateful (rule 20; ADR-009).
 - Mỗi module sở hữu bảng của mình; không đọc bảng chéo.
 
 ## 5. Bằng chứng cần có (NOT RUN)
@@ -67,3 +67,12 @@ bootstrap ─► mọi module (wiring)
 - `bootstrap` là root package `com.secureerp.agent`, vì Modulith yêu cầu lớp `@SpringBootApplication` nằm ở root.
 - §2 ghi "mọi module → identity.api…". Để tránh vòng identity ↔ audit, `audit` **không** phụ thuộc `identity`, chỉ phụ thuộc `platform`; actor truyền vào audit dưới dạng chuỗi pseudonymous. Đây là DESIGN PROPOSAL, chờ ký ADR-001.
 - Đã cưỡng chế: allowlist module (Modulith `allowedDependencies`), ARCH-01/02/03/04/07/09/10/11/12/13. Hoãn sang SEC-01a: ARCH-05/06/08.
+
+## 7. Ghi chú triển khai SEC-01a (2026-11-18)
+- ARCH-05/06/08 đã cưỡng chế, mỗi rule có fixture vi phạm cố ý. ARCH-05 viết dạng **allowlist** (chặt hơn bảng §3): field egress chỉ được là String, boolean, enum/record trong package egress, List/Set/Optional của các kiểu đó, hoặc `int/Integer` có tên trong allowlist số; generic argument được kiểm tra đệ quy.
+- `@EgressClassified` và `DataClassification` nằm ở `platform` (không phải `policy`) để `tools.api.dto` dùng được mà không thêm phụ thuộc `tools → policy`. DESIGN PROPOSAL.
+- Named interface Modulith (review M2): `catalog :: spi`, `gateway :: api`. `erp` được phép `catalog :: spi`. Khi `agent` dùng `gateway.api` (EP-04) cần thêm `gateway :: api` vào allowlist của `agent`.
+- `gateway` phụ thuộc `audit` chỉ để gọi port `audit.EgressAuditLog` với `audit.EgressDecisionEvent` (định nghĩa trong audit vì ARCH-10; review vòng 2 thay event bằng lời gọi trực tiếp).
+- Sau review SEC-01a: `gateway` bỏ `identity` khỏi allowlist (không dùng); `erp` chỉ còn `catalog :: spi` (bỏ `catalog` thường). Review vòng 2 (L2): `erp` bỏ luôn `quote`, `order`, `identity` (chưa dùng; cho phép gọi API của chúng tạo vòng logic). Allowlist `erp` = `catalog :: spi`, `platform`, `audit`; thêm `quote :: spi`/`order :: spi` khi các spi đó được tạo.
+- Rule bổ sung: ARCH-05b (kiểu egress chỉ là record, enum, sealed interface hoặc utility final chỉ-static; chặn kế thừa, interface mở, class thường), ARCH-05c (không annotation Jackson trừ `@JsonTypeInfo`/`@JsonSubTypes`), ARCH-06 khớp tên đầy đủ `platform.EgressClassified`, ARCH-08b dùng meta-annotation + regex rộng (header `X-Customer-Id`, `custId`, `customerCode`), ARCH-08c (type trong `..adapter.web..` không có field `AuthenticatedCustomerRef`/`customerId`). Review vòng 2: ARCH-08b thêm tên `customer`/`account`/`buyer`/`user`/`khachHang` + hậu tố `Number`/`Key`, cấm tham số `Map`/`MultiValueMap`/`HttpHeaders`/`HttpServletRequest`/`WebRequest`/`HttpEntity`, và quét đệ quy mọi type đạt tới từ tham số controller (kể cả ngoài `adapter.web`); ARCH-05d (tên field miễn quét chỉ trên cặp `Type.field` đã duyệt); ARCH-05e (`@JsonTypeInfo` chỉ `Id.NAME`). `ArchitectureRulesTest` kiểm tra fixture hợp lệ tồn tại (L4); `EgressEnumAlignmentTest` giữ `Provenance`/`AvailabilityBucket` của `catalog.spi` và `gateway.api` đồng nhất (L3). Allowlist số theo cặp `Type.field`: `TechnicalContext.requestedQuantity`, `QuoteRequestResult.lineCount` (bỏ `quantity` trần).
+- `EgressCaptureListener` là hook chỉ dành cho test; `ArchitectureRulesTest` cấm class production hiện thực nó.

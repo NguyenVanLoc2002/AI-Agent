@@ -1,4 +1,7 @@
 # Security acceptance matrix (executed status: NOT RUN)
+
+> 2026-11-18, SEC-01a: **SEC-01: gateway-level evidence only — chưa gồm tool loop, quote, history, staff handoff.** T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200 chạy với Fake provider + proxy local (lệnh và kết quả: `docs/SESSION_HANDOFF.md`). Riêng T-SEC01-ERR là bằng chứng **mức connector**: việc đổi lỗi ERP thành mã do harness test làm; mapping production thuộc EP-03. SEC-01 chỉ được ghi VERIFIED sau SEC-01b (flow thật). SEC-02..07: NOT RUN.
+
 | ID | Setup and adversarial action | Expected proof | Test layer |
 |---|---|---|---|
 | SEC-01 | Seed sentinel cost 987654321 and debt 123456789; 200 synthetic chats; capture outbound provider payloads including tool results/errors | zero sentinels in outbound bytes, logs or traces; approved fields only | gateway integration |

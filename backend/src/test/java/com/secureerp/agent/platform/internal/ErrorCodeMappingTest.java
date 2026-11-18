@@ -3,6 +3,7 @@ package com.secureerp.agent.platform.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.platform.ErrorCode;
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +35,7 @@ class ErrorCodeMappingTest {
     @Test
     void causeChainContainsClassNamesOnly() {
         Exception ex = new IllegalStateException("debt=123456789",
-                new UncheckedIOException("cost=987654321", new java.io.IOException("secret")));
+                new UncheckedIOException("cost=987654321", new IOException("secret")));
         String chain = GlobalExceptionHandler.causeChain(ex);
         assertThat(chain).isEqualTo(
                 "java.lang.IllegalStateException <- java.io.UncheckedIOException <- java.io.IOException");

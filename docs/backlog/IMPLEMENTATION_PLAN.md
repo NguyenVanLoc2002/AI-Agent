@@ -11,7 +11,7 @@ G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 �
 | 1 | G0-1 Chuẩn hóa tài liệu kỹ thuật (issue này) | — | G0 | — | BRD@af2d09f, rules | docs + ADR PROPOSED | — | review architecture-reviewer + security-auditor (đã chạy 2026-11-13) |
 | 2 | G0-2 Phê duyệt ADR + A-01..A-15 (**một phần 2026-11-18**: ADR-001/002/003/004/016, A-04/05/09/13 ACCEPTED/APPROVED) | — | G0 | 1 | ADR PROPOSED | ADR ACCEPTED/REJECTED | — | owner ký trong ADR |
 | 3 | EP-00 Bootstrap backend (= **POC-001**, đã triển khai 2026-11-13; ARCH-05/06/08 hoãn sang SEC-01a) | — | G1 | 2 | ADR-001/002 | build, skeleton, Flyway baseline, Testcontainers, Modulith + ARCH-01..13 | `ModuleStructureTest`, `ArchitectureRulesTest` (+ fixture vi phạm cố ý) | không entity nghiệp vụ, không secrets |
-| 4 | **SEC-01a** Egress guard — mức gateway | EP-01, EP-02 | G1 | 3 | AI_GATEWAY, DATA_CLASSIFICATION, ERP_CONNECTOR | identity tối thiểu; Mock ERP sentinel + fault injection; catalog spi + adapter mapping; policy; gateway + Fake/WireMock + proxy local; harness dựng `ModelRequest` trực tiếp | T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200; T-ERP-01..03 | ghi "gateway-level evidence", **chưa** đánh dấu SEC-01 VERIFIED |
+| 4 | **SEC-01a** Egress guard — mức gateway (**triển khai 2026-11-18** trên `feat/SEC-01a-egress-guard`; gateway-level evidence, xem SESSION_HANDOFF) | EP-01, EP-02 | G1 | 3 | AI_GATEWAY, DATA_CLASSIFICATION, ERP_CONNECTOR | identity tối thiểu; Mock ERP sentinel + fault injection; catalog spi + adapter mapping; policy; gateway + Fake/WireMock + proxy local; harness dựng `ModelRequest` trực tiếp | T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200; T-ERP-01..03 | ghi "gateway-level evidence", **chưa** đánh dấu SEC-01 VERIFIED |
 | 5 | EP-03 Tool registry & per-call authz | EP-03 | G1 | 4 | TOOL_CONTRACTS | ToolManager, schema strict, quota conversation + principal | T-TOOL-01..08, 11..13 | |
 | 6 | EP-05 Catalog + VIN server-side + provenance | EP-05 | G1 | 5 | BR-04..07, BR-37 | VinValidator trong policy, `searchVerifiedProduct`, `AvailabilityBucketPort` | T-UC02-* | không báo giá non-verified |
 | 7 | EP-06 Quote service + handle + render | EP-06 | G2 | 6 | BR-08..13, BR-35 | quote versioned, Money, handle, QuoteCard, `requestQuote` | T-UC03-*, T-SEC01-QUOTE, T-TOOL-09/10, T-AUTH-02 | backend-reviewer |
@@ -107,7 +107,7 @@ FR: SOURCE FACT BRD §09. UC/BR: `docs/requirements/`. Trạng thái test: **NOT
 | T-GW-OUTPUT | model trả giá/số tồn/OE lạ/URL/"đã duyệt" | bị loại |
 
 ## 5. Issue đầu tiên — SEC-01a Egress guard (mức gateway)
-- **Branch đề xuất:** `feat/SEC-01-egress-guard` (rule 70) — quy ước tên OPEN A-13.
+- **Branch:** `feat/SEC-01a-egress-guard` (A-13 APPROVED 2026-11-18).
 - **Nguồn:** SECURITY_TEST_MATRIX SEC-01; BRD §08; rule 30; FR-003, FR-014, FR-015.
 - **In scope:** identity tối thiểu; policy (normalizer, honeytoken registry, scanner, VIN extractor); gateway (`ModelRequest`, `SafeMessage`, `TechnicalContext`, `ToolResultDto`, `ToolSpec`, EgressGuard, adapter HTTP + interceptor, Fake provider qua WireMock, proxy local); erp Mock ERP (`VerifiedProductPort`, `AvailabilityBucketPort`, seed sentinel, fault injection); harness 200 hội thoại scripted dựng `ModelRequest` trực tiếp; audit `EgressDecision`; Flyway migration chỉ thêm bảng.
 - **Out of scope:** ToolManager, agent loop, quote/order, UI, provider thật, Zalo, ảnh.

@@ -54,5 +54,25 @@ Lưu ý (security-auditor): honeytoken scan chỉ chứng minh *vắng sentinel*
 - (b) WireMock giả provider đứng sau proxy local — route duy nhất.
 - Test đối chiếu số request (a) = (b) và quét cả hai bằng cùng normalizer.
 
+## 6a. Ghi chú triển khai SEC-01a (2026-11-18, DESIGN PROPOSAL trừ khi ghi khác)
+- `limits` được thay bằng enum `ResponseBudget` (SHORT/STANDARD); adapter map sang timeout từ cấu hình. Lý do: giữ số ngoài kiểu egress (ARCH-05).
+- Sau serialize, bytes được parse lại: mọi property name phải thuộc allowlist suy ra từ record `gateway.api` (+ `type`); khác → BLOCK `UNCLASSIFIED_FIELD`.
+- Lớp giải mã chỉ quét biến thể giải mã là text hợp lệ (UTF-8, không ký tự điều khiển); lý do: UUID/handle giải mã ra rác gây false positive (ghi nhận trong lần chạy GW200 đầu).
+- **Chưa làm:** cửa sổ trượt theo conversation giữa các request (cần conversation key, EP-04/SEC-01b). Trong một request, giá trị bị tách qua nhiều field/tin vẫn bị bắt (chiếu chữ số của mọi string).
+- Retry: tối đa 1 lần cho timeout/I-O/5xx, gửi lại đúng mảng byte đã scan. 401/403 không retry. Kill switch, breaker, quota: chưa làm (EP-09, EP-03).
+- Audit đồng bộ: nếu ghi `egress_record` lỗi thì không gửi (`AUDIT_UNAVAILABLE`).
+- Wire format Fake provider là JSON riêng của gateway tới `/v1/fake-provider/complete` trên loopback; không phải API của vendor nào. URL/proxy không phải loopback → ứng dụng không khởi động (A-05).
+- Tên interface trong code (khác §1, review M3): API công khai `gateway.AiGateway.complete(ModelRequest) -> GatewayResult` (Completed / Refused(reason) / Failed(reason)); `ModelProviderPort.send(byte[], ResponseBudget)` là port **nội bộ** (`gateway.internal`) do `gateway.adapter` hiện thực; chưa có `EgressTransport`.
+- Sau review SEC-01a (2026-11-18): adapter luôn đặt proxy tường minh (`NO_PROXY` hoặc proxy loopback đã cấu hình) nên `-Dhttp.proxyHost`/system proxy không thể định tuyến egress; một deadline chung cho header + body, body bị cắt ở 32 KB khi đang nhận; interrupt → `CANCELLED`, không retry; `RuntimeException` từ transport → `Failed(PROVIDER_UNAVAILABLE)`.
+- Định danh do server sinh (`traceId`, `systemPromptId`, `productRef`, `vinRef`, `quoteHandle`, `maskedVin`) chỉ qua kiểm tra honeytoken, không qua pattern PHONE/MONEY/VIN và không vào phép chiếu chữ số ghép (false positive với chuỗi ngẫu nhiên). `sku`/`oe` vẫn quét đủ (nội dung từ ERP; xem A-24).
+- `ProductRef.category` và `TechnicalContext.partCategory` chỉ nhận chữ cái và khoảng trắng (review M2: text tự do do ERP kiểm soát trong tool result). Taxonomy đóng: A-25.
+- Bất biến audit (review H2): transaction riêng `REQUIRES_NEW`, lỗi được ném lại. `GatewayEgressIT` chứng minh bằng PostgreSQL thật (trigger từ chối insert → 0 request; rollback của caller không xóa bản ghi).
+- Sau review vòng 2 (2026-11-18): gateway gọi trực tiếp port `audit.EgressAuditLog` (không còn event/listener; thiếu bean → ứng dụng không khởi động). Mỗi lần gửi, kể cả retry, có một dòng PASS riêng (`attempt` 1/2, Flyway V3); BLOCK có `attempt = 0`. Dòng PASS được ghi trước mỗi lần gửi nên mọi request provider nhận đều có dòng; lần gửi hỏng trước khi rời adapter (chưa cấu hình, bị từ chối kết nối) vẫn có dòng, nên số dòng ≥ số request (review vòng 3 L1). Gọi gateway ngoài transaction: audit cần thêm một connection (L6).
+- Phát hiện (review vòng 2): byte rác/không giải mã được trong base64/hex được thay bằng khoảng trắng nếu ≤25% (trước đây cả đoạn bị bỏ qua); base64 thử 4 độ lệch (ký tự dính phía trước); PHONE cho phép tối đa 3 ký tự phân cách `space . - / ( )`; VIN viết hoa tách nhóm bằng space/dot/dash được phát hiện và inbound che thành WMI + 14 `*`.
+- Ref opaque (`productRef`, `vinRef`, `quoteHandle`): tiền tố + đúng 22 ký tự base64url (128 bit, ADR-008), không có dãy ≥7 chữ số; `systemPromptId` cũng không có dãy ≥7 chữ số. ARCH-05d chỉ cho tên field miễn quét trên các cặp `Type.field` đã duyệt. Nguồn gốc token: A-26.
+- Endpoint/proxy chỉ nhận địa chỉ loopback dạng literal (`127.0.0.1`, `::1`); `localhost` bị từ chối vì được phân giải lúc chạy (L2).
+- Review vòng 3 (2026-11-18): base64 thử mọi độ lệch đầu 0..3 và cắt cuối 0..3 (ký tự dính phía sau); hex thử độ lệch 0 và 1; FULL_VIN nhận VIN cạnh dấu `-` trong văn bản tự do; quá `MAX_CANDIDATES` đoạn mã hóa → BLOCK `MALFORMED_PAYLOAD` (không quét dở); `StackOverflowError` khi quét → BLOCK có audit; dãy ≥7 chữ số trong server token được kiểm tra sau khi bỏ `-`/`_`.
+- Giới hạn còn lại (lớp thứ hai, ghi nhận, chưa sửa): hex có khoảng trắng, base64 bị tách, homoglyph trong honeytoken TEXT, chưa có pattern secret tổng quát; allowlist tên property là hợp phẳng, không theo từng kiểu; VIN tách nhóm viết thường; số điện thoại có >3 ký tự phân cách giữa hai chữ số; nguồn gốc ref opaque (A-26).
+
 ## 7. Tests (NOT RUN)
 T-SEC01-SCHEMA, T-SEC01-VARIANTS (≥20 biến thể × 5 nguồn), T-SEC01-HISTORY, T-SEC01-STAFF, T-SEC01-ERR, T-SEC01-CAPTURE, T-SEC01-SUITE200, T-SEC06, T-SEC07, T-GW-OUTPUT (OutputValidator). Định nghĩa: `docs/backlog/IMPLEMENTATION_PLAN.md` §4.
