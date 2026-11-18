@@ -9,6 +9,7 @@ import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -74,5 +75,20 @@ class DefaultInboundSanitizerTest {
         InboundSanitizer.Result result = sanitizer.sanitize("goi (090) 123 4567 hoac 090/123/4567 nhe");
         assertThat(result).isInstanceOf(Sanitized.class);
         assertThat(((Sanitized) result).text()).doesNotContain("4567").contains("[SDT]");
+    }
+
+    /** Third review M-C: a full VIN next to a dash is masked. */
+    @Test
+    void fullVinNextToADashIsMasked() {
+        InboundSanitizer.Result result = sanitizer.sanitize("VIN-1HGCM82633A004352 can loc gio");
+        assertThat(result).isInstanceOf(Sanitized.class);
+        assertThat(((Sanitized) result).text()).contains("1HG**************").doesNotContain("004352");
+    }
+
+    /** Third review L-3: too many encoded runs block instead of scanning part of the text. */
+    @Test
+    void tooManyEncodedRunsAreBlocked() {
+        String text = String.join(" ", Collections.nCopies(300, "QUJDREVGR0g="));
+        assertThat(sanitizer.sanitize(text)).isEqualTo(new Blocked(PolicyCode.MALFORMED_PAYLOAD, null));
     }
 }

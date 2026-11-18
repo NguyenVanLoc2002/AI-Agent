@@ -59,6 +59,11 @@ public final class SentinelVariants {
         v.put("V27-base64-junk-byte", Base64.getEncoder().encodeToString(withJunk));
         v.put("V28-hex-junk-byte", HexFormat.of().formatHex(digits.getBytes(StandardCharsets.US_ASCII)) + "ff");
         v.put("V29-base64-prefixed", "x" + Base64.getEncoder().encodeToString(digits.getBytes(StandardCharsets.UTF_8)));
+        // Third review M-A/M-B: characters glued behind or on both sides, and a hex digit in front.
+        String unpadded = Base64.getEncoder().withoutPadding().encodeToString(digits.getBytes(StandardCharsets.UTF_8));
+        v.put("V30-base64-suffixed", unpadded + "xyz");
+        v.put("V31-base64-both-sides", "x" + unpadded + "x");
+        v.put("V32-hex-prefixed", "a" + HexFormat.of().formatHex(digits.getBytes(StandardCharsets.US_ASCII)));
         return v;
     }
 

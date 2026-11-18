@@ -12,15 +12,16 @@ import java.util.regex.Pattern;
 
 /**
  * Decodes one layer of the encodings named in AI_GATEWAY §2.3: base64 (standard and URL-safe), hex,
- * percent-encoding, {@code \\uXXXX} escapes and HTML numeric entities. Bounded: at most
- * {@link #MAX_CANDIDATES} candidates per text, so hostile input cannot make the scan expensive.
+ * percent-encoding, {@code \\uXXXX} escapes and HTML numeric entities. Bounded: a text with more
+ * than {@link #MAX_CANDIDATES} encoded-looking runs is rejected ({@link TooManyCandidatesException}),
+ * so hostile input can neither make the scan expensive nor push a value past the limit unscanned.
  */
 public final class OneLayerDecoder {
 
     static final int MAX_CANDIDATES = 256;
 
     private static final Pattern BASE64 = Pattern.compile("[A-Za-z0-9+/_-]{8,}={0,2}");
-    private static final Pattern HEX = Pattern.compile("(?:0x)?((?:[0-9a-fA-F]{2}){4,})");
+    private static final Pattern HEX = Pattern.compile("(?:0x)?([0-9a-fA-F]{8,})");
     private static final Pattern ESCAPED_HEX = Pattern.compile("(?:\\\\x[0-9a-fA-F]{2}){4,}");
     private static final Pattern PERCENT = Pattern.compile("(?:%[0-9a-fA-F]{2})+");
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u([0-9a-fA-F]{4})");
@@ -28,6 +29,24 @@ public final class OneLayerDecoder {
     private static final Pattern HTML_HEX = Pattern.compile("&#[xX]([0-9a-fA-F]{1,6});?");
 
     private OneLayerDecoder() {
+    }
+
+    /**
+     * Thrown when a text holds more encoded-looking runs than {@link #MAX_CANDIDATES}. The scan
+     * would otherwise stop decoding silently (third review L-3); callers treat it as a block.
+     */
+    public static final class TooManyCandidatesException extends RuntimeException {
+
+        TooManyCandidatesException() {
+            super("too many encoded candidates");
+        }
+    }
+
+    private static int countCandidate(int candidates) {
+        if (candidates >= MAX_CANDIDATES) {
+            throw new TooManyCandidatesException();
+        }
+        return candidates + 1;
     }
 
     /**
@@ -42,20 +61,36 @@ public final class OneLayerDecoder {
         }
         int candidates = 0;
         Matcher base64 = BASE64.matcher(text);
-        while (base64.find() && candidates++ < MAX_CANDIDATES) {
-            // A letter or digit glued in front shifts the 4-character alignment (second review M1),
-            // so every offset 0..3 is decoded.
-            String run = base64.group();
-            for (int offset = 0; offset < 4 && run.length() - offset >= 8; offset++) {
-                decodeBase64(run.substring(offset)).flatMap(OneLayerDecoder::scannableText).ifPresent(variants::add);
+        while (base64.find()) {
+            candidates = countCandidate(candidates);
+            // Characters glued in front or behind shift the 4-character alignment (second review M1,
+            // third review M-A), so every start offset 0..3 and every end trim 0..3 is decoded.
+            String run = base64.group().replace("=", "");
+            for (int offset = 0; offset < 4; offset++) {
+                for (int trim = 0; trim < 4; trim++) {
+                    int end = run.length() - trim;
+                    if (end - offset >= 8) {
+                        decodeBase64(run.substring(offset, end)).flatMap(OneLayerDecoder::scannableText)
+                                .ifPresent(variants::add);
+                    }
+                }
             }
         }
         Matcher hex = HEX.matcher(text);
-        while (hex.find() && candidates++ < MAX_CANDIDATES) {
-            scannableText(utf8(HexFormat.of().parseHex(hex.group(1)))).ifPresent(variants::add);
+        while (hex.find()) {
+            candidates = countCandidate(candidates);
+            // One hex digit glued in front shifts the byte pairs (third review M-B): decode at 0 and 1.
+            String run = hex.group(1);
+            for (int offset = 0; offset < 2; offset++) {
+                int end = run.length() - (run.length() - offset) % 2;
+                if (end - offset >= 8) {
+                    scannableText(utf8(HexFormat.of().parseHex(run, offset, end))).ifPresent(variants::add);
+                }
+            }
         }
         Matcher escapedHex = ESCAPED_HEX.matcher(text);
-        while (escapedHex.find() && candidates++ < MAX_CANDIDATES) {
+        while (escapedHex.find()) {
+            candidates = countCandidate(candidates);
             scannableText(utf8(HexFormat.of().parseHex(escapedHex.group().replace("\\x", ""))))
                     .ifPresent(variants::add);
         }

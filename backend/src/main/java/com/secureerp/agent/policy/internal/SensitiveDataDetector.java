@@ -46,12 +46,13 @@ public class SensitiveDataDetector {
             Pattern.CASE_INSENSITIVE);
     /**
      * 17 VIN characters (no I, O, Q) with at least one digit and one letter, not inside a longer
-     * token. "_" and "-" also count as token characters, so the tail of "vin_..." or a "qh_..."
-     * handle is not read as a VIN (security review M3).
+     * token. "_" counts as a token character, so the tail of "vin_..." or a "qh_..." handle is not
+     * read as a VIN (security review M3). "-" does not: "VIN-1HGCM82633A004352" in free text is a
+     * full VIN (third review M-C); opaque refs never reach this pattern (honeytoken check only).
      */
     static final Pattern FULL_VIN = Pattern.compile(
-            "(?<![A-Za-z0-9_-])(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}\\d)(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}[A-HJ-NPR-Za-hj-npr-z])"
-                    + "[A-HJ-NPR-Za-hj-npr-z0-9]{17}(?![A-Za-z0-9_-])");
+            "(?<![A-Za-z0-9_])(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}\\d)(?=[A-HJ-NPR-Za-hj-npr-z0-9]{0,16}[A-HJ-NPR-Za-hj-npr-z])"
+                    + "[A-HJ-NPR-Za-hj-npr-z0-9]{17}(?![A-Za-z0-9_])");
     /**
      * Upper-case VIN characters in groups of 2+ separated by one or two spaces, dots or dashes
      * ("JTDBT-923X7-1234567", "JTDBT 923X7 1234567"). Any run of consecutive groups that adds up to

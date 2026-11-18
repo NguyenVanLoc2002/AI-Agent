@@ -31,6 +31,15 @@ public class DefaultInboundSanitizer implements InboundSanitizer {
 
     @Override
     public Result sanitize(String customerText) {
+        try {
+            return sanitizeChecked(customerText);
+        } catch (OneLayerDecoder.TooManyCandidatesException e) {
+            // Too many encoded-looking runs to scan them all (third review L-3): block, never pass.
+            return new Blocked(PolicyCode.MALFORMED_PAYLOAD, null);
+        }
+    }
+
+    private Result sanitizeChecked(String customerText) {
         Optional<SensitiveDataDetector.Finding> honeytoken = detector.honeytoken(customerText);
         if (honeytoken.isPresent()) {
             return new Blocked(PolicyCode.HONEYTOKEN, honeytoken.get().honeytokenId());

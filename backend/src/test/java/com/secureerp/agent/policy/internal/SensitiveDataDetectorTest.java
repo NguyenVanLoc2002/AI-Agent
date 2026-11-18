@@ -1,11 +1,14 @@
 package com.secureerp.agent.policy.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -155,5 +158,38 @@ class SensitiveDataDetectorTest {
         assertThat(detector.detect("x" + Base64.getEncoder()
                 .encodeToString("0912345678".getBytes(StandardCharsets.UTF_8))))
                 .map(SensitiveDataDetector.Finding::code).contains(PolicyCode.PHONE);
+    }
+
+    /** Third review M-A/M-B: suffix junk on unpadded base64 and a hex digit in front. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"V30-base64-suffixed", "V31-base64-both-sides", "V32-hex-prefixed"})
+    void encodedSentinelWithGluedCharactersIsDetected(String variant) {
+        assertThat(detector.detect(SentinelVariants.of(SentinelVariants.COST).get(variant)))
+                .map(SensitiveDataDetector.Finding::honeytokenId).contains("HT-COST-01");
+    }
+
+    @Test
+    void encodedPhoneWithGluedCharactersIsDetected() {
+        String unpadded = Base64.getEncoder().withoutPadding()
+                .encodeToString("0912345678".getBytes(StandardCharsets.UTF_8));
+        for (String text : List.of(unpadded + "xyz", unpadded + "x", "x" + unpadded + "x",
+                "a" + HexFormat.of().formatHex("0912345678".getBytes(StandardCharsets.US_ASCII)))) {
+            assertThat(detector.detect(text)).as(text).map(SensitiveDataDetector.Finding::code)
+                    .contains(PolicyCode.PHONE);
+        }
+    }
+
+    /** Third review M-C: a full VIN next to a dash in free text. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"VIN-1HGCM82633A004352", "1HGCM82633A004352-01", "so khung: -1HGCM82633A004352-"})
+    void fullVinNextToADashIsDetected(String text) {
+        assertThat(detector.detect(text)).map(SensitiveDataDetector.Finding::code).contains(PolicyCode.FULL_VIN);
+    }
+
+    /** Third review L-3: too many encoded-looking runs is an error, never a silent partial scan. */
+    @Test
+    void tooManyEncodedRunsIsRejected() {
+        String text = String.join(" ", Collections.nCopies(OneLayerDecoder.MAX_CANDIDATES + 1, "QUJDREVGR0g="));
+        assertThatThrownBy(() -> detector.detect(text)).isInstanceOf(OneLayerDecoder.TooManyCandidatesException.class);
     }
 }
