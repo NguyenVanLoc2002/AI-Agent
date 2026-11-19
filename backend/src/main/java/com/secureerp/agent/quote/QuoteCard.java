@@ -13,9 +13,12 @@ import java.util.Objects;
  *
  * @param notes fixed server-side wording: "Giá chưa gồm VAT" (ADR-014) and the fitment disclaimer
  *              (A-31)
+ * @param confirmationToken the server token of the confirm control of this card (EP-07, UC-04): the
+ *              customer sends it back with the quote reference and version to confirm. Only the latest
+ *              rendered card of a quote version holds a valid one; it never reaches the model
  */
 public record QuoteCard(String quoteRef, int version, List<Line> lines, Money total, Instant validUntil,
-        List<String> notes) {
+        List<String> notes, String confirmationToken) {
 
     public static final String NOTE_VAT = "Giá chưa gồm VAT";
     public static final String NOTE_FITMENT =
@@ -27,6 +30,7 @@ public record QuoteCard(String quoteRef, int version, List<Line> lines, Money to
         Objects.requireNonNull(total, "total");
         Objects.requireNonNull(validUntil, "validUntil");
         notes = List.copyOf(notes);
+        Objects.requireNonNull(confirmationToken, "confirmationToken");
     }
 
     public record Line(Sku sku, int quantity, Money unitPrice, Money lineTotal) {

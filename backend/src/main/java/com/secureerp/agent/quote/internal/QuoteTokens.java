@@ -17,6 +17,10 @@ final class QuoteTokens {
 
     static final String HANDLE_PREFIX = "qh_";
     static final Pattern HANDLE = Pattern.compile("^qh_[A-Za-z0-9_-]{22}$");
+    /** EP-07: the confirmation token of a rendered card ({@code qc_} + 128 bits); only its SHA-256 is stored. */
+    static final String CONFIRMATION_PREFIX = "qc_";
+    static final Pattern CONFIRMATION = Pattern.compile("^qc_[A-Za-z0-9_-]{22}$");
+    static final Pattern PUBLIC_REF = Pattern.compile("^BG-[A-HJ-NP-Z2-9]{8}$");
     /** Egress rule for opaque refs: no run of 7+ digits, also across - and _ (A-26). */
     private static final Pattern DIGIT_RUN = Pattern.compile("\\d{7,}");
     private static final String REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -45,6 +49,13 @@ final class QuoteTokens {
             }
         }
         throw new IllegalStateException("could not draw a quote handle");
+    }
+
+    /** Shown to the authenticated customer only, never to the model, so it needs no VIN or digit-run redraw. */
+    String newConfirmationToken() {
+        byte[] bytes = new byte[16];
+        random.nextBytes(bytes);
+        return CONFIRMATION_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     String newPublicRef() {

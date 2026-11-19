@@ -135,5 +135,19 @@ apas:
     # A-34 (owner 2026-11-18): no automatic quote for 24 h after a NOT_QUOTED; at most 5 quotes/conversation/h.
     lock-after-not-quoted: 24h
     max-issued-per-conversation-per-hour: 5
+    # EP-07 (TH-26, DESIGN PROPOSAL): confirmation attempts per customer per rolling hour.
+    confirmation:
+      max-attempts-per-hour: 20
+  # EP-07 / ADR-009 (ACCEPTED 2026-11-19): a draft order request not finished within this time is an
+  # unknown outcome for staff; it is never sent again.
+  order:
+    submit-timeout: 2m
+  # ADR-009: what the target ERP supports is static configuration taken from approved ERP API
+  # documentation, never reported by the adapter. Both are OPEN (D-03), so both stay false: no
+  # idempotency key is forwarded, no lookup is made, every unknown outcome goes to staff.
+  erp:
+    capabilities:
+      supports-idempotency-key: false
+      supports-external-ref-lookup: false
 # apas.erp.mock.fault-mode is deliberately absent from shared configuration (default NONE in code);
 # fault injection is set only by tests (architecture review M6).

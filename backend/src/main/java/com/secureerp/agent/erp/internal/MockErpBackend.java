@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Simulated remote ERP returning raw JSON rows, as an ERP API would. Synthetic data only. Rows carry
@@ -24,11 +27,14 @@ class MockErpBackend {
             + "\"creditBalance\":123456789,\"quantityOnHand\":%d,\"warehouse\":\"KHO-SYNTH-01\","
             + "\"supplierContact\":\"ZZHoney CustomerA\"}";
 
-    private static final List<String> PRODUCTS = List.of(
-            ROW.formatted("SKU-BRK-PAD-A", "04465-0K290", "Ma phanh truoc", "Vios 2019", "sku-brk-pad-a", 12),
-            ROW.formatted("SKU-BRK-PAD-B", "04465-0D150", "Ma phanh truoc", "Vios 2019", "sku-brk-pad-b", 2),
-            ROW.formatted("SKU-OIL-FLT-A", "90915-YZZD4", "Loc dau", "Vios 2019", "sku-oil-flt-a", 0),
-            ROW.formatted("SKU-AIR-FLT-A", "17801-0Y040", "Loc gio", "Innova 2020", "sku-air-flt-a", 40));
+    private record Product(String sku, String oe, String category, String vehicleModel, String source, int quantity) {
+    }
+
+    private static final List<Product> PRODUCTS = List.of(
+            new Product("SKU-BRK-PAD-A", "04465-0K290", "Ma phanh truoc", "Vios 2019", "sku-brk-pad-a", 12),
+            new Product("SKU-BRK-PAD-B", "04465-0D150", "Ma phanh truoc", "Vios 2019", "sku-brk-pad-b", 2),
+            new Product("SKU-OIL-FLT-A", "90915-YZZD4", "Loc dau", "Vios 2019", "sku-oil-flt-a", 0),
+            new Product("SKU-AIR-FLT-A", "17801-0Y040", "Loc gio", "Innova 2020", "sku-air-flt-a", 40));
 
     private static final List<String> MALFORMED = List.of(
             "{\"sku\":987654321,\"oe\":\"04465-0K290\",\"category\":\"Ma phanh truoc\"}",
@@ -80,19 +86,148 @@ class MockErpBackend {
             + "\"creditLimit\":555444333,\"contact\":\"ZZHoney CustomerA\"}";
     private static final Map<String, String> CREDIT_STATUS = Map.of(CUSTOMER_A, "OK", CUSTOMER_B, "BLOCKED");
 
-    private final MockErpFaultMode faultMode;
+    /**
+     * Draft order answers (EP-07). Like every other row they carry fields the adapter must drop: the
+     * customer key, a credit balance, a cost and an approver name.
+     */
+    private static final String DRAFT = "{\"draftNo\":\"%s\",\"status\":\"DRAFT\",\"externalRef\":\"%s\","
+            + "\"customer\":\"%s\",\"creditBalance\":123456789,\"purchaseCost\":987654321,"
+            + "\"approver\":\"ZZHoney CustomerA\"}";
+    private static final String ORDER_ERROR = "{\"error\":{\"code\":\"%s\",\"message\":\"order refused: credit "
+            + "balance 123456789 over limit 555444333 for ZZHoney CustomerA\"}}";
+    private static final String MALFORMED_DRAFT = "{\"draftNo\":987654321,\"creditBalance\":123456789}";
+
+    /** A draft order the simulated ERP has written. */
+    record Draft(String draftNo, String customerKey, String externalRef, String idempotencyKey, int lineCount) {
+    }
+
+    private final MockErpFaultMode configuredFaultMode;
+    /** Mutable so a test can change the simulated ERP between a quote and its confirmation (EP-07). */
+    private final AtomicReference<MockErpFaultMode> faultMode;
+    private final AtomicReference<MockErpOrderFault> orderFault = new AtomicReference<>(MockErpOrderFault.NONE);
+    private final Map<String, Optional<String>> priceOverrides = new ConcurrentHashMap<>();
+    private final Map<String, Integer> stockOverrides = new ConcurrentHashMap<>();
+    private final Map<String, String> creditOverrides = new ConcurrentHashMap<>();
+    private final List<Draft> drafts = new ArrayList<>();
+    private final AtomicInteger createCalls = new AtomicInteger();
+    private final AtomicInteger lookupCalls = new AtomicInteger();
 
     MockErpBackend(MockErpFaultMode faultMode) {
-        this.faultMode = Objects.requireNonNull(faultMode, "faultMode");
+        this.configuredFaultMode = Objects.requireNonNull(faultMode, "faultMode");
+        this.faultMode = new AtomicReference<>(faultMode);
+    }
+
+    /** Back to the configured fault mode, the synthetic price list, stock and ledger, and no drafts. */
+    void reset() {
+        faultMode.set(configuredFaultMode);
+        orderFault.set(MockErpOrderFault.NONE);
+        priceOverrides.clear();
+        stockOverrides.clear();
+        creditOverrides.clear();
+        synchronized (drafts) {
+            drafts.clear();
+        }
+        createCalls.set(0);
+        lookupCalls.set(0);
+    }
+
+    void failReads(MockErpFaultMode mode) {
+        faultMode.set(Objects.requireNonNull(mode, "mode"));
+    }
+
+    void failOrders(MockErpOrderFault fault) {
+        orderFault.set(Objects.requireNonNull(fault, "fault"));
+    }
+
+    /** @param unitPrice the new price as JSON number text; {@code null} removes the price */
+    void priceOverride(String customerKey, String sku, String unitPrice) {
+        priceOverrides.put(customerKey + "|" + sku, Optional.ofNullable(unitPrice));
+    }
+
+    void stockOverride(String sku, int quantity) {
+        stockOverrides.put(sku, quantity);
+    }
+
+    void creditOverride(String customerKey, String status) {
+        creditOverrides.put(customerKey, status);
+    }
+
+    List<Draft> drafts() {
+        synchronized (drafts) {
+            return List.copyOf(drafts);
+        }
+    }
+
+    int createCalls() {
+        return createCalls.get();
+    }
+
+    int lookupCalls() {
+        return lookupCalls.get();
+    }
+
+    /**
+     * Creates a draft order and returns the raw answer. With an idempotency key the simulated ERP
+     * returns the draft it already has for that key; without one every call writes a new draft, so a
+     * second call would be visible as a duplicate (SEC-04).
+     */
+    String createDraftOrder(String customerKey, String externalRef, String idempotencyKey, int lineCount) {
+        createCalls.incrementAndGet();
+        MockErpOrderFault fault = orderFault.get();
+        if (fault == MockErpOrderFault.TIMEOUT_BEFORE_COMMIT) {
+            throw new UncheckedIOException(new SocketTimeoutException("connect timed out for " + customerKey));
+        }
+        if (fault == MockErpOrderFault.ERROR_WITH_SENTINEL) {
+            throw new IllegalStateException(
+                    "ERP failure: purchaseCost=987654321 creditBalance=123456789 contact=ZZHoney CustomerA");
+        }
+        if (fault == MockErpOrderFault.REJECT) {
+            return ORDER_ERROR.formatted("CREDIT_HOLD");
+        }
+        if (fault == MockErpOrderFault.UNLISTED_ERROR) {
+            return ORDER_ERROR.formatted("E-99123456789");
+        }
+        if (!CREDIT_STATUS.containsKey(customerKey)) {
+            return ORDER_ERROR.formatted("UNKNOWN_CUSTOMER");
+        }
+        Draft draft;
+        synchronized (drafts) {
+            draft = idempotencyKey == null ? null : drafts.stream()
+                    .filter(existing -> idempotencyKey.equals(existing.idempotencyKey())).findFirst().orElse(null);
+            if (draft == null) {
+                draft = new Draft("MOCK-DO-%06d".formatted(drafts.size() + 1), customerKey, externalRef,
+                        idempotencyKey, lineCount);
+                drafts.add(draft);
+            }
+        }
+        if (fault == MockErpOrderFault.TIMEOUT_AFTER_COMMIT) {
+            throw new UncheckedIOException(
+                    new SocketTimeoutException("read timed out after writing order, balance 123456789"));
+        }
+        if (fault == MockErpOrderFault.MALFORMED_RESPONSE) {
+            return MALFORMED_DRAFT;
+        }
+        return DRAFT.formatted(draft.draftNo(), draft.externalRef(), draft.customerKey());
+    }
+
+    /** The raw draft row for our reference, if the simulated ERP has one. */
+    Optional<String> fetchDraftByExternalRef(String externalRef) {
+        lookupCalls.incrementAndGet();
+        failIfConfigured();
+        synchronized (drafts) {
+            return drafts.stream().filter(draft -> draft.externalRef().equals(externalRef)).findFirst()
+                    .map(draft -> DRAFT.formatted(draft.draftNo(), draft.externalRef(), draft.customerKey()));
+        }
     }
 
     /** The raw price row for one customer and SKU, if the synthetic price list has one. */
     Optional<String> fetchPriceRow(String customerKey, String sku) {
         failIfConfigured();
-        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+        if (faultMode.get() == MockErpFaultMode.MALFORMED_ROWS) {
             return Optional.of(MALFORMED_PRICE);
         }
-        String price = PRICES.getOrDefault(customerKey, Map.of()).get(sku);
+        Optional<String> override = priceOverrides.get(customerKey + "|" + sku);
+        String price = override != null ? override.orElse(null) : PRICES.getOrDefault(customerKey, Map.of()).get(sku);
         return price == null ? Optional.empty()
                 : Optional.of(PRICE.formatted(customerKey, sku, price));
     }
@@ -100,14 +235,14 @@ class MockErpBackend {
     /** The raw credit row for one customer, if the synthetic ledger knows it. */
     Optional<String> fetchCreditRow(String customerKey) {
         failIfConfigured();
-        String status = CREDIT_STATUS.get(customerKey);
+        String status = creditOverrides.getOrDefault(customerKey, CREDIT_STATUS.get(customerKey));
         return status == null ? Optional.empty() : Optional.of(CREDIT.formatted(customerKey, status));
     }
 
     /** The raw vehicle row for an exact VIN, if the synthetic fitment table knows it. */
     Optional<String> fetchVehicleRow(String vin) {
         failIfConfigured();
-        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+        if (faultMode.get() == MockErpFaultMode.MALFORMED_ROWS) {
             return Optional.of(MALFORMED_VEHICLE);
         }
         return Optional.ofNullable(VEHICLES.get(vin));
@@ -116,18 +251,22 @@ class MockErpBackend {
     /** All product rows. A real backend would filter server-side; the adapter filters here. */
     List<String> fetchProductRows() {
         failIfConfigured();
-        List<String> rows = new ArrayList<>(PRODUCTS);
-        if (faultMode == MockErpFaultMode.DUPLICATE_RESPONSE) {
-            rows.addAll(PRODUCTS);
+        List<String> products = PRODUCTS.stream()
+                .map(product -> ROW.formatted(product.sku(), product.oe(), product.category(), product.vehicleModel(),
+                        product.source(), stockOverrides.getOrDefault(product.sku(), product.quantity())))
+                .toList();
+        List<String> rows = new ArrayList<>(products);
+        if (faultMode.get() == MockErpFaultMode.DUPLICATE_RESPONSE) {
+            rows.addAll(products);
         }
-        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+        if (faultMode.get() == MockErpFaultMode.MALFORMED_ROWS) {
             rows.addAll(MALFORMED);
         }
         return rows;
     }
 
     private void failIfConfigured() {
-        switch (faultMode) {
+        switch (faultMode.get()) {
             case ERROR_WITH_SENTINEL -> throw new IllegalStateException(
                     "ERP failure: purchaseCost=987654321 creditBalance=123456789 contact=ZZHoney CustomerA");
             case TIMEOUT -> throw new UncheckedIOException(

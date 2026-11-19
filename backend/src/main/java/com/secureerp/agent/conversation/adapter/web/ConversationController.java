@@ -87,16 +87,19 @@ class ConversationController {
     record TurnView(String turnId, String reply, boolean handedOff, boolean duplicate, QuoteCardView quoteCard) {
     }
 
-    /** Server-rendered quote for the session customer only (ARCH-13a/13b; amounts as exact strings). */
+    /**
+     * Server-rendered quote for the session customer only (ARCH-13a/13b; amounts as exact strings).
+     * {@code confirmationToken} belongs to the confirm control of this card (EP-07, UC-04).
+     */
     record QuoteCardView(String quoteRef, int version, List<LineView> lines, String total, String currency,
-            String validUntil, List<String> notes) {
+            String validUntil, List<String> notes, String confirmationToken) {
 
         static QuoteCardView of(QuoteCard card) {
             return new QuoteCardView(card.quoteRef(), card.version(),
                     card.lines().stream().map(line -> new LineView(line.skuCode(), line.quantity(),
                             amount(line.unitPrice()), amount(line.lineTotal()))).toList(),
                     amount(card.total()), card.total().currency().getCurrencyCode(), card.validUntil().toString(),
-                    card.notes());
+                    card.notes(), card.confirmationToken());
         }
 
         private static String amount(Money money) {

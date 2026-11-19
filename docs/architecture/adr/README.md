@@ -8,6 +8,8 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 
 2026-11-19, kế hoạch EP-04: owner duyệt ADR-011 và ADR-015.
 
+2026-11-19, kế hoạch EP-07: owner duyệt ADR-009 nguyên trạng cho PoC (D-03 vẫn mở cho ERP thật).
+
 2026-11-18, lập kế hoạch SEC-01a: owner duyệt ADR-005, ADR-012 cùng A-07, A-10, A-11, A-12.
 
 | ADR | Tiêu đề | Trạng thái | Quyết định cần duyệt |
@@ -20,7 +22,7 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 | [006](ADR-006-tool-contract.md) | Tool contract & per-call authz | ACCEPTED 2026-11-18 | A-14 ✔ |
 | [007](ADR-007-quote-state-machine.md) | Quote/draft order state machine | ACCEPTED 2026-11-18 | D-01 |
 | [008](ADR-008-quote-handle.md) | Opaque quote handle & server render | ACCEPTED 2026-11-18 | — |
-| [009](ADR-009-idempotency-unknown-outcome.md) | Idempotency & unknown ERP outcome | PROPOSED | D-03 |
+| [009](ADR-009-idempotency-unknown-outcome.md) | Idempotency & unknown ERP outcome | ACCEPTED 2026-11-19 | D-03 (mở cho ERP thật) |
 | [010](ADR-010-identity-session.md) | Identity/session demo & RBAC | ACCEPTED 2026-11-18 | D-08, UX-12 (phần còn lại) |
 | [011](ADR-011-history-summary.md) | History policy-safe summary | ACCEPTED 2026-11-19 | — |
 | [012](ADR-012-logging-audit.md) | Logging/audit/observability | ACCEPTED 2026-11-18 | D-09 (mở) |

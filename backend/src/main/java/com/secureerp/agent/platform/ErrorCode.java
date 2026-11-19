@@ -16,6 +16,12 @@ public enum ErrorCode {
     /** EP-04 (decision 2026-11-19): a customer session without an ERP link cannot start a conversation. */
     CUSTOMER_NOT_LINKED(HttpStatus.FORBIDDEN, "Customer not linked"),
     CONFLICT(HttpStatus.CONFLICT, "Conflict"),
+    /** EP-07 (DATA_FLOW §2): the confirmed version is not the quote's current one. */
+    QUOTE_STALE_VERSION(HttpStatus.CONFLICT, "Quote version is not current"),
+    /** EP-07 (BR-16): the price changed at confirmation; a new version was issued and needs a fresh confirmation. */
+    QUOTE_REPRICED(HttpStatus.CONFLICT, "Quote was repriced"),
+    /** EP-07 (AC-04.2): the quote's validity has passed. */
+    QUOTE_EXPIRED(HttpStatus.GONE, "Quote expired"),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
     NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed"),

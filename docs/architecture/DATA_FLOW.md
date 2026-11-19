@@ -30,10 +30,17 @@
    - giá đổi → vN `SUPERSEDED`, vN+1 `ISSUED`, `409 QUOTE_REPRICED`;
    - tồn/công nợ không đạt → `CONFIRMATION_BLOCKED` + handoff `QUOTE_NOT_ISSUED` (lý do chỉ nội bộ);
    - đạt → quote `CONFIRMED` (optimistic version).
-4. `OrderApi.submit(quoteId, version)`: `INSERT draft_order_request` với `idempotency_key = quoteId:version` **do server sinh**, UNIQUE(quote_id, quote_version); trùng → trả trạng thái request hiện có (request lặp/double click/callback trùng không tạo bản mới).
+4. `OrderApi.submit(quoteId, version)` (EP-07: `DraftOrders.register` + `dispatch`, xem §2a): `INSERT draft_order_request` với `idempotency_key = quoteId:version` **do server sinh**, UNIQUE(quote_id, quote_version); trùng → trả trạng thái request hiện có (request lặp/double click/callback trùng không tạo bản mới).
 5. Quote → `ORDER_SUBMITTING`; outbox gọi `DraftOrderPort.create(cmd, key)` ngoài transaction DB.
 6. `Created` → `DRAFT_ORDER_CREATED`; `Rejected` → `ORDER_FAILED`; timeout/không rõ → `ORDER_OUTCOME_UNKNOWN` + handoff `ERP_UNKNOWN`; đối soát bằng `findByExternalRef` **chỉ khi** cấu hình capability (đặt tĩnh từ tài liệu đã duyệt, OPEN D-03) cho phép; ngược lại SALES đối soát thủ công. Mỗi bước đối soát ghi audit (bằng chứng reconciliation).
 7. Không có đường nào để AI gọi bước 1–6.
+
+### 2a. Triển khai EP-07 (2026-11-19)
+- `{id}` trong URL là mã báo giá công khai (`BG-…`); id nội bộ không ra ngoài. Thứ tự thật trong `DefaultQuoteConfirmations`: vai trò CUST + khách đã liên kết (403) → **giữ chỗ lần thử** dưới khóa theo khách (quá 20 lần/giờ → 429) → đọc báo giá theo mã + version + digest khách và so token (không khớp bất kỳ điều gì → cùng một 404) → trạng thái (không còn ISSUED: 409/410 hoặc trả lại trạng thái hiện tại, không tạo đơn thứ hai) → hết hạn (410) → recheck công nợ, giá, tồn ngoài transaction.
+- Recheck: không đạt → `CONFIRMATION_BLOCKED` + dòng NOT_QUOTED (khóa A-34) + handoff `QUOTE_NOT_ISSUED`, khách không được biết lý do; giá đổi → version cũ `SUPERSEDED`, version mới `ISSUED` cùng mã, 409 `QUOTE_REPRICED`, khách lấy card mới bằng `GET /api/demo/quotes/{ref}`; ERP không trả lời → 503 + handoff `CATALOG_UNAVAILABLE`, báo giá giữ nguyên ISSUED.
+- Đạt: một transaction ghi ISSUED → CONFIRMED → ORDER_SUBMITTING (kiểm hạn theo giờ **sau** recheck) và `DraftOrders.register` (dòng `draft_order_request` PENDING + digest của đơn). Sau commit `DraftOrders.dispatch`: claim PENDING → SUBMITTED bằng UPDATE có điều kiện, gọi ERP một lần ngoài transaction, ghi kết quả.
+- Kết quả: `Created` → `DRAFT_ORDER_CREATED`; `Rejected` → `ORDER_FAILED` + handoff `ORDER_NOT_CREATED`; timeout/không phân loại được/không ghi được kết quả/quá `submit-timeout` → `ORDER_OUTCOME_UNKNOWN` + handoff `ERP_UNKNOWN`, không gửi lại. SALES xem `GET /api/internal/orders/unknown` và ghi kết quả đối soát (`CREATED` kèm số đơn nháp ERP, hoặc `ABSENT`); mỗi bước ghi vào `draft_order_event` kèm người thực hiện.
+- Khác với bản thiết kế ở trên: không có tiến trình outbox riêng (gửi ngay trong request xác nhận; request bỏ dở chỉ được phát hiện khi có người đọc lại, A-41(l)); handoff đi qua sự kiện `QuoteStaffRequired` do conversation xử lý.
 
 ### 1a. Triển khai EP-04 (2026-11-19)
 - Thứ tự thật trong `ChatService`: owner (404) + khách gắn với conversation (A-35, 403) → sanitizer (A-21) → **tiếp nhận nguyên tử** (advisory lock theo conversation: dedup `clientEventId`, tối đa một lượt đang chạy → 409, giới hạn theo conversation + principal → 429, đọc `status`, insert tin khách đã sanitize) → conversation đang chờ nhân viên → câu cố định → VIN intake với text gốc (A-29; Invalid/Multiple → hỏi lại, Unavailable → handoff, không gọi model) → agent (≤3 lần gọi model, history đến đúng tin của lượt này) → render card phía server.
@@ -62,8 +69,10 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → EP-04: conve
 | quote / quote_line | quote | R | EP-06 (Flyway V6): `quote.version` + `row_version`; một ISSUED mỗi conversation (unique index một phần); UNIQUE(quote_id, line_no), UNIQUE(quote_id, sku); CHECK qty 1..9999; NUMERIC(19,4), VND scale 0 (ADR-014) |
 | quote_request | quote | R | EP-06: outcome, mã lý do (chỉ nhân viên), `customer_digest` (khóa/giới hạn A-34 theo khách) |
 | quote_handle | quote | I | PK hash; binding; expires_at; revoked |
-| draft_order_request | order | I | UNIQUE(quote_id, quote_version); idempotency_key server-derived |
+| quote_confirmation | quote | R | EP-07 (Flyway V10): mỗi lần thử xác nhận một dòng (kết quả, mã lý do nội bộ khi bị chặn, `customer_digest`); dùng cho giới hạn 20 lần/giờ |
+| draft_order_request | order | I | EP-07 (Flyway V10): UNIQUE(quote_ref, quote_version); `idempotency_key` = `<mã báo giá>:<version>` do server sinh; `payload_digest` (SHA-256 không khóa của mã khách ERP + các dòng, A-41(x)); `key_forwarded`; `erp_order_ref`; `late_erp_order_ref` (ERP trả lời sau khi đã quá hạn); không có mã khách hay giá ở dạng đọc được |
+| draft_order_event | order | I | EP-07: mọi thay đổi trạng thái + `actor` (pseudonym của nhân viên đối soát) |
 | handoff | handoff | I | reason_code NOT NULL |
 | audit_event, egress_record | audit | metadata | không cột body/giá trị |
 | feature_switch | platform | — | audit thay đổi |
-| mock_erp.* | erp | R (synthetic, sentinel) | schema tách; chỉ erp truy cập |
+| mock_erp.* | erp | R (synthetic, sentinel) | schema tách; chỉ erp truy cập — **chưa tạo**: Mock giữ dữ liệu trong bộ nhớ (EP-07, A-41(i)) |
