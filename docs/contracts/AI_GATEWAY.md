@@ -58,7 +58,7 @@ Lưu ý (security-auditor): honeytoken scan chỉ chứng minh *vắng sentinel*
 - `limits` được thay bằng enum `ResponseBudget` (SHORT/STANDARD); adapter map sang timeout từ cấu hình. Lý do: giữ số ngoài kiểu egress (ARCH-05).
 - Sau serialize, bytes được parse lại: mọi property name phải thuộc allowlist suy ra từ record `gateway.api` (+ `type`); khác → BLOCK `UNCLASSIFIED_FIELD`.
 - Lớp giải mã chỉ quét biến thể giải mã là text hợp lệ (UTF-8, không ký tự điều khiển); lý do: UUID/handle giải mã ra rác gây false positive (ghi nhận trong lần chạy GW200 đầu).
-- **Chưa làm:** cửa sổ trượt theo conversation giữa các request (cần conversation key, EP-04/SEC-01b). Trong một request, giá trị bị tách qua nhiều field/tin vẫn bị bắt (chiếu chữ số của mọi string).
+- **Chưa làm:** cửa sổ trượt theo conversation giữa các request (cần conversation key, EP-04/SEC-01b). SEC-01b (2026-11-19) không làm; phạm vi và lựa chọn ghi ở `docs/DECISIONS_REQUIRED.md` A-40(a), chờ owner. Trong một request, giá trị bị tách qua nhiều field/tin vẫn bị bắt (chiếu chữ số của mọi string).
 - Retry: tối đa 1 lần cho timeout/I-O/5xx, gửi lại đúng mảng byte đã scan. 401/403 không retry. Kill switch, breaker, quota: chưa làm (EP-09, EP-03).
 - Audit đồng bộ: nếu ghi `egress_record` lỗi thì không gửi (`AUDIT_UNAVAILABLE`).
 - Wire format Fake provider là JSON riêng của gateway tới `/v1/fake-provider/complete` trên loopback; không phải API của vendor nào. URL/proxy không phải loopback → ứng dụng không khởi động (A-05).
