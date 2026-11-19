@@ -249,6 +249,8 @@ class ChatFlowIT extends ChatEnvironment {
                 .doesNotContain("BLOCKED").doesNotContain("credit");
         assertThat(handoffReason(conversation)).isEqualTo("QUOTE_NOT_ISSUED");
         assertThat(providerBodies()).hasSize(2);
+        // A-39(h): the OE after "báo giá" reaches the model unchanged (it was "báo [SO_TIEN]-0K290").
+        assertThat(providerBodies().getFirst()).contains("báo giá " + OE).doesNotContain("[SO_TIEN]");
         assertNothingRestrictedLeftTheApplication();
     }
 

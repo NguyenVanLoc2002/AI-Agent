@@ -29,10 +29,22 @@ public class SensitiveDataDetector {
      * A price keyword directly followed by an amount of 4+ digits, allowing only short filler words
      * ("giá là 450000", "tổng cộng: 1.200.000", "giá vốn 987..."). A wider gap matched "xe gia dinh,
      * doi 2019" (security review M3).
+     *
+     * <p>A-39(h): a part code is not an amount. The exemption is narrow and checked on the whole token
+     * before the amount is matched (no backtracking into a shorter amount): exactly five digits, then
+     * either "-" or a letter, then a tail that has both a letter and a digit and does not start with a
+     * multiplier or currency word at all ("báo giá 04465-0K290", "giá 04152YZZA1"). Everything else stays
+     * money (fail-closed): "giá 450000x2", "giá 45000kx2", "giá 45000đồng2", "giá 45000-VND",
+     * "giá 450000-500000", a digit-only OE such as "giá 90915-10004", and OE codes whose tail starts with
+     * one of those words ("giá 48510-K0010") (security reviews 1 and 2 of A-39(h)). Residual: Cyrillic
+     * look-alike letters ("х", "к") are not folded (SEC-03).
      */
     static final Pattern MONEY_PREFIX = Pattern.compile(
             "(?U)(?:(?<!\\w)(?<!quoc )(?<!quốc )(?<!tham )(?:giá|gia|price|tổng|tong|total|thành tiền|thanh tien|vốn|von|cost|công nợ|cong no|nợ|debt|hạn mức|han muc)(?!\\w)"
                     + "(?:\\s*(?:là|la|khoảng|khoang|chỉ|chi|tầm|tam|cộng|cong|vốn|von|bán|ban|mới|moi|[:=]))*\\s*|[₫$]\\s?)"
+                    + "(?!\\d{5}(?:-|(?=\\p{L}))"
+                    + "(?!(?i:x|k|đ|d|vnd|vnđ|dong|đồng|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|usd))"
+                    + "(?=[\\p{L}\\d]*\\p{L})(?=[\\p{L}\\d]*\\d)[\\p{L}\\d]+(?![\\p{L}\\d]))"
                     + "\\d(?:[\\d.,' _]*\\d){3,}");
     /**
      * VN mobile (10 digits) or landline (11 digits); not inside a longer alphanumeric token such as a

@@ -10,6 +10,7 @@ import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,33 @@ class DefaultInboundSanitizerTest {
     void technicalTextIsUnchanged() {
         String text = "Can ma phanh OE 04465-0K290 cho Vios 2019, so luong 2";
         assertThat(sanitizer.sanitize(text)).isEqualTo(new Sanitized(text, Set.of()));
+    }
+
+    /** A-39(h): "báo giá <OE>" keeps the OE, so the model can search it. */
+    @Test
+    void anOeCodeAfterGiaIsKept() {
+        String text = "Báo giá 2 bộ má phanh, báo giá 04465-0K290 luôn";
+        assertThat(sanitizer.sanitize(text)).isEqualTo(new Sanitized(text, Set.of()));
+        Sanitized mixed = (Sanitized) sanitizer.sanitize("giá 1.200.000 cho 04465-0K290, giá 90915-10004");
+        // A digit-only code after "giá" is still read as an amount (unchanged, fail-closed; A-39(h) residual).
+        assertThat(mixed.text()).isEqualTo("[SO_TIEN] cho 04465-0K290, [SO_TIEN]-10004");
+        assertThat(mixed.flags()).containsExactly(RedactionFlag.MONEY);
+    }
+
+    /** A-39(h), second security review: the sanitizer (case-insensitive copy) agrees with the detector. */
+    @Test
+    void amountsGluedToCurrencyWordsAreRedacted() {
+        for (String amount : List.of("45000đx2", "45000kx2", "45000vndx2", "45000đồng2", "45000ĐX2")) {
+            Sanitized result = (Sanitized) sanitizer.sanitize("GIÁ " + amount + " nhé");
+            assertThat(result.text()).as(amount).doesNotContain("45000").contains("[SO_TIEN]");
+        }
+    }
+
+    /** A-39(h): a sentinel glued to a code-like tail is still a honeytoken. */
+    @Test
+    void aSentinelWithACodeTailIsStillBlocked() {
+        assertThat(sanitizer.sanitize("giá " + SentinelVariants.COST + "-0K290"))
+                .isEqualTo(new Blocked(PolicyCode.HONEYTOKEN, "HT-COST-01"));
     }
 
     @Test
