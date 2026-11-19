@@ -63,7 +63,7 @@ create table quote_request (
     outcome         varchar(12) not null check (outcome in ('ISSUED', 'NOT_QUOTED')),
     reason_code     varchar(40) check (reason_code in ('NO_CUSTOMER', 'CREDIT_NOT_ELIGIBLE',
                         'CREDIT_REVIEW_REQUIRED', 'PRICE_NOT_FOUND', 'PRICE_CURRENCY_MISMATCH', 'INSUFFICIENT_STOCK',
-                        'SOURCE_UNAVAILABLE', 'STORE_UNAVAILABLE', 'STALE_REQUEST')),
+                        'SOURCE_UNAVAILABLE', 'STORE_UNAVAILABLE', 'STALE_REQUEST', 'HANDED_OFF', 'REISSUE_LIMIT')),
     line_count      smallint    not null check (line_count between 0 and 20),
     quote_id        bigint references quote (id),
     occurred_at     timestamptz not null,

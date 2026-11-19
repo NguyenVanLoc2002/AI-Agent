@@ -1,6 +1,7 @@
 package com.secureerp.agent.quote.internal;
 
-import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.CustomerLinks;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.platform.Money;
 import com.secureerp.agent.quote.QuoteOutcome;
 import com.secureerp.agent.quote.QuoteRequest;
@@ -12,6 +13,7 @@ import com.secureerp.agent.quote.spi.PriceQuote;
 import com.secureerp.agent.quote.spi.PricingPort;
 import com.secureerp.agent.quote.spi.QuoteSourceUnavailableException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,25 +28,40 @@ import org.springframework.stereotype.Service;
  * Checks credit, price and stock through the quote ports, outside any transaction (no database
  * transaction is held during ERP calls), then stores the quote in one transaction. Logs carry the
  * outcome and line count only: never prices, stock, credit status or the reason (rule 10, BR-35).
+ *
+ * <p>Owner decisions 2026-11-18 (EP-06 review round):
+ * <ul>
+ *   <li>A-19: the ERP customer comes from identity ({@link CustomerLinks}); the ports never see the
+ *       session reference;</li>
+ *   <li>A-33: a NOT_QUOTED request retires the conversation's older ISSUED quote;</li>
+ *   <li>A-34: after a NOT_QUOTED the conversation gets no automatic quote for
+ *       {@code apas.quote.lock-after-not-quoted} (24 h), and at most
+ *       {@code apas.quote.max-issued-per-conversation-per-hour} (5) quotes are issued per hour. Both are
+ *       checked before any ERP call and again under the issue lock, so stock cannot be probed by
+ *       varying the quantity beyond one NOT_QUOTED.</li>
+ * </ul>
  */
 @Service
 class DefaultQuoteService implements QuoteService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultQuoteService.class);
+    static final Duration ISSUE_WINDOW = Duration.ofHours(1);
 
     private final PricingPort pricing;
     private final AvailabilityPort availability;
     private final CreditEligibilityPort credit;
+    private final CustomerLinks links;
     private final QuoteStore store;
     private final QuoteProperties properties;
     private final QuoteTokens tokens = new QuoteTokens();
     private final Clock clock;
 
     DefaultQuoteService(PricingPort pricing, AvailabilityPort availability, CreditEligibilityPort credit,
-            QuoteStore store, QuoteProperties properties, Clock clock) {
+            CustomerLinks links, QuoteStore store, QuoteProperties properties, Clock clock) {
         this.pricing = pricing;
         this.availability = availability;
         this.credit = credit;
+        this.links = links;
         this.store = store;
         this.properties = properties;
         this.clock = clock;
@@ -59,6 +76,17 @@ class DefaultQuoteService implements QuoteService {
         Objects.requireNonNull(request, "request");
         Instant now = clock.instant();
         int lineCount = request.lines().size();
+        QuoteStore.Limits limits = limits(now);
+        Optional<NotQuotedReason> gate;
+        try {
+            gate = store.gate(request.conversation(), limits);
+        } catch (RuntimeException storeFailure) {
+            log.warn("quote.request gate_failed exception={}", storeFailure.getClass().getSimpleName());
+            gate = Optional.of(NotQuotedReason.STORE_UNAVAILABLE);
+        }
+        if (gate.isPresent()) {
+            return notQuoted(request, gate.get(), now);
+        }
         Evaluation evaluation;
         try {
             evaluation = evaluate(request);
@@ -80,12 +108,23 @@ class DefaultQuoteService implements QuoteService {
             QuoteCalculator.Calculation calculation = QuoteCalculator.calculate(evaluation.lines(),
                     Money.zero(properties.currency()), properties.moneyScale(), properties.rounding());
             handle = tokens.newHandle();
-            boolean issued = store.issue(new QuoteStore.NewQuote(tokens.newPublicRef(), request.conversation(),
-                    request.customer().bindingDigest(), properties.currency(), properties.moneyScale(),
-                    properties.rounding(), calculation, QuoteTokens.hash(handle), now,
-                    now.plus(properties.validity())));
-            if (!issued) {
-                return notQuoted(request, NotQuotedReason.STALE_REQUEST, now);
+            QuoteStore.IssueResult result = store.issue(new QuoteStore.NewQuote(tokens.newPublicRef(),
+                    request.conversation(), request.customer().bindingDigest(), properties.currency(),
+                    properties.moneyScale(), properties.rounding(), calculation, QuoteTokens.hash(handle), now,
+                    now.plus(properties.validity())), limits);
+            switch (result) {
+                case STALE -> {
+                    return notQuoted(request, NotQuotedReason.STALE_REQUEST, now);
+                }
+                case LOCKED -> {
+                    return notQuoted(request, NotQuotedReason.HANDED_OFF, now);
+                }
+                case LIMIT -> {
+                    return notQuoted(request, NotQuotedReason.REISSUE_LIMIT, now);
+                }
+                case ISSUED -> {
+                    // continue
+                }
             }
         } catch (RuntimeException storeFailure) {
             log.warn("quote.request store_failed exception={}", storeFailure.getClass().getSimpleName());
@@ -95,7 +134,15 @@ class DefaultQuoteService implements QuoteService {
         return new QuoteOutcome.Issued(handle, lineCount);
     }
 
-    /** The audit row is best effort: NOT_QUOTED (and the handoff) must not depend on the database. */
+    private QuoteStore.Limits limits(Instant now) {
+        return new QuoteStore.Limits(now.minus(properties.lockAfterNotQuoted()), now.minus(ISSUE_WINDOW),
+                properties.maxIssuedPerConversationPerHour());
+    }
+
+    /**
+     * Records the reason for staff and retires the conversation's older ISSUED quote (A-33). Best
+     * effort: NOT_QUOTED (and the handoff) must not depend on the database.
+     */
     private QuoteOutcome notQuoted(QuoteRequest request, NotQuotedReason reason, Instant now) {
         int lineCount = request.lines().size();
         try {
@@ -108,18 +155,18 @@ class DefaultQuoteService implements QuoteService {
     }
 
     private Evaluation evaluate(QuoteRequest request) {
-        AuthenticatedCustomerRef customer = request.customer();
-        if (customer == null) {
+        Optional<ErpCustomerLink> customer = links.erpLinkOf(request.customer());
+        if (customer.isEmpty()) {
             return new Evaluation(List.of(), NotQuotedReason.NO_CUSTOMER);
         }
-        EligibilityStatus status = credit.check(customer);
+        EligibilityStatus status = credit.check(customer.get());
         if (status != EligibilityStatus.ELIGIBLE) {
             return new Evaluation(List.of(), status == EligibilityStatus.NOT_ELIGIBLE
                     ? NotQuotedReason.CREDIT_NOT_ELIGIBLE : NotQuotedReason.CREDIT_REVIEW_REQUIRED);
         }
         List<QuoteCalculator.PricedLine> priced = new ArrayList<>();
         for (QuoteRequest.Line line : request.lines()) {
-            Optional<PriceQuote> price = pricing.priceFor(customer, line.sku());
+            Optional<PriceQuote> price = pricing.priceFor(customer.get(), line.sku());
             if (price.isEmpty()) {
                 return new Evaluation(List.of(), NotQuotedReason.PRICE_NOT_FOUND);
             }

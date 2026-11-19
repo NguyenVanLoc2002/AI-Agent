@@ -9,8 +9,7 @@ import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.catalog.spi.Vin;
 import com.secureerp.agent.catalog.spi.VerifiedProductPort;
-import com.secureerp.agent.identity.AuthenticatedCustomerRef;
-import com.secureerp.agent.identity.ErpCustomerKeys;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.platform.Money;
 import com.secureerp.agent.quote.spi.AvailabilityPort;
 import com.secureerp.agent.quote.spi.CreditEligibilityPort;
@@ -152,10 +151,10 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
      * malformed row means "no price" (fail closed), never a partial price.
      */
     @Override
-    public Optional<PriceQuote> priceFor(AuthenticatedCustomerRef customer, Sku sku) {
+    public Optional<PriceQuote> priceFor(ErpCustomerLink customer, Sku sku) {
         Optional<String> raw;
         try {
-            raw = backend.fetchPriceRow(ErpCustomerKeys.keyOf(customer), sku.value());
+            raw = backend.fetchPriceRow(customer.value(), sku.value());
         } catch (RuntimeException e) {
             log.warn("erp.price.unavailable code=SERVICE_UNAVAILABLE exception={}", e.getClass().getSimpleName());
             throw new QuoteSourceUnavailableException();
@@ -200,10 +199,10 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
      * limit are dropped. Unknown customer or status: REVIEW_REQUIRED (fail closed).
      */
     @Override
-    public EligibilityStatus check(AuthenticatedCustomerRef customer) {
+    public EligibilityStatus check(ErpCustomerLink customer) {
         Optional<String> raw;
         try {
-            raw = backend.fetchCreditRow(ErpCustomerKeys.keyOf(customer));
+            raw = backend.fetchCreditRow(customer.value());
         } catch (RuntimeException e) {
             log.warn("erp.eligibility.unavailable code=SERVICE_UNAVAILABLE exception={}", e.getClass().getSimpleName());
             throw new QuoteSourceUnavailableException();

@@ -15,15 +15,25 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * PostgreSQL implementation (Flyway V6). Issuing runs in its own transaction under a per-conversation
- * advisory lock ({@link #LOCK_NAMESPACE}), so two concurrent requests in one conversation cannot
- * both end up ISSUED; the partial unique index enforces the same rule in the database.
+ * PostgreSQL implementation (Flyway V6). Writes run in their own transaction under a per-conversation
+ * advisory lock ({@link #LOCK_NAMESPACE}), so concurrent requests in one conversation are serialised:
+ * at most one ISSUED quote (the partial unique index enforces the same rule), the newest snapshot
+ * wins, and the A-34 limits cannot be raced past.
  */
 @Repository
 class JdbcQuoteStore implements QuoteStore {
 
-    /** Advisory lock namespace for quote issuing (tools uses 30_003). */
+    /** Advisory lock namespace for quote writes (tools uses 30_003). */
     static final int LOCK_NAMESPACE = 30_006;
+
+    /** A lost race (STALE_REQUEST, e.g. a double submit) is not the customer's doing and does not lock. */
+    private static final String NOT_QUOTED_SINCE = """
+            select count(*) from quote_request where conversation_id = ? and outcome = 'NOT_QUOTED'
+              and reason_code <> 'STALE_REQUEST' and occurred_at > ?
+            """;
+    private static final String ISSUED_SINCE = """
+            select count(*) from quote_request where conversation_id = ? and outcome = 'ISSUED' and occurred_at > ?
+            """;
 
     private final JdbcTemplate jdbc;
     /** REQUIRES_NEW, READ COMMITTED: the statements after the lock must see rows committed while waiting. */
@@ -37,37 +47,82 @@ class JdbcQuoteStore implements QuoteStore {
     }
 
     @Override
-    public void recordNotQuoted(ConversationId conversation, NotQuotedReason reason, int lineCount, Instant now) {
-        ownTransaction.executeWithoutResult(status -> jdbc.update("""
-                insert into quote_request (conversation_id, outcome, reason_code, line_count, occurred_at)
-                values (?, 'NOT_QUOTED', ?, ?, ?)
-                """, conversation.value(), reason.name(), lineCount, Timestamp.from(now)));
+    public Optional<NotQuotedReason> gate(ConversationId conversation, Limits limits) {
+        return blocked(conversation.value(), limits);
+    }
+
+    private Optional<NotQuotedReason> blocked(String conversation, Limits limits) {
+        if (count(NOT_QUOTED_SINCE, conversation, limits.lockSince()) > 0) {
+            return Optional.of(NotQuotedReason.HANDED_OFF);
+        }
+        if (count(ISSUED_SINCE, conversation, limits.issuedSince()) >= limits.maxIssued()) {
+            return Optional.of(NotQuotedReason.REISSUE_LIMIT);
+        }
+        return Optional.empty();
+    }
+
+    private int count(String sql, String conversation, Instant since) {
+        Integer count = jdbc.queryForObject(sql, Integer.class, conversation, Timestamp.from(since));
+        return count == null ? 0 : count;
+    }
+
+    private void lock(String conversation) {
+        jdbc.queryForList("select pg_advisory_xact_lock(?, hashtext(?))", LOCK_NAMESPACE, conversation);
+    }
+
+    /**
+     * Retires the conversation's ISSUED quotes that are not newer than {@code requestedAt}: EXPIRED when
+     * past their validity, else SUPERSEDED; their handles are revoked.
+     */
+    private void retireOlderIssued(String conversation, Timestamp requestedAt) {
+        List<Long> retired = jdbc.queryForList("""
+                update quote
+                set status = case when valid_until <= ? then 'EXPIRED' else 'SUPERSEDED' end,
+                    row_version = row_version + 1
+                where conversation_id = ? and status = 'ISSUED' and issued_at <= ?
+                returning id
+                """, Long.class, requestedAt, conversation, requestedAt);
+        for (Long id : retired) {
+            jdbc.update("update quote_handle set revoked_at = ? where quote_id = ? and revoked_at is null",
+                    requestedAt, id);
+        }
     }
 
     @Override
-    public boolean issue(NewQuote quote) {
-        return Boolean.TRUE.equals(ownTransaction.execute(status -> {
+    public void recordNotQuoted(ConversationId conversation, NotQuotedReason reason, int lineCount, Instant now) {
+        ownTransaction.executeWithoutResult(status -> {
+            Timestamp at = Timestamp.from(now);
+            lock(conversation.value());
+            // A-33: a NOT_QUOTED request retires the older ISSUED quote; a newer one (that won a race
+            // against this request) stays.
+            retireOlderIssued(conversation.value(), at);
+            jdbc.update("""
+                    insert into quote_request (conversation_id, outcome, reason_code, line_count, occurred_at)
+                    values (?, 'NOT_QUOTED', ?, ?, ?)
+                    """, conversation.value(), reason.name(), lineCount, at);
+        });
+    }
+
+    @Override
+    public IssueResult issue(NewQuote quote, Limits limits) {
+        return ownTransaction.execute(status -> {
             String conversation = quote.conversation().value();
             Timestamp now = Timestamp.from(quote.issuedAt());
-            jdbc.queryForList("select pg_advisory_xact_lock(?, hashtext(?))", LOCK_NAMESPACE, conversation);
+            lock(conversation);
             // The newest snapshot wins: a request that started before the current ISSUED quote was
             // issued does not replace it (EP-06 backend review M-1).
             Integer newer = jdbc.queryForObject(
                     "select count(*) from quote where conversation_id = ? and status = 'ISSUED' and issued_at > ?",
                     Integer.class, conversation, now);
             if (newer != null && newer > 0) {
-                return false;
+                return IssueResult.STALE;
             }
-            List<Long> retired = jdbc.queryForList("""
-                    update quote
-                    set status = case when valid_until <= ? then 'EXPIRED' else 'SUPERSEDED' end,
-                        row_version = row_version + 1
-                    where conversation_id = ? and status = 'ISSUED'
-                    returning id
-                    """, Long.class, now, conversation);
-            for (Long id : retired) {
-                jdbc.update("update quote_handle set revoked_at = ? where quote_id = ? and revoked_at is null", now, id);
+            // A-34 again under the lock: a request racing a NOT_QUOTED or the issue limit loses.
+            Optional<NotQuotedReason> blocked = blocked(conversation, limits);
+            if (blocked.isPresent()) {
+                return blocked.get() == NotQuotedReason.HANDED_OFF ? IssueResult.LOCKED : IssueResult.LIMIT;
             }
+            retireOlderIssued(conversation, now);
             Long quoteId = jdbc.queryForObject("""
                     insert into quote (public_ref, conversation_id, customer_digest, version, status, currency,
                                        money_scale, rounding_mode, total, issued_at, valid_until)
@@ -96,8 +151,8 @@ class JdbcQuoteStore implements QuoteStore {
                     insert into quote_request (conversation_id, outcome, line_count, quote_id, occurred_at)
                     values (?, 'ISSUED', ?, ?, ?)
                     """, conversation, quote.calculation().lines().size(), quoteId, now);
-            return true;
-        }));
+            return IssueResult.ISSUED;
+        });
     }
 
     @Override

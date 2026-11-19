@@ -46,8 +46,9 @@ class ToolRegistryIT {
 
         @Bean
         ConversationAccessPort conversationAccess() {
-            return (principal, conversation) -> principal.equals(IdentityFixtures.principal("mallory"))
-                    && conversation.equals(ToolFixtures.conversation(13)) ? Access.NOT_OWNED : Access.ACTIVE;
+            return ToolFixtures.accessPort((principal, conversation) -> principal.equals(IdentityFixtures.principal("mallory"))
+                    && conversation.equals(ToolFixtures.conversation(13)) ? Access.NOT_OWNED : Access.ACTIVE,
+                    conversation -> IdentityFixtures.customer(ToolFixtures.CUSTOMER_A));
         }
     }
 

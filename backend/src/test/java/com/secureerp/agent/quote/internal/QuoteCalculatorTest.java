@@ -55,15 +55,19 @@ class QuoteCalculatorTest {
 
     @Test
     void quotePropertiesAreBounded() {
-        assertThat(new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24)).validity())
+        assertThat(new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24), Duration.ofHours(24), 5).validity())
                 .isEqualTo(Duration.ofHours(24));
-        assertThatThrownBy(() -> new QuoteProperties(VND, 5, RoundingMode.HALF_UP, Duration.ofHours(24)))
+        assertThatThrownBy(() -> new QuoteProperties(VND, 5, RoundingMode.HALF_UP, Duration.ofHours(24), Duration.ofHours(24), 5))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.UNNECESSARY, Duration.ofHours(24)))
+        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.UNNECESSARY, Duration.ofHours(24), Duration.ofHours(24), 5))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofDays(8)))
+        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofDays(8), Duration.ofHours(24), 5))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ZERO))
+        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ZERO, Duration.ofHours(24), 5))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24), Duration.ZERO, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24),
+                Duration.ofHours(24), 0)).isInstanceOf(IllegalArgumentException.class);
     }
 }

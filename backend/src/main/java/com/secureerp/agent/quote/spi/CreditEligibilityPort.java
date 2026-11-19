@@ -1,6 +1,6 @@
 package com.secureerp.agent.quote.spi;
 
-import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 
 /**
  * Credit eligibility of the authenticated customer (ERP_CONNECTOR §3.5, BRD §12 signature: customer
@@ -10,5 +10,5 @@ import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 public interface CreditEligibilityPort {
 
     /** @throws QuoteSourceUnavailableException when the ERP fails; carries no ERP message */
-    EligibilityStatus check(AuthenticatedCustomerRef customer);
+    EligibilityStatus check(ErpCustomerLink customer);
 }

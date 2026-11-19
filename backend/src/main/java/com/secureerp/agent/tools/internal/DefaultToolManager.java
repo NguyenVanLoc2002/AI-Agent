@@ -14,6 +14,7 @@ import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.gateway.api.ToolResultDto;
 import com.secureerp.agent.gateway.api.ToolSpec;
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Channel;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.quote.QuoteOutcome;
@@ -106,12 +107,13 @@ class DefaultToolManager implements ToolManager {
         String toolName = tool.map(ToolName::wireName).orElse(ToolInvocationStore.UNKNOWN_TOOL);
         Access access;
         OptionalLong admitted;
+        ConversationAccessPort port = DENY_ALL;
         try {
             // Ownership first: a call on someone else's conversation counts against the caller only
             // (EP-03 security review M-2). Exactly one port, else deny all (a @Primary bean does not
             // make an ambiguous setup acceptable; second review LOW-2).
             List<ConversationAccessPort> ports = conversations.orderedStream().limit(2).toList();
-            ConversationAccessPort port = ports.size() == 1 ? ports.getFirst() : DENY_ALL;
+            port = ports.size() == 1 ? ports.getFirst() : DENY_ALL;
             Access checked = port.check(context.principal(), context.conversation());
             // Anything but ACTIVE or LOCKED, including null, is "not owned" (second review LOW-1).
             access = checked == Access.ACTIVE || checked == Access.LOCKED ? checked : Access.NOT_OWNED;
@@ -127,7 +129,7 @@ class DefaultToolManager implements ToolManager {
             return new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.QUOTA_EXCEEDED), true);
         }
         try {
-            ToolResultDto result = run(context, tool, access, proposal, now);
+            ToolResultDto result = run(context, tool, access, port, proposal, now);
             invocations.complete(admitted.getAsLong(), ToolInvocationStore.Decision.INVOKED, null);
             log.info("tools.call decision=INVOKED tool={} turn={}", toolName, context.turnId());
             // TOOL_CONTRACTS §3.3: NOT_QUOTED always comes with a staff handoff.
@@ -163,8 +165,8 @@ class DefaultToolManager implements ToolManager {
         return new ToolOutcome(new ToolErrorResult(code), handoff);
     }
 
-    private ToolResultDto run(ToolCallContext context, Optional<ToolName> tool, Access access, ToolProposal proposal,
-            Instant now) {
+    private ToolResultDto run(ToolCallContext context, Optional<ToolName> tool, Access access,
+            ConversationAccessPort port, ToolProposal proposal, Instant now) {
         ToolName name = tool.orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNKNOWN));
         if (!name.allows(context.role(), context.channel())) {
             throw ToolRejection.of(ToolErrorResult.Code.TOOL_UNKNOWN);
@@ -187,7 +189,7 @@ class DefaultToolManager implements ToolManager {
             // (TOOL_CONTRACTS §3.1). No current VIN: TOOL_UNAVAILABLE (owner decision 2026-11-18).
             case SearchByVinRef byVin -> search(context, () -> catalog.searchByConversationVin(context.conversation())
                     .orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE)), now);
-            case QuoteLines quote -> requestQuote(context, quote, now);
+            case QuoteLines quote -> requestQuote(context, port, quote, now);
             case HandoffRequest handoff -> throw new ToolRejection(ToolErrorResult.Code.TOOL_UNAVAILABLE, true);
         };
     }
@@ -222,7 +224,15 @@ class DefaultToolManager implements ToolManager {
      * customer (never from arguments). The model sees ISSUED + handle or one NOT_QUOTED (BR-35); NOT_QUOTED
      * always hands off ({@link #execute}). The same SKU twice is a schema error the model can fix.
      */
-    private ToolResultDto requestQuote(ToolCallContext context, QuoteLines quote, Instant now) {
+    private ToolResultDto requestQuote(ToolCallContext context, ConversationAccessPort port, QuoteLines quote,
+            Instant now) {
+        // A-35: price only for the customer the conversation is bound to; a session customer that
+        // differs (or a conversation without a binding) is refused before any ERP call (SEC-02).
+        Optional<AuthenticatedCustomerRef> bound = port.boundCustomer(context.principal(), context.conversation());
+        AuthenticatedCustomerRef boundCustomer = bound == null ? null : bound.orElse(null);
+        if (!Objects.equals(boundCustomer, context.customer())) {
+            throw ToolRejection.of(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        }
         List<QuoteRequest.Line> lines = requireOwnedVerifiedProducts(context, quote, now);
         QuoteRequest request;
         try {

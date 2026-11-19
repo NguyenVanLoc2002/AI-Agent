@@ -8,6 +8,7 @@ import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.gateway.EgressScan;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
 import com.secureerp.agent.gateway.api.QuoteRequestResult;
+import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.IdentityFixtures;
@@ -23,6 +24,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -59,9 +62,12 @@ class QuoteServiceIT {
 
         @Bean
         ConversationAccessPort conversationAccess() {
-            return (principal, conversation) -> Access.ACTIVE;
+            return ToolFixtures.accessPort((principal, conversation) -> Access.ACTIVE, BOUND::get);
         }
     }
+
+    /** A-35: the customer each test conversation is bound to; filled by {@link #context}. */
+    private static final Map<ConversationId, AuthenticatedCustomerRef> BOUND = new ConcurrentHashMap<>();
 
     @Autowired
     ToolManager tools;
@@ -82,7 +88,13 @@ class QuoteServiceIT {
 
     private static ToolCallContext context(int conversation, long turn, String customer) {
         ToolCallContext base = ToolFixtures.customer("quoter" + conversation, conversation, turn);
-        return ToolFixtures.withCustomer(base, customer == null ? null : IdentityFixtures.customer(customer));
+        AuthenticatedCustomerRef ref = customer == null ? null : IdentityFixtures.customer(customer);
+        if (ref == null) {
+            BOUND.remove(base.conversation());
+        } else {
+            BOUND.put(base.conversation(), ref);
+        }
+        return ToolFixtures.withCustomer(base, ref);
     }
 
     /** A VERIFIED productRef for the OE, issued to this conversation by a real search. */
@@ -191,10 +203,66 @@ class QuoteServiceIT {
             handoffs.add(outcome.handoffRequired());
         }
 
+        // A-34: after the NOT_QUOTED the conversation is handed off; a smaller quantity is not quoted
+        // either, and the ERP is not asked (reason HANDED_OFF), so the probing ends at one NOT_QUOTED.
+        String ref = verifiedRef(context(48, turn++, ToolFixtures.CUSTOMER_A), "04465-0D150");
+        ToolOutcome afterHandoff = tools.execute(context(48, turn, ToolFixtures.CUSTOMER_A), quote(ref, 1));
+        results.add((QuoteRequestResult) afterHandoff.result());
+        handoffs.add(afterHandoff.handoffRequired());
+
         assertThat(results).extracting(QuoteRequestResult::status).containsExactly(QuoteRequestResult.Status.ISSUED,
-                QuoteRequestResult.Status.ISSUED, QuoteRequestResult.Status.NOT_QUOTED);
+                QuoteRequestResult.Status.ISSUED, QuoteRequestResult.Status.NOT_QUOTED,
+                QuoteRequestResult.Status.NOT_QUOTED);
         assertThat(results).extracting(QuoteRequestResult::lineCount).containsOnly(1);
-        assertThat(handoffs).containsExactly(false, false, true);
+        assertThat(handoffs).containsExactly(false, false, true, true);
+        assertThat(reasons(48)).containsExactly("HANDED_OFF");
+    }
+
+    /** A-33: a NOT_QUOTED request retires the conversation's older ISSUED quote; its card stops rendering. */
+    @Test
+    void aNotQuotedRequestRetiresTheOlderQuote() {
+        QuoteRequestResult first = (QuoteRequestResult) requestQuote(62, ToolFixtures.CUSTOMER_A, "04465-0K290", 1)
+                .result();
+        ConversationId conversation = ToolFixtures.conversation(62);
+        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        assertThat(cards.render(first.quoteHandle(), conversation, customer)).isPresent();
+
+        requestQuote(62, ToolFixtures.CUSTOMER_A, "04465-0K290", 13);
+
+        assertThat(cards.render(first.quoteHandle(), conversation, customer)).isEmpty();
+        assertThat(jdbc.queryForList("select status from quote where conversation_id = ?", String.class,
+                conversation.value())).containsExactly("SUPERSEDED");
+    }
+
+    /** A-34: at most 5 ISSUED quotes per conversation per hour; the 6th is NOT_QUOTED without an ERP call. */
+    @Test
+    void theSixthQuoteInAnHourIsRefused() {
+        ConversationId conversation = ToolFixtures.conversation(63);
+        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        List<QuoteOutcome> outcomes = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            outcomes.add(quotes.request(new QuoteRequest(conversation, customer,
+                    List.of(new QuoteRequest.Line(new Sku("SKU-AIR-FLT-A"), 1)))));
+        }
+
+        assertThat(outcomes.subList(0, 5)).allMatch(outcome -> outcome instanceof QuoteOutcome.Issued);
+        assertThat(outcomes.get(5)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        assertThat(reasons(63)).containsExactly("REISSUE_LIMIT");
+    }
+
+    /** A-35 / SEC-02: a session customer other than the conversation's bound customer is refused. */
+    @Test
+    void aSessionCustomerOtherThanTheBoundOneGetsNoQuote() {
+        String ref = verifiedRef(context(64, 1, ToolFixtures.CUSTOMER_A), "04465-0K290");
+        ToolCallContext otherCustomer = ToolFixtures.withCustomer(ToolFixtures.customer("quoter64", 64, 2),
+                IdentityFixtures.customer(ToolFixtures.CUSTOMER_B));
+
+        ToolOutcome outcome = tools.execute(otherCustomer, quote(ref, 1));
+
+        assertThat(outcome.result()).isEqualTo(new ToolErrorResult(ToolErrorResult.Code.FORBIDDEN_RESOURCE));
+        assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(jdbc.queryForObject("select count(*) from quote_request where conversation_id = ?", Integer.class,
+                ToolFixtures.conversation(64).value())).isZero();
     }
 
     /** ADR-007: a new quote supersedes the old one, whose handle stops rendering. */
@@ -278,23 +346,39 @@ class QuoteServiceIT {
             }
         }
 
-        // Exactly one ISSUED quote, and it is the newest snapshot (backend review M-1): a request that
-        // started before the current quote was issued is NOT_QUOTED (STALE_REQUEST), never the winner.
-        assertThat(jdbc.queryForObject("select count(*) from quote where conversation_id = ? and status = 'ISSUED'",
-                Integer.class, conversation.value())).isEqualTo(1);
+        // At most one ISSUED quote, and if one is left it is the newest snapshot (backend review M-1): a
+        // request that started before the current quote was issued is NOT_QUOTED (STALE_REQUEST). A-33/A-34
+        // may leave none (a refused request retires the older quote), never two.
+        Integer issuedNow = jdbc.queryForObject(
+                "select count(*) from quote where conversation_id = ? and status = 'ISSUED'", Integer.class,
+                conversation.value());
+        assertThat(issuedNow).isBetween(0, 1);
         assertThat(jdbc.queryForObject("""
                 select count(*) from quote q where q.conversation_id = ? and q.status = 'ISSUED'
                   and q.issued_at = (select max(issued_at) from quote where conversation_id = q.conversation_id)
-                """, Integer.class, conversation.value())).isEqualTo(1);
+                """, Integer.class, conversation.value())).isEqualTo(issuedNow);
         long issued = outcomes.stream().filter(outcome -> outcome instanceof QuoteOutcome.Issued).count();
-        assertThat(issued).isBetween(1L, 10L);
+        assertThat(issued).isBetween(1L, 5L);
         assertThat(jdbc.queryForObject("select count(*) from quote_request where conversation_id = ?", Integer.class,
                 conversation.value())).isEqualTo(10);
         long rendering = outcomes.stream()
                 .filter(outcome -> outcome instanceof QuoteOutcome.Issued issuedOutcome
                         && cards.render(issuedOutcome.quoteHandle(), conversation, customer).isPresent())
                 .count();
-        assertThat(rendering).isEqualTo(1);
+        assertThat(rendering).isEqualTo(issuedNow.longValue());
+    }
+
+    /** A lost race (STALE_REQUEST) does not lock the conversation: the next request is quoted. */
+    @Test
+    void aStaleRequestDoesNotLockTheConversation() {
+        ConversationId conversation = ToolFixtures.conversation(65);
+        jdbc.update("""
+                insert into quote_request (conversation_id, outcome, reason_code, line_count, occurred_at)
+                values (?, 'NOT_QUOTED', 'STALE_REQUEST', 1, now())
+                """, conversation.value());
+
+        assertThat(quotes.request(new QuoteRequest(conversation, IdentityFixtures.customer(ToolFixtures.CUSTOMER_A),
+                List.of(new QuoteRequest.Line(new Sku("SKU-AIR-FLT-A"), 1))))).isInstanceOf(QuoteOutcome.Issued.class);
     }
 
     /** ADR-007: an ISSUED quote past its validity is retired as EXPIRED (not SUPERSEDED) by the next one. */

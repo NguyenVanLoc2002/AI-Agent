@@ -15,5 +15,9 @@ enum NotQuotedReason {
     /** Calculation or persistence failed after the ERP checks (EP-06 reviews: backend M-2, security M-3). */
     STORE_UNAVAILABLE,
     /** A newer quote was issued in this conversation while this request was being checked (backend M-1). */
-    STALE_REQUEST
+    STALE_REQUEST,
+    /** A NOT_QUOTED in the last 24 h handed the conversation to staff (A-34; no ERP call). */
+    HANDED_OFF,
+    /** The per-conversation issue limit is reached (A-34; no ERP call). */
+    REISSUE_LIMIT
 }

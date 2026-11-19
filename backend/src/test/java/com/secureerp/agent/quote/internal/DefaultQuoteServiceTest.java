@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.CustomerLinks;
 import com.secureerp.agent.identity.IdentityFixtures;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.Money;
 import com.secureerp.agent.quote.QuoteOutcome;
@@ -31,6 +33,8 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 /**
  * BR-11 / BR-35 with fake ports: every reason gives the same NOT_QUOTED, the reason is stored for
  * staff only, and logs carry no price, stock, credit status or reason (T-UC03-INELIGIBLE, unit level).
+ * A-19, A-33, A-34 (owner 2026-11-18): the ports see only the ERP link; the A-34 gate runs before any
+ * ERP call.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class DefaultQuoteServiceTest {
@@ -39,13 +43,29 @@ class DefaultQuoteServiceTest {
     private static final Currency VND = Currency.getInstance("VND");
     private static final ConversationId CONVERSATION = new ConversationId("cv_QuoteConvAAAAAAAAAAAAA");
     private static final AuthenticatedCustomerRef CUSTOMER = IdentityFixtures.customer("SynthCustomerA");
+    private static final ErpCustomerLink ERP_CUSTOMER = new ErpCustomerLink("SYNTH-CUST-A");
     private static final Sku SKU = new Sku("SKU-BRK-PAD-A");
 
     private EligibilityStatus credit = EligibilityStatus.ELIGIBLE;
     private Optional<PriceQuote> price = Optional.of(price("555444333", VND));
     private OptionalInt stock = OptionalInt.of(12);
     private RuntimeException sourceFailure;
+    private final List<ErpCustomerLink> portCustomers = new ArrayList<>();
+    private int erpCalls;
     private final RecordingStore store = new RecordingStore();
+
+    /** Only CUSTOMER is linked; any other reference has no ERP customer. */
+    private final CustomerLinks links = new CustomerLinks() {
+        @Override
+        public AuthenticatedCustomerRef bind(ErpCustomerLink link) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<ErpCustomerLink> erpLinkOf(AuthenticatedCustomerRef customer) {
+            return CUSTOMER.equals(customer) ? Optional.of(ERP_CUSTOMER) : Optional.empty();
+        }
+    };
 
     private static PriceQuote price(String amount, Currency currency) {
         return new PriceQuote(Money.of(new BigDecimal(amount), currency), "mock-erp:pl:contract", "r1");
@@ -54,22 +74,27 @@ class DefaultQuoteServiceTest {
     private DefaultQuoteService service() {
         return new DefaultQuoteService(
                 (customer, sku) -> {
-                    failIfSet();
+                    erp(customer);
                     return price;
                 },
                 sku -> {
-                    failIfSet();
+                    erp(null);
                     return stock;
                 },
                 customer -> {
-                    failIfSet();
+                    erp(customer);
                     return credit;
                 },
-                store, new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24)),
+                links, store,
+                new QuoteProperties(VND, 0, RoundingMode.HALF_UP, Duration.ofHours(24), Duration.ofHours(24), 5),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
-    private void failIfSet() {
+    private void erp(ErpCustomerLink customer) {
+        erpCalls++;
+        if (customer != null) {
+            portCustomers.add(customer);
+        }
         if (sourceFailure != null) {
             throw sourceFailure;
         }
@@ -90,14 +115,18 @@ class DefaultQuoteServiceTest {
             assertThat(quote.validUntil()).isEqualTo(NOW.plus(Duration.ofHours(24)));
             assertThat(quote.handleHash()).isEqualTo(QuoteTokens.hash(((QuoteOutcome.Issued) outcome).quoteHandle()));
         });
+        // A-19: the ports get the ERP link, never the session reference.
+        assertThat(portCustomers).containsOnly(ERP_CUSTOMER);
         assertThat(output.getAll()).contains("quote.request outcome=ISSUED lines=1")
-                .doesNotContain("555444333", "1110888666", ((QuoteOutcome.Issued) outcome).quoteHandle());
+                .doesNotContain("555444333", "1110888666", "SYNTH-CUST-A",
+                        ((QuoteOutcome.Issued) outcome).quoteHandle());
     }
 
     @Test
     void everyReasonIsTheSameNotQuotedAndOnlyTheStoreKnowsWhy(CapturedOutput output) {
         List<QuoteOutcome> outcomes = new ArrayList<>();
         outcomes.add(request(null, 1));
+        outcomes.add(request(IdentityFixtures.customer("UnlinkedCustomer"), 1));
         credit = EligibilityStatus.NOT_ELIGIBLE;
         outcomes.add(request(CUSTOMER, 1));
         credit = EligibilityStatus.REVIEW_REQUIRED;
@@ -117,13 +146,42 @@ class DefaultQuoteServiceTest {
         outcomes.add(request(CUSTOMER, 1));
 
         assertThat(outcomes).containsOnly(new QuoteOutcome.NotQuoted(1));
-        assertThat(store.notQuoted).containsExactly(NotQuotedReason.NO_CUSTOMER, NotQuotedReason.CREDIT_NOT_ELIGIBLE,
-                NotQuotedReason.CREDIT_REVIEW_REQUIRED, NotQuotedReason.PRICE_NOT_FOUND,
-                NotQuotedReason.PRICE_CURRENCY_MISMATCH, NotQuotedReason.INSUFFICIENT_STOCK,
-                NotQuotedReason.INSUFFICIENT_STOCK, NotQuotedReason.SOURCE_UNAVAILABLE,
-                NotQuotedReason.SOURCE_UNAVAILABLE);
+        assertThat(store.notQuoted).containsExactly(NotQuotedReason.NO_CUSTOMER, NotQuotedReason.NO_CUSTOMER,
+                NotQuotedReason.CREDIT_NOT_ELIGIBLE, NotQuotedReason.CREDIT_REVIEW_REQUIRED,
+                NotQuotedReason.PRICE_NOT_FOUND, NotQuotedReason.PRICE_CURRENCY_MISMATCH,
+                NotQuotedReason.INSUFFICIENT_STOCK, NotQuotedReason.INSUFFICIENT_STOCK,
+                NotQuotedReason.SOURCE_UNAVAILABLE, NotQuotedReason.SOURCE_UNAVAILABLE);
         assertThat(store.issued).isEmpty();
         assertThat(output.getAll()).doesNotContain("CREDIT", "STOCK", "PRICE_", "123456789", "555444333");
+    }
+
+    /** A-34: a locked or rate-limited conversation is NOT_QUOTED before any ERP call (no stock probing). */
+    @Test
+    void theGateRefusesBeforeAnyErpCall() {
+        store.gate = Optional.of(NotQuotedReason.HANDED_OFF);
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        store.gate = Optional.of(NotQuotedReason.REISSUE_LIMIT);
+        assertThat(request(CUSTOMER, 9999)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+
+        assertThat(erpCalls).isZero();
+        assertThat(store.notQuoted).containsExactly(NotQuotedReason.HANDED_OFF, NotQuotedReason.REISSUE_LIMIT);
+        assertThat(store.lastLimits.lockSince()).isEqualTo(NOW.minus(Duration.ofHours(24)));
+        assertThat(store.lastLimits.issuedSince()).isEqualTo(NOW.minus(Duration.ofHours(1)));
+        assertThat(store.lastLimits.maxIssued()).isEqualTo(5);
+    }
+
+    /** A-34 re-checked under the lock, and backend review M-1 (stale): all NOT_QUOTED with a reason. */
+    @Test
+    void lockedLimitedOrStaleAtIssueTimeIsNotQuoted() {
+        store.issueResult = QuoteStore.IssueResult.LOCKED;
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        store.issueResult = QuoteStore.IssueResult.LIMIT;
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        store.issueResult = QuoteStore.IssueResult.STALE;
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+
+        assertThat(store.notQuoted).containsExactly(NotQuotedReason.HANDED_OFF, NotQuotedReason.REISSUE_LIMIT,
+                NotQuotedReason.STALE_REQUEST);
     }
 
     /**
@@ -142,6 +200,15 @@ class DefaultQuoteServiceTest {
                 .doesNotContain("1110888666", "555444333");
     }
 
+    @Test
+    void aGateFailureIsNotQuoted() {
+        store.failGate = new IllegalStateException("db down");
+
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        assertThat(erpCalls).isZero();
+        assertThat(store.notQuoted).containsExactly(NotQuotedReason.STORE_UNAVAILABLE);
+    }
+
     /** A price whose total does not fit the Money range is NOT_QUOTED, not an exception. */
     @Test
     void anOverflowingTotalIsNotQuoted() {
@@ -150,15 +217,6 @@ class DefaultQuoteServiceTest {
 
         assertThat(request(CUSTOMER, 9999)).isEqualTo(new QuoteOutcome.NotQuoted(1));
         assertThat(store.notQuoted).containsExactly(NotQuotedReason.STORE_UNAVAILABLE);
-    }
-
-    /** Backend M-1: when a newer quote won the race, this one is NOT_QUOTED (STALE_REQUEST). */
-    @Test
-    void aStaleRequestDoesNotReplaceANewerQuote() {
-        store.stale = true;
-
-        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
-        assertThat(store.notQuoted).containsExactly(NotQuotedReason.STALE_REQUEST);
     }
 
     @Test
@@ -179,9 +237,21 @@ class DefaultQuoteServiceTest {
 
         private final List<NotQuotedReason> notQuoted = new ArrayList<>();
         private final List<NewQuote> issued = new ArrayList<>();
+        private Optional<NotQuotedReason> gate = Optional.empty();
+        private IssueResult issueResult = IssueResult.ISSUED;
+        private Limits lastLimits;
+        private RuntimeException failGate;
         private RuntimeException failIssue;
         private RuntimeException failAudit;
-        private boolean stale;
+
+        @Override
+        public Optional<NotQuotedReason> gate(ConversationId conversation, Limits limits) {
+            lastLimits = limits;
+            if (failGate != null) {
+                throw failGate;
+            }
+            return gate;
+        }
 
         @Override
         public void recordNotQuoted(ConversationId conversation, NotQuotedReason reason, int lineCount, Instant now) {
@@ -192,15 +262,14 @@ class DefaultQuoteServiceTest {
         }
 
         @Override
-        public boolean issue(NewQuote quote) {
+        public IssueResult issue(NewQuote quote, Limits limits) {
             if (failIssue != null) {
                 throw failIssue;
             }
-            if (stale) {
-                return false;
+            if (issueResult == IssueResult.ISSUED) {
+                issued.add(quote);
             }
-            issued.add(quote);
-            return true;
+            return issueResult;
         }
 
         @Override

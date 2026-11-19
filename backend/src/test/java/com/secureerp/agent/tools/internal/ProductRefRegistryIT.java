@@ -50,7 +50,8 @@ class ProductRefRegistryIT {
     @Test
     void realQuoteHandlesPassTheToolAndEgressChecks() {
         for (int i = 0; i < 40; i++) {
-            QuoteOutcome outcome = quotes.request(new QuoteRequest(ToolFixtures.conversation(61),
+            // One conversation each: A-34 allows 5 quotes per conversation per hour.
+            QuoteOutcome outcome = quotes.request(new QuoteRequest(ToolFixtures.conversation(100 + i),
                     IdentityFixtures.customer(ToolFixtures.CUSTOMER_A),
                     List.of(new QuoteRequest.Line(new Sku("SKU-AIR-FLT-A"), 1))));
             String handle = ((QuoteOutcome.Issued) outcome).quoteHandle();

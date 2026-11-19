@@ -1,5 +1,8 @@
 package com.secureerp.agent;
 
+import com.secureerp.agent.identity.CustomerLinks;
+import com.secureerp.agent.identity.IdentityFixtures;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -18,5 +21,11 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(POSTGRES_IMAGE);
+    }
+
+    /** Links the synthetic customers A, B and C to their Mock ERP keys (A-19, EP-06). */
+    @Bean
+    ApplicationRunner syntheticCustomerLinks(CustomerLinks links) {
+        return arguments -> IdentityFixtures.linkSyntheticCustomers(links);
     }
 }

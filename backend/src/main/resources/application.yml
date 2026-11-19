@@ -101,5 +101,8 @@ apas:
     money-scale: 0
     rounding: HALF_UP
     validity: 24h
+    # A-34 (owner 2026-11-18): no automatic quote for 24 h after a NOT_QUOTED; at most 5 quotes/conversation/h.
+    lock-after-not-quoted: 24h
+    max-issued-per-conversation-per-hour: 5
 # apas.erp.mock.fault-mode is deliberately absent from shared configuration (default NONE in code);
 # fault injection is set only by tests (architecture review M6).

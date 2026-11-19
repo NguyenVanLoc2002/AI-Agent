@@ -25,7 +25,10 @@ import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.gateway.api.ToolSpec;
 import com.secureerp.agent.gateway.internal.EgressSerializer;
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Channel;
+import com.secureerp.agent.identity.IdentityFixtures;
+import com.secureerp.agent.identity.PrincipalId;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.quote.QuoteOutcome;
@@ -86,8 +89,21 @@ class DefaultToolManagerTest {
         return quoteAnswer;
     };
 
+    /** Conversation -> bound customer (A-35); conversations not listed are bound to CONTEXT's customer. */
+    private final Map<ConversationId, AuthenticatedCustomerRef> bound = new HashMap<>();
+
     private DefaultToolManager manager() {
-        return manager((principal, conversation) -> access.getOrDefault(conversation, Access.NOT_OWNED));
+        return manager(new ConversationAccessPort() {
+            @Override
+            public Access check(PrincipalId principal, ConversationId conversation) {
+                return access.getOrDefault(conversation, Access.NOT_OWNED);
+            }
+
+            @Override
+            public Optional<AuthenticatedCustomerRef> boundCustomer(PrincipalId principal, ConversationId conversation) {
+                return Optional.ofNullable(bound.containsKey(conversation) ? bound.get(conversation) : CONTEXT.customer());
+            }
+        });
     }
 
     private DefaultToolManager manager(ConversationAccessPort port) {
@@ -367,9 +383,40 @@ class DefaultToolManagerTest {
         quoteAnswer = new QuoteOutcome.NotQuoted(1);
         String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
 
+        bound.put(CONTEXT.conversation(), null);
         manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
 
         assertThat(quoteRequests).singleElement().satisfies(request -> assertThat(request.customer()).isNull());
+    }
+
+    /**
+     * A-35 (owner 2026-11-18, SEC-02): the session customer must be the one the conversation is bound to;
+     * otherwise FORBIDDEN_RESOURCE with handoff and no quote call (no ERP call).
+     */
+    @Test
+    void aSessionCustomerOtherThanTheBoundOneIsForbidden() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome otherCustomer = manager().execute(
+                ToolFixtures.withCustomer(CONTEXT, IdentityFixtures.customer(ToolFixtures.CUSTOMER_B)), quote(ref));
+        bound.put(CONTEXT.conversation(), IdentityFixtures.customer(ToolFixtures.CUSTOMER_B));
+        ToolOutcome noSessionCustomer = manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
+
+        assertThat(code(otherCustomer)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(otherCustomer.handoffRequired()).isTrue();
+        assertThat(code(noSessionCustomer)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(quoteRequests).isEmpty();
+    }
+
+    /** A port that does not know the binding (the default) never quotes: fail closed. */
+    @Test
+    void withoutAKnownBindingNoQuoteIsMade() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager((principal, conversation) -> Access.ACTIVE).execute(CONTEXT, quote(ref));
+
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(quoteRequests).isEmpty();
     }
 
     /** T-TOOL-04 (in memory; the PostgreSQL version is in ToolRegistryIT). */

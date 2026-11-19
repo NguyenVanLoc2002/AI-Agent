@@ -53,7 +53,7 @@ class VinSearchIT {
 
         @Bean
         ConversationAccessPort conversationAccess() {
-            return (principal, conversation) -> Access.ACTIVE;
+            return ToolFixtures.ownedByCustomerA();
         }
     }
 

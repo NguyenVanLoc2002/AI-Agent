@@ -192,9 +192,9 @@ public final class ArchitectureRules {
 
         // Any dependency counts, so method references and field types are caught too (EP-06 reviews).
         rules.put("ARCH-08d", noClasses()
-                .that().resideOutsideOfPackages(base + ".identity..", base + ".erp..")
-                .should().dependOnClassesThat().haveSimpleName("ErpCustomerKeys")
-                .as("ARCH-08 only identity and the erp adapter read the ERP customer key (A-19, EP-06)")
+                .that().resideOutsideOfPackages(base + ".identity..", base + ".quote..", base + ".erp..")
+                .should().dependOnClassesThat().haveSimpleName("ErpCustomerLink")
+                .as("ARCH-08 only identity, quote and the erp adapter handle the ERP customer key (A-19, EP-06)")
                 .allowEmptyShould(true));
 
         // EP-06 architecture review M1: customer prices on the card are for the server render only.

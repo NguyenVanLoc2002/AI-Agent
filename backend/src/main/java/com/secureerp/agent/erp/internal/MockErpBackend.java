@@ -52,12 +52,13 @@ class MockErpBackend {
     private static final String MALFORMED_VEHICLE = "{\"vehicleModel\":987654321,\"registeredOwner\":\"ZZHoney CustomerA\"}";
 
     /**
-     * Synthetic customers (EP-06). Keys follow the {@code AuthenticatedCustomerRef} format; tests get
-     * them through {@code IdentityFixtures.customer("SynthCustomerA")}. A is in good standing, B is
-     * blocked for credit; any other customer has no price and needs review.
+     * Synthetic ERP customer keys (EP-06). Deliberately unlike the session reference format (A-19):
+     * identity maps references to these keys. A is in good standing, B is blocked for credit, C has
+     * no credit record (review required) and no prices.
      */
-    static final String CUSTOMER_A = "cref_SynthCustomerAZZZZZZZZ";
-    static final String CUSTOMER_B = "cref_SynthCustomerBZZZZZZZZ";
+    static final String CUSTOMER_A = "SYNTH-CUST-A";
+    static final String CUSTOMER_B = "SYNTH-CUST-B";
+    static final String CUSTOMER_C = "SYNTH-CUST-C";
 
     /**
      * Customer prices are the SEC-01 price sentinels, so a test can prove they never reach the model
