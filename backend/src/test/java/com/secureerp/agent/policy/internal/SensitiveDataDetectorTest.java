@@ -119,6 +119,30 @@ class SensitiveDataDetectorTest {
         assertThat(detector.detect(text)).isEmpty();
     }
 
+    /** A-39(h): an OE code with letters after a price keyword is a part code, not an amount. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"báo giá 04465-0K290", "Báo giá 04465-0K290 nhé", "giá: 17801-0Y040", "gia 90915-YZZD1",
+        "tổng 04465-0k290 và 17801-0Y040", "giá vốn 04152YZZA1", "giá là 04465-0K290?"})
+    void anOeCodeAfterAPriceKeywordIsNotMoney(String text) {
+        assertThat(detector.detect(text)).isEmpty();
+    }
+
+    /** A-39(h) fail-closed side: amounts, digit-only ranges and digit-only codes after a keyword stay MONEY. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"giá 450000-500000", "giá 90915-10004", "giá 450000, mã 04465-0K290", "giá 1.250.000.",
+        "tổng 450000-VND", "giá 1.200.000 cho 04465-0K290", "giá là 450000 x 2 bộ",
+        // security review of A-39(h): amounts glued to a quantity/currency tail or a model name
+        "giá 450000x2", "giá 450000x2 cái", "giá 450.000x2", "giá 450000vnd2", "tổng 1250000vnđx2", "giá 1.250.000đ0",
+        "giá 450000Vios2019", "giá 45000x2", "giá 45000X2", "giá 45000k2", "giá 45000-VND", "giá 4465-0K290",
+        // second security review: a currency or multiplier word, then "x" or a later digit
+        "giá 45000đx2", "giá 45000kx2", "giá 12345usdx2", "giá 45000vndx2", "giá 45000trx2", "giá 45000đồng2",
+        "giá 45000dong2", "giá 45000nghìnx2", "giá 45000ngàn2", "GIÁ 45000ĐX2",
+        // fail-closed false positives, pinned so a later change cannot loosen them silently
+        "giá 04465D1234", "giá 48510-K0010", "giá 90919-D2001"})
+    void amountsNextToCodesAreStillMoney(String text) {
+        assertThat(detector.detect(text)).map(SensitiveDataDetector.Finding::code).contains(PolicyCode.MONEY);
+    }
+
     /** Second review M2: separators the old pattern did not allow. */
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"(090) 123 4567", "0901  234  567", "090/123/4567", "090 - 123 - 4567",
