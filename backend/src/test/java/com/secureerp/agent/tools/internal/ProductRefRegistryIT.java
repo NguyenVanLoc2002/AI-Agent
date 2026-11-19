@@ -6,7 +6,8 @@ import com.secureerp.agent.TestcontainersConfiguration;
 import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.gateway.api.QuoteRequestResult;
-import com.secureerp.agent.identity.IdentityFixtures;
+import com.secureerp.agent.identity.CustomerLinkBinding;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.quote.QuoteOutcome;
 import com.secureerp.agent.quote.QuoteRequest;
 import com.secureerp.agent.quote.QuoteService;
@@ -33,6 +34,9 @@ class ProductRefRegistryIT {
     @Autowired
     QuoteService quotes;
 
+    @Autowired
+    CustomerLinkBinding binding;
+
     @Test
     void issuedTokensNeverLookLikeAVin() {
         for (int i = 0; i < 500; i++) {
@@ -50,9 +54,9 @@ class ProductRefRegistryIT {
     @Test
     void realQuoteHandlesPassTheToolAndEgressChecks() {
         for (int i = 0; i < 40; i++) {
-            // One conversation each: A-34 allows 5 quotes per conversation per hour.
+            // A fresh customer reference and conversation each: A-34 allows 5 quotes per customer per hour.
             QuoteOutcome outcome = quotes.request(new QuoteRequest(ToolFixtures.conversation(100 + i),
-                    IdentityFixtures.customer(ToolFixtures.CUSTOMER_A),
+                    binding.bind(new ErpCustomerLink("SYNTH-CUST-A")),
                     List.of(new QuoteRequest.Line(new Sku("SKU-AIR-FLT-A"), 1))));
             String handle = ((QuoteOutcome.Issued) outcome).quoteHandle();
 

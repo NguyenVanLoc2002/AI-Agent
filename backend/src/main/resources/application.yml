@@ -67,6 +67,10 @@ logging:
       console: ecs
   level:
     root: INFO
+    # EP-06 review: transaction/JDBC debug output can quote a failing row (prices, digests). Keep them
+    # at INFO or above in every profile.
+    org.springframework.transaction: INFO
+    org.springframework.jdbc: INFO
 
 # SEC-01a. A-05/ADR-004: Fake provider only, loopback address only (enforced at startup). No URL is
 # configured by default, so every gateway call fails closed with PROVIDER_UNAVAILABLE until a local

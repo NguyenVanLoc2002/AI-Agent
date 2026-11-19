@@ -11,7 +11,9 @@ import com.secureerp.agent.gateway.api.QuoteRequestResult;
 import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.CustomerLinkBinding;
 import com.secureerp.agent.identity.IdentityFixtures;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.tools.ToolCallContext;
 import com.secureerp.agent.tools.ToolFixtures;
@@ -81,20 +83,36 @@ class QuoteServiceIT {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    CustomerLinkBinding binding;
+
     @BeforeEach
     void clean() {
         jdbc.update("delete from tool_invocation");
     }
 
-    private static ToolCallContext context(int conversation, long turn, String customer) {
+    /**
+     * A-34 is per customer (owner 2026-11-19), so every test conversation gets its own fresh reference to
+     * the synthetic ERP customer (same prices and credit), bound through identity; tests do not share a
+     * lock or an issue limit. {@code null} = no customer and no binding.
+     */
+    private ToolCallContext context(int conversation, long turn, String customer) {
         ToolCallContext base = ToolFixtures.customer("quoter" + conversation, conversation, turn);
-        AuthenticatedCustomerRef ref = customer == null ? null : IdentityFixtures.customer(customer);
+        AuthenticatedCustomerRef ref = customer == null ? null
+                : BOUND.computeIfAbsent(base.conversation(), c -> fresh(customer));
         if (ref == null) {
             BOUND.remove(base.conversation());
-        } else {
-            BOUND.put(base.conversation(), ref);
         }
         return ToolFixtures.withCustomer(base, ref);
+    }
+
+    /** A new reference for a synthetic customer seed (SynthCustomerA/B/C). */
+    private AuthenticatedCustomerRef fresh(String customerSeed) {
+        return binding.bind(new ErpCustomerLink(IdentityFixtures.SYNTHETIC_ERP_LINKS.get(customerSeed)));
+    }
+
+    private static AuthenticatedCustomerRef customerOf(int conversation) {
+        return BOUND.get(ToolFixtures.conversation(conversation));
     }
 
     /** A VERIFIED productRef for the OE, issued to this conversation by a real search. */
@@ -127,7 +145,7 @@ class QuoteServiceIT {
         assertThat(EgressScan.containsSentinel(result.toString())).isFalse();
 
         QuoteCard card = cards.render(result.quoteHandle(), ToolFixtures.conversation(41),
-                IdentityFixtures.customer(ToolFixtures.CUSTOMER_A)).orElseThrow();
+                customerOf(41)).orElseThrow();
         assertThat(card.lines()).singleElement().satisfies(line -> {
             assertThat(line.sku()).isEqualTo(new Sku("SKU-BRK-PAD-A"));
             assertThat(line.quantity()).isEqualTo(2);
@@ -150,7 +168,7 @@ class QuoteServiceIT {
                 .result();
 
         QuoteCard card = cards.render(result.quoteHandle(), ToolFixtures.conversation(42),
-                IdentityFixtures.customer(ToolFixtures.CUSTOMER_A)).orElseThrow();
+                customerOf(42)).orElseThrow();
         assertThat(card.lines().getFirst().lineTotal().amount()).isEqualByComparingTo("555444334");
         assertThat(card.total().amount()).isEqualByComparingTo("555444334");
     }
@@ -165,14 +183,17 @@ class QuoteServiceIT {
                 requestQuote(43, ToolFixtures.CUSTOMER_B, "04465-0K290", 1),
                 requestQuote(44, "SynthCustomerC", "04465-0K290", 1),
                 requestQuote(45, ToolFixtures.CUSTOMER_A, "90915-YZZD4", 1),
-                requestQuote(46, ToolFixtures.CUSTOMER_A, "04465-0D150", 3),
-                requestQuote(47, null, "04465-0K290", 1));
+                requestQuote(46, ToolFixtures.CUSTOMER_A, "04465-0D150", 3));
 
         assertThat(outcomes).extracting(ToolOutcome::result)
                 .containsOnly(new QuoteRequestResult(QuoteRequestResult.Status.NOT_QUOTED, null, 1));
         assertThat(outcomes).allMatch(ToolOutcome::handoffRequired);
-        assertThat(reasons(43, 44, 45, 46, 47)).containsExactly("CREDIT_NOT_ELIGIBLE", "CREDIT_REVIEW_REQUIRED",
-                "INSUFFICIENT_STOCK", "INSUFFICIENT_STOCK", "NO_CUSTOMER");
+        assertThat(reasons(43, 44, 45, 46)).containsExactly("CREDIT_NOT_ELIGIBLE", "CREDIT_REVIEW_REQUIRED",
+                "INSUFFICIENT_STOCK", "INSUFFICIENT_STOCK");
+        // A session without a customer never reaches quote (A-35): FORBIDDEN_RESOURCE + handoff, no row.
+        ToolOutcome noCustomer = requestQuote(47, null, "04465-0K290", 1);
+        assertThat(noCustomer.result()).isEqualTo(new ToolErrorResult(ToolErrorResult.Code.FORBIDDEN_RESOURCE));
+        assertThat(noCustomer.handoffRequired()).isTrue();
     }
 
     private List<String> reasons(int... conversations) {
@@ -224,7 +245,7 @@ class QuoteServiceIT {
         QuoteRequestResult first = (QuoteRequestResult) requestQuote(62, ToolFixtures.CUSTOMER_A, "04465-0K290", 1)
                 .result();
         ConversationId conversation = ToolFixtures.conversation(62);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = customerOf(62);
         assertThat(cards.render(first.quoteHandle(), conversation, customer)).isPresent();
 
         requestQuote(62, ToolFixtures.CUSTOMER_A, "04465-0K290", 13);
@@ -238,7 +259,7 @@ class QuoteServiceIT {
     @Test
     void theSixthQuoteInAnHourIsRefused() {
         ConversationId conversation = ToolFixtures.conversation(63);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = fresh(ToolFixtures.CUSTOMER_A);
         List<QuoteOutcome> outcomes = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
             outcomes.add(quotes.request(new QuoteRequest(conversation, customer,
@@ -248,6 +269,42 @@ class QuoteServiceIT {
         assertThat(outcomes.subList(0, 5)).allMatch(outcome -> outcome instanceof QuoteOutcome.Issued);
         assertThat(outcomes.get(5)).isEqualTo(new QuoteOutcome.NotQuoted(1));
         assertThat(reasons(63)).containsExactly("REISSUE_LIMIT");
+        // A-33/A-34 (owner 2026-11-19): a limit refusal neither retires the 5th quote nor locks the customer.
+        String fifth = ((QuoteOutcome.Issued) outcomes.get(4)).quoteHandle();
+        assertThat(cards.render(fifth, conversation, customer)).isPresent();
+        assertThat(jdbc.queryForObject("select count(*) from quote where conversation_id = ? and status = 'ISSUED'",
+                Integer.class, conversation.value())).isEqualTo(1);
+    }
+
+    /** A-34 per customer (owner 2026-11-19): a business refusal locks the customer in every conversation. */
+    @Test
+    void aBusinessRefusalLocksTheCustomerInOtherConversationsToo() {
+        AuthenticatedCustomerRef customer = fresh(ToolFixtures.CUSTOMER_A);
+        BOUND.put(ToolFixtures.conversation(66), customer);
+        BOUND.put(ToolFixtures.conversation(67), customer);
+
+        requestQuote(66, ToolFixtures.CUSTOMER_A, "04465-0K290", 13);
+        ToolOutcome otherConversation = requestQuote(67, ToolFixtures.CUSTOMER_A, "04465-0K290", 1);
+
+        assertThat(otherConversation.result())
+                .isEqualTo(new QuoteRequestResult(QuoteRequestResult.Status.NOT_QUOTED, null, 1));
+        assertThat(reasons(66, 67)).containsExactly("INSUFFICIENT_STOCK", "HANDED_OFF");
+        // Another customer is not affected.
+        assertThat(((QuoteRequestResult) requestQuote(68, ToolFixtures.CUSTOMER_A, "04465-0K290", 1).result()).status())
+                .isEqualTo(QuoteRequestResult.Status.ISSUED);
+    }
+
+    /** A-34 (owner 2026-11-19): a refusal while locked does not extend the lock. */
+    @Test
+    void refusalsWhileLockedDoNotExtendTheLock() {
+        AuthenticatedCustomerRef customer = fresh(ToolFixtures.CUSTOMER_A);
+        BOUND.put(ToolFixtures.conversation(69), customer);
+        requestQuote(69, ToolFixtures.CUSTOMER_A, "04465-0K290", 13);
+        requestQuote(69, ToolFixtures.CUSTOMER_A, "04465-0K290", 1);
+
+        assertThat(reasons(69)).containsExactly("HANDED_OFF");
+        assertThat(jdbc.queryForObject("select count(*) from quote_request where customer_digest = ? "
+                + "and reason_code = 'INSUFFICIENT_STOCK'", Integer.class, customer.bindingDigest())).isEqualTo(1);
     }
 
     /** A-35 / SEC-02: a session customer other than the conversation's bound customer is refused. */
@@ -273,7 +330,7 @@ class QuoteServiceIT {
         QuoteRequestResult second = (QuoteRequestResult) requestQuote(49, ToolFixtures.CUSTOMER_A, "04465-0K290", 3)
                 .result();
         ConversationId conversation = ToolFixtures.conversation(49);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = customerOf(49);
 
         assertThat(cards.render(first.quoteHandle(), conversation, customer)).isEmpty();
         assertThat(cards.render(second.quoteHandle(), conversation, customer)).hasValueSatisfying(
@@ -292,12 +349,12 @@ class QuoteServiceIT {
                 .result();
         String handle = result.quoteHandle();
         ConversationId own = ToolFixtures.conversation(50);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = customerOf(50);
         String tampered = handle.substring(0, handle.length() - 1) + (handle.endsWith("A") ? "B" : "A");
 
         assertThat(cards.render(handle, own, customer)).isPresent();
         assertThat(cards.render(handle, ToolFixtures.conversation(51), customer)).isEmpty();
-        assertThat(cards.render(handle, own, IdentityFixtures.customer(ToolFixtures.CUSTOMER_B))).isEmpty();
+        assertThat(cards.render(handle, own, fresh(ToolFixtures.CUSTOMER_B))).isEmpty();
         assertThat(cards.render(tampered, own, customer)).isEmpty();
         assertThat(cards.render("qh_" + "A".repeat(22), own, customer)).isEmpty();
         assertThat(cards.render("not a handle", own, customer)).isEmpty();
@@ -314,7 +371,7 @@ class QuoteServiceIT {
         QuoteRequestResult result = (QuoteRequestResult) requestQuote(52, ToolFixtures.CUSTOMER_A, "04465-0K290", 1)
                 .result();
         ConversationId own = ToolFixtures.conversation(52);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = customerOf(52);
 
         jdbc.update("update quote set version = 2 where conversation_id = ?", own.value());
         assertThat(cards.render(result.quoteHandle(), own, customer)).as("stale version").isEmpty();
@@ -327,7 +384,7 @@ class QuoteServiceIT {
     @Test
     void concurrentRequestsLeaveOneIssuedQuote() throws Exception {
         ConversationId conversation = ToolFixtures.conversation(53);
-        AuthenticatedCustomerRef customer = IdentityFixtures.customer(ToolFixtures.CUSTOMER_A);
+        AuthenticatedCustomerRef customer = fresh(ToolFixtures.CUSTOMER_A);
         CountDownLatch start = new CountDownLatch(1);
         List<Callable<QuoteOutcome>> calls = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -366,6 +423,10 @@ class QuoteServiceIT {
                         && cards.render(issuedOutcome.quoteHandle(), conversation, customer).isPresent())
                 .count();
         assertThat(rendering).isEqualTo(issuedNow.longValue());
+        // Backend review 2 M-2: nothing failed technically (a broken lock would show as STORE_UNAVAILABLE).
+        assertThat(jdbc.queryForList("select reason_code from quote_request where conversation_id = ?",
+                String.class, conversation.value()))
+                .allMatch(reason -> reason == null || List.of("STALE_REQUEST", "REISSUE_LIMIT", "HANDED_OFF").contains(reason));
     }
 
     /** A lost race (STALE_REQUEST) does not lock the conversation: the next request is quoted. */
@@ -377,7 +438,7 @@ class QuoteServiceIT {
                 values (?, 'NOT_QUOTED', 'STALE_REQUEST', 1, now())
                 """, conversation.value());
 
-        assertThat(quotes.request(new QuoteRequest(conversation, IdentityFixtures.customer(ToolFixtures.CUSTOMER_A),
+        assertThat(quotes.request(new QuoteRequest(conversation, fresh(ToolFixtures.CUSTOMER_A),
                 List.of(new QuoteRequest.Line(new Sku("SKU-AIR-FLT-A"), 1))))).isInstanceOf(QuoteOutcome.Issued.class);
     }
 
@@ -403,7 +464,7 @@ class QuoteServiceIT {
                 .result();
 
         QuoteCard card = cards.render(result.quoteHandle(), ToolFixtures.conversation(56),
-                IdentityFixtures.customer(ToolFixtures.CUSTOMER_A)).orElseThrow();
+                customerOf(56)).orElseThrow();
         assertThat(card.total().amount().scale()).isZero();
         assertThat(card.lines().getFirst().lineTotal().amount().scale()).isZero();
         assertThat(card.lines().getFirst().unitPrice().amount()).isEqualTo(new BigDecimal("555444333.5"));
@@ -418,7 +479,7 @@ class QuoteServiceIT {
                 ToolFixtures.conversation(58).value(), ToolFixtures.conversation(57).value());
 
         assertThat(cards.render(result.quoteHandle(), ToolFixtures.conversation(58),
-                IdentityFixtures.customer(ToolFixtures.CUSTOMER_A))).isEmpty();
+                customerOf(57))).isEmpty();
     }
 
     /** The database refuses a quote line outside BR-10 (defence below the service). */

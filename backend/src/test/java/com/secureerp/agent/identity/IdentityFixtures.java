@@ -1,8 +1,10 @@
 package com.secureerp.agent.identity;
 
 import com.secureerp.agent.identity.spi.ErpCustomerLink;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Test-only access to the identity factories (same package); production code cannot do this. */
 public final class IdentityFixtures {
@@ -14,11 +16,17 @@ public final class IdentityFixtures {
     private IdentityFixtures() {
     }
 
-    /** Binds the synthetic customers in {@code customer_link} (idempotent); test contexts call it at startup. */
-    public static void linkSyntheticCustomers(CustomerLinks links) {
-        JdbcCustomerLinks jdbc = (JdbcCustomerLinks) links;
-        SYNTHETIC_ERP_LINKS.forEach((seed, erpKey) -> jdbc.store(customer(seed), new ErpCustomerLink(erpKey),
-                Instant.parse("2026-11-18T00:00:00Z")));
+    /**
+     * Binds the deterministic synthetic customers in {@code customer_link} with plain SQL (idempotent);
+     * test contexts call it at startup. Tests that need their own lock/limit scope bind a fresh reference
+     * through {@link CustomerLinkBinding} instead.
+     */
+    public static void linkSyntheticCustomers(JdbcTemplate jdbc) {
+        SYNTHETIC_ERP_LINKS.forEach((seed, erpKey) -> jdbc.update(
+                "insert into customer_link (customer_ref, erp_link, linked_at) values (?, ?, ?) "
+                        + "on conflict (customer_ref) do nothing",
+                customer(seed).opaqueValue(), new ErpCustomerLink(erpKey).value(),
+                Timestamp.from(Instant.parse("2026-11-18T00:00:00Z"))));
     }
 
     /** A synthetic principal: {@code usr_} plus the seed padded to 22 base64url characters. */

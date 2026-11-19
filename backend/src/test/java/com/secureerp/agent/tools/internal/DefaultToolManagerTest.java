@@ -377,16 +377,20 @@ class DefaultToolManagerTest {
         assertThat(quoteRequests).isEmpty();
     }
 
-    /** D-04: a session without a linked customer reaches the quote service as null (NOT_QUOTED there). */
+    /**
+     * D-04 + A-35 (security review 2 L-4): a session without a linked customer, on a conversation with no
+     * binding, is refused before the quote service: FORBIDDEN_RESOURCE with handoff, no lock written.
+     */
     @Test
-    void aSessionWithoutCustomerIsPassedOnAsNone() {
-        quoteAnswer = new QuoteOutcome.NotQuoted(1);
+    void aSessionWithoutCustomerIsForbiddenBeforeQuoting() {
         String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
 
         bound.put(CONTEXT.conversation(), null);
-        manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
+        ToolOutcome outcome = manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
 
-        assertThat(quoteRequests).singleElement().satisfies(request -> assertThat(request.customer()).isNull());
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(quoteRequests).isEmpty();
     }
 
     /**

@@ -4,19 +4,20 @@ import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 
 /**
  * PostgreSQL implementation ({@code customer_link}, Flyway V7). Lives in the identity package itself,
  * package-private, because only this package may create an {@link AuthenticatedCustomerRef}
- * (ARCH-08a). References are {@code cref_} plus 128 random bits.
+ * (ARCH-08a; documented exception to "implementations in internal", MODULE_BOUNDARIES §10). References
+ * are {@code cref_} plus 128 random bits. {@code @Component}, not {@code @Repository}: JdbcTemplate
+ * already translates exceptions, and no proxy is needed.
  */
-@Repository
-class JdbcCustomerLinks implements CustomerLinks {
+@Component
+class JdbcCustomerLinks implements CustomerLinks, CustomerLinkBinding {
 
     private final JdbcTemplate jdbc;
     private final Clock clock;
@@ -33,7 +34,13 @@ class JdbcCustomerLinks implements CustomerLinks {
         random.nextBytes(bytes);
         AuthenticatedCustomerRef customer = AuthenticatedCustomerRef.fromVerifiedBinding(
                 "cref_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes));
-        store(customer, link, clock.instant());
+        // A plain insert: a (practically impossible) reference collision fails instead of silently
+        // returning a reference that resolves to another customer (security review 2 L-6).
+        int inserted = jdbc.update("insert into customer_link (customer_ref, erp_link, linked_at) values (?, ?, ?)",
+                customer.opaqueValue(), link.value(), Timestamp.from(clock.instant()));
+        if (inserted != 1) {
+            throw new IllegalStateException("customer link not stored");
+        }
         return customer;
     }
 
@@ -45,13 +52,5 @@ class JdbcCustomerLinks implements CustomerLinks {
         return jdbc.queryForList("select erp_link from customer_link where customer_ref = ? and revoked_at is null",
                         String.class, customer.opaqueValue())
                 .stream().map(ErpCustomerLink::new).findFirst();
-    }
-
-    /** Also used by test fixtures (same package) to bind a deterministic synthetic reference. */
-    void store(AuthenticatedCustomerRef customer, ErpCustomerLink link, Instant now) {
-        jdbc.update("""
-                insert into customer_link (customer_ref, erp_link, linked_at) values (?, ?, ?)
-                on conflict (customer_ref) do nothing
-                """, customer.opaqueValue(), link.value(), Timestamp.from(now));
     }
 }

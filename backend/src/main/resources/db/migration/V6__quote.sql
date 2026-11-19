@@ -5,7 +5,10 @@
 -- quote_handle: SHA-256 of the 128-bit handle the model sees, bound to conversation, customer,
 --   quote and version, expiring with the quote; revoked when superseded (ADR-008).
 -- quote_request: one row per request (audit): outcome and the internal NOT_QUOTED reason code for
---   staff (A-14). Never prices, stock numbers or the handle.
+--   staff (A-14). Never prices, stock numbers or the handle. customer_digest (null without a customer)
+--   scopes the A-34 lock and issue limit to the customer across conversations (owner 2026-11-19).
+-- Note: V6 was edited before merge (EP-06 reviews). A local database migrated from commit 3ba5ca6 fails
+--   checksum validation; reset it with `docker compose down -v`.
 -- Additive: four new tables, nothing else changes.
 -- Rollback: forward-only (rule 20). Locally, drop the synthetic database/volume (`docker compose down -v`).
 -- Retention: OPEN (D-09); no purge job in the PoC.
@@ -63,7 +66,9 @@ create table quote_request (
     outcome         varchar(12) not null check (outcome in ('ISSUED', 'NOT_QUOTED')),
     reason_code     varchar(40) check (reason_code in ('NO_CUSTOMER', 'CREDIT_NOT_ELIGIBLE',
                         'CREDIT_REVIEW_REQUIRED', 'PRICE_NOT_FOUND', 'PRICE_CURRENCY_MISMATCH', 'INSUFFICIENT_STOCK',
-                        'SOURCE_UNAVAILABLE', 'STORE_UNAVAILABLE', 'STALE_REQUEST', 'HANDED_OFF', 'REISSUE_LIMIT')),
+                        'SOURCE_UNAVAILABLE', 'STORE_UNAVAILABLE', 'STALE_REQUEST', 'HANDED_OFF', 'REISSUE_LIMIT',
+                        'CONVERSATION_MISMATCH')),
+    customer_digest char(64),
     line_count      smallint    not null check (line_count between 0 and 20),
     quote_id        bigint references quote (id),
     occurred_at     timestamptz not null,
@@ -72,3 +77,4 @@ create table quote_request (
 );
 
 create index quote_request_conversation_idx on quote_request (conversation_id, occurred_at);
+create index quote_request_customer_idx on quote_request (customer_digest, occurred_at);

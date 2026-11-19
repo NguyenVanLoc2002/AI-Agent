@@ -12,37 +12,45 @@ import java.util.Optional;
 interface QuoteStore {
 
     /**
-     * A-34 limits of one request: NOT_QUOTED rows after {@code lockSince} lock the conversation;
-     * at most {@code maxIssued} ISSUED rows after {@code issuedSince}.
+     * A-34 limits of one request, per customer across conversations (owner 2026-11-19): a business
+     * refusal ({@link NotQuotedReason#locksAndRetires()}) after {@code lockSince} locks the customer; at
+     * most {@code maxIssued} ISSUED quotes (lost races included) after {@code issuedSince}.
      */
     record Limits(Instant lockSince, Instant issuedSince, int maxIssued) {
     }
 
     enum IssueResult {
         ISSUED,
-        /** A newer quote was issued while this request was checked. */
+        /** A newer quote was issued in this conversation while this request was checked. */
         STALE,
-        /** A NOT_QUOTED inside the lock window (handed off, A-34). */
+        /** The customer is locked after a business refusal (A-34). */
         LOCKED,
-        /** The per-conversation issue limit is reached (A-34). */
-        LIMIT
+        /** The customer's issue limit is reached (A-34). */
+        LIMIT,
+        /** The conversation holds another customer's ISSUED quote (security review 2 L-1). */
+        FOREIGN
     }
 
-    /** A-34 check before any ERP call: the reason the conversation may not be quoted now, if any. */
-    Optional<NotQuotedReason> gate(ConversationId conversation, Limits limits);
-
     /**
-     * In its own transaction under the conversation lock: retire the conversation's ISSUED quotes that
-     * are not newer than {@code now} and revoke their handles (A-33), then write the NOT_QUOTED audit
-     * row; the reason is for staff only (A-14).
+     * A-34 check before any ERP call, for this customer ({@code customerDigest}; null = no customer,
+     * never limited here because no ERP call follows).
      */
-    void recordNotQuoted(ConversationId conversation, NotQuotedReason reason, int lineCount, Instant now);
+    Optional<NotQuotedReason> gate(String customerDigest, Limits limits);
 
     /**
-     * In one transaction under the conversation lock: STALE if an ISSUED quote newer than
-     * {@code quote.issuedAt()} exists, LOCKED or LIMIT if A-34 now forbids it; otherwise retire the
-     * older ISSUED quote (SUPERSEDED, or EXPIRED when past its validity), revoke its handles, insert the
-     * new quote, its lines, its handle hash and the ISSUED audit row.
+     * In its own transaction under the customer and conversation locks: if the reason locks
+     * ({@link NotQuotedReason#locksAndRetires()}), retire this customer's ISSUED quote in the conversation
+     * that is not newer than {@code now} and revoke its handle (A-33); then write the NOT_QUOTED audit row.
+     * The reason is for staff only (A-14).
+     */
+    void recordNotQuoted(ConversationId conversation, String customerDigest, NotQuotedReason reason, int lineCount,
+            Instant now);
+
+    /**
+     * In one transaction under the customer and conversation locks: FOREIGN if the conversation holds
+     * another customer's ISSUED quote, STALE if a newer ISSUED quote exists, LOCKED or LIMIT if A-34 now
+     * forbids it; otherwise retire the older ISSUED quote (SUPERSEDED, or EXPIRED when past its validity),
+     * revoke its handles, and insert the new quote, its lines, its handle hash and the ISSUED audit row.
      */
     IssueResult issue(NewQuote quote, Limits limits);
 

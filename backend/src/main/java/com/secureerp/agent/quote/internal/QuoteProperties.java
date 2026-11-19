@@ -15,8 +15,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param rounding   rounding of each line total (HALF_UP)
  * @param validity   how long an issued quote and its handle are valid (24 h; at most 7 days)
  * @param lockAfterNotQuoted              no automatic quote in a conversation for this long after a
- *                                        NOT_QUOTED (A-34 APPROVED 2026-11-18: 24 h)
- * @param maxIssuedPerConversationPerHour ISSUED quotes per conversation per rolling hour (A-34: 5)
+ *                                        business refusal, for the customer (A-34 APPROVED 2026-11-19: 24 h)
+ * @param maxIssuedPerConversationPerHour ISSUED quotes per customer per rolling hour, all conversations
+ *                                        (A-34: 5; the property name predates the per-customer scope)
  */
 @ConfigurationProperties("apas.quote")
 record QuoteProperties(

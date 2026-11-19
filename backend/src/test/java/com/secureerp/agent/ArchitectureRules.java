@@ -197,6 +197,18 @@ public final class ArchitectureRules {
                 .as("ARCH-08 only identity, quote and the erp adapter handle the ERP customer key (A-19, EP-06)")
                 .allowEmptyShould(true));
 
+        // EP-06 review round 2 (security M-2, architecture M-C): the RESTRICTED customer mapping.
+        rules.put("ARCH-08e", noClasses()
+                .that().resideOutsideOfPackages(base + ".identity..", base + ".quote..")
+                .should().dependOnClassesThat().haveSimpleName("CustomerLinks")
+                .as("ARCH-08 only identity and quote read the customer link (A-19)")
+                .allowEmptyShould(true));
+        rules.put("ARCH-08f", noClasses()
+                .that().resideOutsideOfPackage(base + ".identity..")
+                .should().dependOnClassesThat().haveSimpleName("CustomerLinkBinding")
+                .as("ARCH-08 only identity creates customer references from an ERP link (A-19)")
+                .allowEmptyShould(true));
+
         // EP-06 architecture review M1: customer prices on the card are for the server render only.
         rules.put("ARCH-13a", noClasses()
                 .that().resideOutsideOfPackages(base + ".quote..", base + ".conversation..")

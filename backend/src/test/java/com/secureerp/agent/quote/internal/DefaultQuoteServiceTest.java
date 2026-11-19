@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
@@ -55,16 +56,12 @@ class DefaultQuoteServiceTest {
     private final RecordingStore store = new RecordingStore();
 
     /** Only CUSTOMER is linked; any other reference has no ERP customer. */
-    private final CustomerLinks links = new CustomerLinks() {
-        @Override
-        public AuthenticatedCustomerRef bind(ErpCustomerLink link) {
-            throw new UnsupportedOperationException();
+    private RuntimeException linkFailure;
+    private final CustomerLinks links = customer -> {
+        if (linkFailure != null) {
+            throw linkFailure;
         }
-
-        @Override
-        public Optional<ErpCustomerLink> erpLinkOf(AuthenticatedCustomerRef customer) {
-            return CUSTOMER.equals(customer) ? Optional.of(ERP_CUSTOMER) : Optional.empty();
-        }
+        return CUSTOMER.equals(customer) ? Optional.of(ERP_CUSTOMER) : Optional.empty();
     };
 
     private static PriceQuote price(String amount, Currency currency) {
@@ -170,18 +167,47 @@ class DefaultQuoteServiceTest {
         assertThat(store.lastLimits.maxIssued()).isEqualTo(5);
     }
 
-    /** A-34 re-checked under the lock, and backend review M-1 (stale): all NOT_QUOTED with a reason. */
+    /** A-34 re-checked under the lock, backend review M-1 (stale), foreign quote: all NOT_QUOTED with a reason. */
     @Test
-    void lockedLimitedOrStaleAtIssueTimeIsNotQuoted() {
+    void lockedLimitedStaleOrForeignAtIssueTimeIsNotQuoted() {
         store.issueResult = QuoteStore.IssueResult.LOCKED;
         assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
         store.issueResult = QuoteStore.IssueResult.LIMIT;
         assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
         store.issueResult = QuoteStore.IssueResult.STALE;
         assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        store.issueResult = QuoteStore.IssueResult.FOREIGN;
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
 
         assertThat(store.notQuoted).containsExactly(NotQuotedReason.HANDED_OFF, NotQuotedReason.REISSUE_LIMIT,
-                NotQuotedReason.STALE_REQUEST);
+                NotQuotedReason.STALE_REQUEST, NotQuotedReason.CONVERSATION_MISMATCH);
+    }
+
+    /** The A-34 gate is per customer: it gets the customer's binding digest (null without a customer). */
+    @Test
+    void theGateIsAskedPerCustomer() {
+        request(CUSTOMER, 1);
+        request(null, 1);
+
+        assertThat(store.gatedCustomers).containsExactly(CUSTOMER.bindingDigest(), null);
+    }
+
+    /** Backend review 2 L-4: a failing link lookup is our database, not an ERP outage. */
+    @Test
+    void aLinkLookupFailureIsAStoreFailure() {
+        linkFailure = new IllegalStateException("db down");
+
+        assertThat(request(CUSTOMER, 1)).isEqualTo(new QuoteOutcome.NotQuoted(1));
+        assertThat(store.notQuoted).containsExactly(NotQuotedReason.STORE_UNAVAILABLE);
+        assertThat(erpCalls).isZero();
+    }
+
+    /** A-33/A-34 (owner 2026-11-19): only business refusals lock and retire. */
+    @Test
+    void onlyBusinessRefusalsLockAndRetire() {
+        assertThat(Arrays.stream(NotQuotedReason.values()).filter(NotQuotedReason::locksAndRetires))
+                .containsExactlyInAnyOrder(NotQuotedReason.CREDIT_NOT_ELIGIBLE, NotQuotedReason.CREDIT_REVIEW_REQUIRED,
+                        NotQuotedReason.PRICE_NOT_FOUND, NotQuotedReason.INSUFFICIENT_STOCK);
     }
 
     /**
@@ -244,9 +270,12 @@ class DefaultQuoteServiceTest {
         private RuntimeException failIssue;
         private RuntimeException failAudit;
 
+        private final List<String> gatedCustomers = new ArrayList<>();
+
         @Override
-        public Optional<NotQuotedReason> gate(ConversationId conversation, Limits limits) {
+        public Optional<NotQuotedReason> gate(String customerDigest, Limits limits) {
             lastLimits = limits;
+            gatedCustomers.add(customerDigest);
             if (failGate != null) {
                 throw failGate;
             }
@@ -254,7 +283,8 @@ class DefaultQuoteServiceTest {
         }
 
         @Override
-        public void recordNotQuoted(ConversationId conversation, NotQuotedReason reason, int lineCount, Instant now) {
+        public void recordNotQuoted(ConversationId conversation, String customerDigest, NotQuotedReason reason,
+                int lineCount, Instant now) {
             if (failAudit != null) {
                 throw failAudit;
             }

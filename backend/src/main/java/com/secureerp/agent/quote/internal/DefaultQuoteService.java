@@ -29,16 +29,17 @@ import org.springframework.stereotype.Service;
  * transaction is held during ERP calls), then stores the quote in one transaction. Logs carry the
  * outcome and line count only: never prices, stock, credit status or the reason (rule 10, BR-35).
  *
- * <p>Owner decisions 2026-11-18 (EP-06 review round):
+ * <p>Owner decisions (EP-06 review rounds, 2026-11-19):
  * <ul>
  *   <li>A-19: the ERP customer comes from identity ({@link CustomerLinks}); the ports never see the
  *       session reference;</li>
- *   <li>A-33: a NOT_QUOTED request retires the conversation's older ISSUED quote;</li>
- *   <li>A-34: after a NOT_QUOTED the conversation gets no automatic quote for
+ *   <li>A-33: a business refusal ({@link NotQuotedReason#locksAndRetires()}) retires the customer's
+ *       older ISSUED quote in the conversation;</li>
+ *   <li>A-34: after a business refusal the customer (all conversations) gets no automatic quote for
  *       {@code apas.quote.lock-after-not-quoted} (24 h), and at most
- *       {@code apas.quote.max-issued-per-conversation-per-hour} (5) quotes are issued per hour. Both are
- *       checked before any ERP call and again under the issue lock, so stock cannot be probed by
- *       varying the quantity beyond one NOT_QUOTED.</li>
+ *       {@code apas.quote.max-issued-per-conversation-per-hour} (5, per customer) quotes are issued per
+ *       hour. Both are checked before any ERP call and again under the issue lock. Requests made at the
+ *       same time can all reach the ERP before the first refusal is stored (recorded residual).</li>
  * </ul>
  */
 @Service
@@ -77,19 +78,28 @@ class DefaultQuoteService implements QuoteService {
         Instant now = clock.instant();
         int lineCount = request.lines().size();
         QuoteStore.Limits limits = limits(now);
+        String customer = request.customer() == null ? null : request.customer().bindingDigest();
         Optional<NotQuotedReason> gate;
         try {
-            gate = store.gate(request.conversation(), limits);
+            gate = store.gate(customer, limits);
         } catch (RuntimeException storeFailure) {
             log.warn("quote.request gate_failed exception={}", storeFailure.getClass().getSimpleName());
             gate = Optional.of(NotQuotedReason.STORE_UNAVAILABLE);
         }
         if (gate.isPresent()) {
-            return notQuoted(request, gate.get(), now);
+            return notQuoted(request, customer, gate.get(), now);
+        }
+        Optional<ErpCustomerLink> erpCustomer;
+        try {
+            erpCustomer = links.erpLinkOf(request.customer());
+        } catch (RuntimeException linkStoreFailure) {
+            // Our own database, not the ERP (backend review 2 L-4).
+            log.warn("quote.request link_failed exception={}", linkStoreFailure.getClass().getSimpleName());
+            return notQuoted(request, customer, NotQuotedReason.STORE_UNAVAILABLE, now);
         }
         Evaluation evaluation;
         try {
-            evaluation = evaluate(request);
+            evaluation = evaluate(erpCustomer, request);
         } catch (QuoteSourceUnavailableException sourceDown) {
             log.warn("quote.request source_unavailable");
             evaluation = new Evaluation(List.of(), NotQuotedReason.SOURCE_UNAVAILABLE);
@@ -99,7 +109,7 @@ class DefaultQuoteService implements QuoteService {
             evaluation = new Evaluation(List.of(), NotQuotedReason.SOURCE_UNAVAILABLE);
         }
         if (evaluation.reason() != null) {
-            return notQuoted(request, evaluation.reason(), now);
+            return notQuoted(request, customer, evaluation.reason(), now);
         }
         // Every failure after the ERP checks is NOT_QUOTED as well, so the caller always gets the same
         // shape and the tool layer always hands off (EP-06 reviews: backend M-2, security M-3).
@@ -109,18 +119,22 @@ class DefaultQuoteService implements QuoteService {
                     Money.zero(properties.currency()), properties.moneyScale(), properties.rounding());
             handle = tokens.newHandle();
             QuoteStore.IssueResult result = store.issue(new QuoteStore.NewQuote(tokens.newPublicRef(),
-                    request.conversation(), request.customer().bindingDigest(), properties.currency(),
+                    request.conversation(), customer, properties.currency(),
                     properties.moneyScale(), properties.rounding(), calculation, QuoteTokens.hash(handle), now,
                     now.plus(properties.validity())), limits);
             switch (result) {
                 case STALE -> {
-                    return notQuoted(request, NotQuotedReason.STALE_REQUEST, now);
+                    return notQuoted(request, customer, NotQuotedReason.STALE_REQUEST, now);
                 }
                 case LOCKED -> {
-                    return notQuoted(request, NotQuotedReason.HANDED_OFF, now);
+                    return notQuoted(request, customer, NotQuotedReason.HANDED_OFF, now);
                 }
                 case LIMIT -> {
-                    return notQuoted(request, NotQuotedReason.REISSUE_LIMIT, now);
+                    return notQuoted(request, customer, NotQuotedReason.REISSUE_LIMIT, now);
+                }
+                case FOREIGN -> {
+                    log.warn("quote.request conversation_mismatch");
+                    return notQuoted(request, customer, NotQuotedReason.CONVERSATION_MISMATCH, now);
                 }
                 case ISSUED -> {
                     // continue
@@ -128,7 +142,7 @@ class DefaultQuoteService implements QuoteService {
             }
         } catch (RuntimeException storeFailure) {
             log.warn("quote.request store_failed exception={}", storeFailure.getClass().getSimpleName());
-            return notQuoted(request, NotQuotedReason.STORE_UNAVAILABLE, now);
+            return notQuoted(request, customer, NotQuotedReason.STORE_UNAVAILABLE, now);
         }
         log.info("quote.request outcome=ISSUED lines={}", lineCount);
         return new QuoteOutcome.Issued(handle, lineCount);
@@ -140,13 +154,14 @@ class DefaultQuoteService implements QuoteService {
     }
 
     /**
-     * Records the reason for staff and retires the conversation's older ISSUED quote (A-33). Best
-     * effort: NOT_QUOTED (and the handoff) must not depend on the database.
+     * Records the reason for staff and, for a business refusal, retires the older ISSUED quote (A-33).
+     * Best effort: NOT_QUOTED (and the handoff) must not depend on the database. If this write fails after
+     * a business refusal, the customer is not locked (recorded residual; the tool layer still hands off).
      */
-    private QuoteOutcome notQuoted(QuoteRequest request, NotQuotedReason reason, Instant now) {
+    private QuoteOutcome notQuoted(QuoteRequest request, String customer, NotQuotedReason reason, Instant now) {
         int lineCount = request.lines().size();
         try {
-            store.recordNotQuoted(request.conversation(), reason, lineCount, now);
+            store.recordNotQuoted(request.conversation(), customer, reason, lineCount, now);
         } catch (RuntimeException auditFailure) {
             log.warn("quote.request audit_failed exception={}", auditFailure.getClass().getSimpleName());
         }
@@ -154,8 +169,7 @@ class DefaultQuoteService implements QuoteService {
         return new QuoteOutcome.NotQuoted(lineCount);
     }
 
-    private Evaluation evaluate(QuoteRequest request) {
-        Optional<ErpCustomerLink> customer = links.erpLinkOf(request.customer());
+    private Evaluation evaluate(Optional<ErpCustomerLink> customer, QuoteRequest request) {
         if (customer.isEmpty()) {
             return new Evaluation(List.of(), NotQuotedReason.NO_CUSTOMER);
         }

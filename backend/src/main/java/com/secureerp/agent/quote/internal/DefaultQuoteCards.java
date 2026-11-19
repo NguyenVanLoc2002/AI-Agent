@@ -2,6 +2,7 @@ package com.secureerp.agent.quote.internal;
 
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
+import com.secureerp.agent.identity.CustomerLinks;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.Money;
 import com.secureerp.agent.quote.QuoteCard;
@@ -28,10 +29,12 @@ class DefaultQuoteCards implements QuoteCards {
     private static final String ISSUED = "ISSUED";
 
     private final QuoteStore store;
+    private final CustomerLinks links;
     private final Clock clock;
 
-    DefaultQuoteCards(QuoteStore store, Clock clock) {
+    DefaultQuoteCards(QuoteStore store, CustomerLinks links, Clock clock) {
         this.store = store;
+        this.links = links;
         this.clock = clock;
     }
 
@@ -39,7 +42,15 @@ class DefaultQuoteCards implements QuoteCards {
     public Optional<QuoteCard> render(String quoteHandle, ConversationId conversation,
             AuthenticatedCustomerRef customer) {
         Objects.requireNonNull(conversation, "conversation");
-        Optional<QuoteCard> card = resolve(quoteHandle, conversation, customer, clock.instant());
+        Optional<QuoteCard> card;
+        try {
+            card = resolve(quoteHandle, conversation, customer, clock.instant());
+        } catch (RuntimeException invalid) {
+            // A stored snapshot that no longer fits the money rules (or a store failure) renders nothing
+            // (backend review 2 L-3): uniform empty result, class name only in the log.
+            log.warn("quote.render outcome=INVALID exception={}", invalid.getClass().getSimpleName());
+            return Optional.empty();
+        }
         log.info("quote.render outcome={}", card.isPresent() ? "RENDERED" : "NOT_FOUND");
         return card;
     }
@@ -61,7 +72,8 @@ class DefaultQuoteCards implements QuoteCards {
                 && handle.validUntil().isAfter(now)
                 && ISSUED.equals(handle.status())
                 && handle.quoteVersion() == handle.handleVersion();
-        if (!valid) {
+        // A revoked customer link stops rendering at once (security review 2 L-5).
+        if (!valid || links.erpLinkOf(customer).isEmpty()) {
             return Optional.empty();
         }
         List<QuoteCard.Line> lines = store.lines(handle.quoteId()).stream()

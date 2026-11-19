@@ -1,9 +1,11 @@
 /**
  * Module {@code identity}: authenticated principal, roles, channel binding to an opaque customer reference.
  *
- * <p>DESIGN PROPOSAL (ADR-001, docs/architecture/MODULE_BOUNDARIES.md). Skeleton created by
- * POC-001; no business logic yet. Allowed module dependencies are enforced by
- * {@code ModuleStructureTest}; finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
+ * <p>EP-06 (A-19): {@code CustomerLinks} (read, quote only, ARCH-08e) and {@code CustomerLinkBinding}
+ * (identity only, ARCH-08f) over {@code customer_link} (Flyway V7); the ERP key type is in
+ * {@code identity :: spi}. Session authentication and the channel binding lookup come with EP-04.
+ * Allowed module dependencies are enforced by {@code ModuleStructureTest}; finer-grained rules (ARCH-xx)
+ * by {@code ArchitectureRulesTest}.
  */
 @ApplicationModule(displayName = "Identity", allowedDependencies = { "platform", "audit" })
 package com.secureerp.agent.identity;

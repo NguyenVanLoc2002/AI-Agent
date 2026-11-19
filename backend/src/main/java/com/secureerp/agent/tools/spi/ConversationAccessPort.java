@@ -21,7 +21,7 @@ public interface ConversationAccessPort {
     Access check(PrincipalId principal, ConversationId conversation);
 
     /**
-     * The customer the conversation was bound to when it was created (A-35 APPROVED 2026-11-18). The
+     * The customer the conversation was bound to when it was created (A-35 APPROVED 2026-11-19). The
      * tool layer quotes only when it equals {@code ToolCallContext.customer}, so a wrong wiring cannot
      * price for another customer (SEC-02). Default: no binding known, so no quote (fail closed).
      */

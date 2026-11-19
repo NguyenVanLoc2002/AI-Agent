@@ -98,6 +98,8 @@ class ArchitectureRulesTest {
                 Arguments.of("ARCH-08a", f + "quote.internal.ForgesCustomerRef", f + "identity.internal.CustomerLinkResolver"),
                 Arguments.of("ARCH-08d", f + "tools.internal.ReadsErpCustomerLink", f + "erp.PricesByErpLink"),
                 Arguments.of("ARCH-08d", f + "tools.internal.ReadsErpCustomerLinkByReference", f + "erp.PricesByErpLink"),
+                Arguments.of("ARCH-08e", f + "tools.internal.ChecksCustomerLink", f + "quote.internal.ResolvesCustomerLink"),
+                Arguments.of("ARCH-08f", f + "quote.internal.BindsCustomer", f + "identity.internal.CustomerLinkResolver"),
                 Arguments.of("ARCH-13a", f + "tools.internal.RendersQuoteCard", f + "conversation.internal.ShowsQuoteCard"),
                 Arguments.of("ARCH-13b", f + "tools.internal.PricesInTools", f + "quote.internal.TotalsInQuote"),
                 Arguments.of("ARCH-13c", f + "quote.internal.QuoteSearchesCatalog", f + "quote.internal.QuoteUsesSku"),

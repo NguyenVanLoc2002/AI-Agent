@@ -226,11 +226,11 @@ class DefaultToolManager implements ToolManager {
      */
     private ToolResultDto requestQuote(ToolCallContext context, ConversationAccessPort port, QuoteLines quote,
             Instant now) {
-        // A-35: price only for the customer the conversation is bound to; a session customer that
-        // differs (or a conversation without a binding) is refused before any ERP call (SEC-02).
+        // A-35: price only for the customer the conversation is bound to. A conversation without a
+        // binding, or a session customer that differs, is refused before any ERP call (SEC-02); this
+        // includes "no binding and no session customer" (security review 2 L-4).
         Optional<AuthenticatedCustomerRef> bound = port.boundCustomer(context.principal(), context.conversation());
-        AuthenticatedCustomerRef boundCustomer = bound == null ? null : bound.orElse(null);
-        if (!Objects.equals(boundCustomer, context.customer())) {
+        if (bound == null || bound.isEmpty() || !bound.get().equals(context.customer())) {
             throw ToolRejection.of(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
         }
         List<QuoteRequest.Line> lines = requireOwnedVerifiedProducts(context, quote, now);

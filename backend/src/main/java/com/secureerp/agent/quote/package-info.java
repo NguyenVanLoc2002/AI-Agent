@@ -5,7 +5,7 @@
  * orders come with EP-07. Allowed module dependencies are enforced by {@code ModuleStructureTest};
  * finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
  */
-@ApplicationModule(displayName = "Quote", allowedDependencies = { "order", "identity", "identity :: spi", "catalog :: spi", "platform", "audit" })
+@ApplicationModule(displayName = "Quote", allowedDependencies = { "identity", "identity :: spi", "catalog :: spi", "platform", "audit" })
 package com.secureerp.agent.quote;
 
 import org.springframework.modulith.ApplicationModule;
