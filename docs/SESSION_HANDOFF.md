@@ -1,7 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: A-39(h) OE code after "giá" read as money, 2026-11-19
-- Branch `fix/A-39h-oe-after-gia` from `origin/main` `2bb86cc` (SEC-01b merged as PR #13). Committed with owner approval (2026-11-19: commit and residuals approved); **not pushed**.
+## Current: A-40(b) immediate handoff on ERP outage, 2026-11-19
+- Branch `fix/A-40b-erp-outage-handoff` from `origin/main` `2f129ac` (A-39(h) merged as PR #14). Committed with owner approval (2026-11-19, "đồng ý"; no reviewer run, as proposed); **not pushed**.
+- Change: `tools.internal.DefaultToolManager.search` turns `CatalogUnavailableException` (ERP error or timeout) into `CATALOG_UNAVAILABLE` with `handoffRequired = true` (was: code back to the model, handoff only after 3 rejections). The agent already maps it to handoff `CATALOG_UNAVAILABLE`, so the turn ends without a second model call. TOOL_CONTRACTS §5 and T-TOOL-07 updated. No migration, no configuration.
+- Tests: `DefaultToolManagerTest` (ERP error with sentinels and vinRef search during a timeout now assert `handoffRequired`; red first: 2 failures, exit 1), `EgressSuiteFlow200IT` scripts 4/5 now expect the handoff, one model call and no `CATALOG_UNAVAILABLE` in any provider body.
+- Tests (VERIFIED 2026-11-19 08:53–08:55 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B clean verify` → exit 0; surefire 893, failsafe 125, 0 failures, 0 skipped. Suite: 362 model calls (was 396: 34 ERP-failure conversations × 1 call fewer), adapter = proxy = provider = 378, other counts unchanged. Sentinels: 0 hits in the build log. `git diff --check` exit 0.
+- NOT RUN: reviewer agents (one-line behaviour change on an existing code path), formatter, CVE scan (no dependency change).
+- Rollback: revert the commit.
+- Next: (1) owner pushes and opens/merges the PR; (2) EP-08 handoff inbox (needs D-08/A-15) or EP-07 (needs ADR-009).
+
+## Previous: A-39(h) OE code after "giá" read as money, 2026-11-19 — MERGED (PR #14, `2f129ac`)
+- Branch `fix/A-39h-oe-after-gia` from `origin/main` `2bb86cc` (SEC-01b merged as PR #13). Committed with owner approval (2026-11-19: commit and residuals approved); merged as PR #14.
 - Change: `policy.internal.SensitiveDataDetector.MONEY_PREFIX` (used by the inbound sanitizer and the egress scan) no longer reads a part code after a price keyword as an amount. The exemption covers a whole OE-shaped token only (see DECISIONS_REQUIRED A-39(h)); everything else stays MONEY. No migration, no configuration.
 - Tests: new cases in `SensitiveDataDetectorTest` (7 OE forms not money; 32 amount forms still money, including both security-review sets and pinned fail-closed OE false positives), `DefaultInboundSanitizerTest` (OE kept, mixed text, sentinel with a code tail still HONEYTOKEN, upper-case glued amounts redacted by the case-insensitive copy), `ChatFlowIT.notQuotedHandsOffWithoutAReason` (the OE after "báo giá" reaches the provider). Red first: on the original pattern 8 unit tests failed and `ChatFlowIT` failed at the new assertion (exit 1 each); on the round-1 pattern 11 unit tests fail (exit 1). Sources restored, `cmp`.
 - Tests (VERIFIED 2026-11-19 08:41–08:45 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B clean verify` → exit 0; surefire 893 (was 851), failsafe 125, 0 failures, 0 skipped. GW200 and SEC01-SUITE200 counts unchanged. Sentinels: 0 hits in the build log. `git diff --check` exit 0.

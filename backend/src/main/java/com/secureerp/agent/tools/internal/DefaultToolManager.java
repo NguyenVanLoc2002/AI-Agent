@@ -260,7 +260,9 @@ class DefaultToolManager implements ToolManager {
         try {
             matches = lookup.get();
         } catch (CatalogUnavailableException e) {
-            throw ToolRejection.of(ToolErrorResult.Code.CATALOG_UNAVAILABLE);
+            // A-40(b) (owner 2026-11-19): an ERP outage hands off at once instead of letting the model retry
+            // (rule 10: fail closed on outage, human fallback with a reason code).
+            throw new ToolRejection(ToolErrorResult.Code.CATALOG_UNAVAILABLE, true);
         }
         List<ProductRef> candidates = new ArrayList<>();
         boolean filtered = false;
