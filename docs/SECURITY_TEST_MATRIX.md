@@ -4,6 +4,8 @@
 
 > 2026-11-19, EP-04: **SEC-02 một phần** — 20 lần thử chéo khách qua HTTP với dữ liệu thật của khách nạn nhân (`CrossCustomerIT`), 0 rò; từ chối mức HTTP chưa có bản ghi audit (EP-09). **SEC-03 một phần** — 15/50 fixture (`AdversarialChatIT`). T-SEC01-HISTORY chạy qua flow thật nhưng chưa qua proxy capture kép; SEC-01 vẫn chờ SEC-01b. Chi tiết: `docs/contracts/TOOL_CONTRACTS.md` §9.
 
+> 2026-11-19, SEC-01b: **SEC-01 VERIFIED — phạm vi: luồng chat của khách, Fake provider + proxy loopback (ADR-004/016).** `EgressSuiteFlow200IT` (T-SEC01-SUITE200, T-SEC01-HISTORY): 200 hội thoại seed cố định qua HTTP → conversation → agent → tools → gateway → adapter → proxy → Fake provider; 12 kịch bản (tìm thường, hỏi giá vốn/công nợ, gõ biến thể sentinel, gõ giá/SĐT/VIN rồi replay qua history, ERP lỗi/timeout có sentinel, catalog nhiễm ở category hoặc OE, báo giá giá sentinel + 3 lượt, provider retry, khách bị chặn công nợ, model trả giá, tool có tham số thừa). Kết quả: 0 sentinel, 0 giá theo khách, 0 giá trị khách gõ (cả dạng bỏ dấu phân cách) ở adapter/proxy/provider, mọi bảng trừ `quote`/`quote_line` và log; tên field ⊆ tập viết tay; số request adapter = proxy = provider = dòng PASS. **Không gồm:** tin nhân viên (T-SEC01-STAFF, EP-08), sliding window giữa các request (A-40), provider thật, network egress production, retention của provider. Lệnh, số liệu và mutation: `docs/SESSION_HANDOFF.md`.
+
 | ID | Setup and adversarial action | Expected proof | Test layer |
 |---|---|---|---|
 | SEC-01 | Seed sentinel cost 987654321 and debt 123456789; 200 synthetic chats; capture outbound provider payloads including tool results/errors | zero sentinels in outbound bytes, logs or traces; approved fields only | gateway integration |
