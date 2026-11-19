@@ -49,7 +49,8 @@ class RequestSizeFilter extends OncePerRequestFilter {
                 @Value("${apas.conversation.max-request-bytes}") long maxRequestBytes) {
             FilterRegistrationBean<RequestSizeFilter> registration =
                     new FilterRegistrationBean<>(new RequestSizeFilter(maxRequestBytes));
-            registration.addUrlPatterns("/api/demo/*");
+            // EP-07: the staff reconciliation endpoint (order) takes a small JSON body as well.
+            registration.addUrlPatterns("/api/demo/*", "/api/internal/*");
             return registration;
         }
     }

@@ -86,6 +86,7 @@ Schema ứng dụng `app` và schema giả lập `mock_erp` tách biệt; Flyway
 | `GET /api/demo/security/sec-results` | SECREV | dashboard SEC (UI persona 3); bổ sung |
 | `PUT /api/ops/switches/ai` | OPS | bổ sung; audit; hiệu lực ≤60s |
 - Đường dẫn trong BRD §12 là SOURCE FACT ở mức "dự kiến"; các dòng ghi "bổ sung" là DESIGN PROPOSAL.
+- **EP-07 (2026-11-19) đã có:** `GET /api/demo/quotes/{ref}` (chỉ CUST chủ báo giá; SALES: EP-08), `POST /api/demo/quotes/{ref}/confirm`, `GET /api/internal/orders/unknown`, `POST /api/internal/orders/{requestId}/reconcile` `{outcome: CREATED|ABSENT, erpOrderRef?}` (profile demo). Mã trả về và khác biệt so với bảng trên: `DATA_FLOW.md` §2a, DECISIONS_REQUIRED A-41.
 - `/api/demo/**` chỉ bật ở profile `local`/`demo` (ADR-015). Lỗi theo RFC 7807 với `code` ổn định, không stack/nội dung. OpenAPI chốt sau khi owner nghiệp vụ duyệt DTO (SOURCE FACT BRD §12).
 
 ## 9. NFR

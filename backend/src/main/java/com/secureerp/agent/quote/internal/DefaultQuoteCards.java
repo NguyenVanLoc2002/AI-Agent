@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,11 +30,14 @@ class DefaultQuoteCards implements QuoteCards {
     private static final String ISSUED = "ISSUED";
 
     private final QuoteStore store;
+    private final ConfirmationStore confirmations;
     private final CustomerLinks links;
+    private final QuoteTokens tokens = new QuoteTokens();
     private final Clock clock;
 
-    DefaultQuoteCards(QuoteStore store, CustomerLinks links, Clock clock) {
+    DefaultQuoteCards(QuoteStore store, ConfirmationStore confirmations, CustomerLinks links, Clock clock) {
         this.store = store;
+        this.confirmations = confirmations;
         this.links = links;
         this.clock = clock;
     }
@@ -77,23 +81,34 @@ class DefaultQuoteCards implements QuoteCards {
             return Optional.empty();
         }
         List<QuoteCard.Line> lines = store.lines(handle.quoteId()).stream()
-                .map(line -> new QuoteCard.Line(new Sku(line.sku()), line.quantity(),
-                        unitPrice(line.unitPrice(), handle), exact(line.lineTotal(), handle)))
+                .map(line -> line(line.sku(), line.quantity(), line.unitPrice(), line.lineTotal(),
+                        handle.moneyScale(), handle.currency()))
                 .toList();
+        // EP-07: the card carries the token of its confirm control; only its hash is stored, and only
+        // while the quote is still ISSUED (a quote confirmed in the meantime renders nothing).
+        String confirmationToken = tokens.newConfirmationToken();
+        if (!confirmations.armConfirmation(handle.quoteId(), QuoteTokens.hash(confirmationToken))) {
+            return Optional.empty();
+        }
         return Optional.of(new QuoteCard(handle.publicRef(), handle.quoteVersion(), lines,
-                exact(handle.total(), handle), handle.validUntil(),
-                List.of(QuoteCard.NOTE_VAT, QuoteCard.NOTE_FITMENT)));
+                exact(handle.total(), handle.moneyScale(), handle.currency()), handle.validUntil(),
+                List.of(QuoteCard.NOTE_VAT, QuoteCard.NOTE_FITMENT), confirmationToken));
+    }
+
+    static QuoteCard.Line line(String sku, int quantity, BigDecimal unitPrice, BigDecimal lineTotal, int moneyScale,
+            Currency currency) {
+        return new QuoteCard.Line(new Sku(sku), quantity, unitPrice(unitPrice, moneyScale, currency),
+                exact(lineTotal, moneyScale, currency));
     }
 
     /** Totals were rounded to the quote's money scale when issued; NUMERIC(19,4) only pads them (review L4). */
-    private static Money exact(BigDecimal stored, QuoteStore.StoredHandle handle) {
-        return Money.of(stored.setScale(handle.moneyScale(), RoundingMode.UNNECESSARY), handle.currency());
+    static Money exact(BigDecimal stored, int moneyScale, Currency currency) {
+        return Money.of(stored.setScale(moneyScale, RoundingMode.UNNECESSARY), currency);
     }
 
     /** The ERP unit price keeps its own precision, shown with at least the quote's money scale. */
-    private static Money unitPrice(BigDecimal stored, QuoteStore.StoredHandle handle) {
+    static Money unitPrice(BigDecimal stored, int moneyScale, Currency currency) {
         BigDecimal plain = stored.stripTrailingZeros();
-        return Money.of(plain.scale() < handle.moneyScale() ? plain.setScale(handle.moneyScale()) : plain,
-                handle.currency());
+        return Money.of(plain.scale() < moneyScale ? plain.setScale(moneyScale) : plain, currency);
     }
 }

@@ -38,7 +38,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Mock ERP connector for the PoC (target name {@code MockErpConnector}, ERP_CONNECTOR §5; ADR-005
  * and A-07 ACCEPTED/APPROVED 2026-11-18). Implements the catalog ports (SEC-01a, EP-05) and the quote
- * ports for price, stock and credit (EP-06); draft orders come with EP-07. Mock-only assumption: the
+ * ports for price, stock and credit (EP-06); draft orders are {@link MockErpDraftOrders} (EP-07) on the
+ * same simulated backend. Mock-only assumption: the
  * fake backend returns whole tables and the adapter filters (a real adapter queries per key).
  *
  * <p>Boundary rules (rule 20, T-ERP-02/03):
@@ -85,6 +86,16 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
 
     public MockErpConnector(@Value("${apas.erp.mock.fault-mode:NONE}") MockErpFaultMode faultMode) {
         this.backend = new MockErpBackend(faultMode);
+    }
+
+    /** The simulated ERP behind this connector, shared with the draft-order adapter (EP-07). */
+    MockErpBackend backend() {
+        return backend;
+    }
+
+    /** Controls of the simulated ERP for tests and local demos; never reachable from a request. */
+    public MockErpSimulation simulation() {
+        return new MockErpSimulation(backend);
     }
 
     @Override

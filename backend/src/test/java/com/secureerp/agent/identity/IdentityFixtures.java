@@ -44,6 +44,11 @@ public final class IdentityFixtures {
         return new SessionIdentity(principal(principalSeed), Role.CUST, Channel.WEB_CHAT, customer(customerSeed));
     }
 
+    /** A staff session identity (no customer) for unit and integration tests of staff APIs (EP-07). */
+    public static SessionIdentity staffIdentity(String principalSeed, Role role) {
+        return new SessionIdentity(principal(principalSeed), role, Channel.WEB_CHAT, null);
+    }
+
     static String pad(String seed) {
         String padded = (seed + "ZZZZZZZZZZZZZZZZZZZZZZ").substring(0, 22);
         if (!padded.matches("[A-Za-z0-9_-]{22}")) {

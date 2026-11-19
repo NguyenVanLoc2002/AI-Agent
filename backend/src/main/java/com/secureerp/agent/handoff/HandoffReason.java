@@ -19,5 +19,9 @@ public enum HandoffReason {
     /** EP-04: the model's final text failed the OutputValidator (DESIGN PROPOSAL, decision 2026-11-19). */
     OUTPUT_REJECTED,
     /** EP-04: no final answer within the model-call limit of one turn (DESIGN PROPOSAL). */
-    AGENT_LIMIT
+    AGENT_LIMIT,
+    /** EP-07 (DATA_FLOW §2 step 6): the ERP outcome of a draft order is unknown; staff reconcile. */
+    ERP_UNKNOWN,
+    /** EP-07 (DESIGN PROPOSAL): the ERP refused the draft order, or reconciliation found none. */
+    ORDER_NOT_CREATED
 }

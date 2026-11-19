@@ -192,9 +192,11 @@ public final class ArchitectureRules {
 
         // Any dependency counts, so method references and field types are caught too (EP-06 reviews).
         rules.put("ARCH-08d", noClasses()
-                .that().resideOutsideOfPackages(base + ".identity..", base + ".quote..", base + ".erp..")
+                .that().resideOutsideOfPackages(base + ".identity..", base + ".quote..", base + ".order..",
+                        base + ".erp..")
                 .should().dependOnClassesThat().haveSimpleName("ErpCustomerLink")
-                .as("ARCH-08 only identity, quote and the erp adapter handle the ERP customer key (A-19, EP-06)")
+                .as("ARCH-08 only identity, quote, order and the erp adapter handle the ERP customer key "
+                        + "(A-19, EP-06; order since EP-07: the draft order names the ERP customer)")
                 .allowEmptyShould(true));
 
         // EP-06 review round 2 (security M-2, architecture M-C): the RESTRICTED customer mapping.

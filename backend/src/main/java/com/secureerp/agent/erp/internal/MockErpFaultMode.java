@@ -1,8 +1,8 @@
 package com.secureerp.agent.erp.internal;
 
 /**
- * Fault injection for the Mock ERP (ERP_CONNECTOR §5). Order-related faults (timeout before/after
- * commit) belong to the draft-order issue (EP-07).
+ * Fault injection for the Mock ERP read ports (ERP_CONNECTOR §5). Draft-order faults (timeout
+ * before/after commit) are {@link MockErpOrderFault} (EP-07).
  */
 public enum MockErpFaultMode {
     NONE,

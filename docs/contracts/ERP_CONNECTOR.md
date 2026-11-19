@@ -1,7 +1,7 @@
 # ERP connector contract (ports) — v0.1 DRAFT
 
 > **Đây KHÔNG phải tài liệu API của bất kỳ ERP vendor nào.** Không có tài liệu API ERP thật nào được cung cấp. Mọi khả năng của ERP đích là **OPEN** (D-01..D-03, `docs/DECISIONS_REQUIRED.md`). Tài liệu này định nghĩa các *port nội bộ* vendor-neutral. Mock ERP connector (PoC) và một adapter ERP thật trong tương lai (MVP, gated G4) phải hiện thực các port này.
-> Tên thiết kế mục tiêu: `ErpConnector` (tên khái niệm cho tập port, theo BRD §12; ADR-005 vẫn tách port, A-07), `MockErpConnector`, `RealErpConnector`. `MockErpConnector` tồn tại từ SEC-01a (`erp.internal`, chỉ port catalog); `RealErpConnector` **chưa tồn tại**.
+> Tên thiết kế mục tiêu: `ErpConnector` (tên khái niệm cho tập port, theo BRD §12; ADR-005 vẫn tách port, A-07), `MockErpConnector`, `RealErpConnector`. `MockErpConnector` tồn tại từ SEC-01a (`erp.internal`; port catalog, từ EP-06 thêm giá/tồn/công nợ; đơn nháp là `MockErpDraftOrders`, EP-07); `RealErpConnector` **chưa tồn tại**.
 > 2026-11-13. Nhãn mặc định: DESIGN PROPOSAL (ADR-005, ADR-009).
 
 ## 1. Nguồn và khác biệt với BRD
@@ -24,7 +24,7 @@
 | `AuthenticatedCustomerRef` | opaque, chỉ identity tạo được (constructor package-private / factory) | không String/Long thô; không nhận từ request |
 | `Sku` | value object, regex bounded | |
 | `Money` | `BigDecimal amount` + `Currency` (VND) | EP-06: `platform.Money` (DESIGN PROPOSAL, ARCH-13b giới hạn module dùng); VND scale 0, `HALF_UP` theo dòng (ADR-014 ACCEPTED); `toString()` không in số tiền |
-| `ErpCustomerLink` | mã khách theo định dạng của ERP, chuỗi mờ | EP-06, A-19: `identity.spi.ErpCustomerLink`; chỉ identity, quote, erp dùng (ARCH-08d); không liên quan tới định dạng `AuthenticatedCustomerRef` |
+| `ErpCustomerLink` | mã khách theo định dạng của ERP, chuỗi mờ | EP-06, A-19: `identity.spi.ErpCustomerLink`; chỉ identity, quote, order (từ EP-07, A-41(a)), erp dùng (ARCH-08d); không liên quan tới định dạng `AuthenticatedCustomerRef` |
 | `PriceSource` | EP-06: chuỗi mã nguồn giá (ví dụ mã bảng giá) + `revision` (string opaque, **tùy chọn**, có thể null) trong `quote.spi.PriceQuote` | ERP đích có trả revision hay không: OPEN D-01. Fallback: so sánh `unitPrice` bằng `compareTo` khi recheck (EP-07) |
 | `EligibilityStatus` | `ELIGIBLE / NOT_ELIGIBLE / REVIEW_REQUIRED` (EP-06; bản nháp cũ gọi là `NEEDS_REVIEW`) | **không** trả số dư/hạn mức |
 | Tồn kho | quote: `OptionalInt quantityAvailable` (INTERNAL, chỉ quote dùng); catalog: `AvailabilityBucket` `CON_HANG / HET_HANG / CAN_KIEM_TRA` | bucket là SOURCE FACT BRD §08; EP-06 không dùng kiểu gộp `AvailabilityResult` của bản nháp |
@@ -54,10 +54,10 @@
 - EP-06: `EligibilityStatus check(ErpCustomerLink c)` — chỉ enum; khách lạ hoặc trạng thái lạ → `REVIEW_REQUIRED` (fail closed), theo chữ ký BRD §12 (chỉ customer). Việc xét theo tổng đơn (`orderTotal`) là mở rộng **OPEN** (D-01, điều kiện công nợ BRD §15); nếu có, chỉ quote dùng và kết quả **không bao giờ** tới model (tool trả `NOT_QUOTED` chung).
 
 ### 3.6 `DraftOrderPort` (order)
-- Capabilities `supportsIdempotencyKey`, `supportsExternalRefLookup` (cả hai **OPEN D-03**) là **cấu hình tĩnh** (`erp.capabilities.*`) đặt từ tài liệu API ERP đích đã được phê duyệt, không phải adapter tự khai báo lúc chạy. Mặc định an toàn: false/false. Mock chạy được cả hai chế độ.
-- `DraftOrderOutcome create(DraftOrderCommand cmd, IdempotencyKey key)` → sealed: `Created(externalRef)`, `Rejected(code)`, `Unknown(reason)`. Timeout = `Unknown`, **không** = thất bại. `Rejected` có mã cấu trúc hay không phụ thuộc ERP đích (OPEN D-01); nếu không phân biệt được lỗi nghiệp vụ với lỗi kỹ thuật → coi là `Unknown`.
+- Capabilities `supportsIdempotencyKey`, `supportsExternalRefLookup` (cả hai **OPEN D-03**) là **cấu hình tĩnh** (`apas.erp.capabilities.*`, do module `order` đọc) đặt từ tài liệu API ERP đích đã được phê duyệt, không phải adapter tự khai báo lúc chạy. Mặc định an toàn: false/false. Mock chạy được cả hai chế độ.
+- EP-07: `DraftOrderOutcome create(DraftOrderCommand cmd, Optional<IdempotencyKey> key)` → sealed: `Created(erpOrderRef)` (số đơn nháp của ERP), `Rejected(code)` (enum `CUSTOMER_NOT_ALLOWED`/`INVALID_ORDER`, adapter map từ allowlist), `Unknown(reason)` (`TIMEOUT`/`UNCLASSIFIED`). `key` chỉ có khi cấu hình capability cho phép (BR-18); `cmd` gồm `ErpCustomerLink`, `ExternalRef` (tham chiếu của ta: `<mã báo giá>:<version>`, để nhân viên tìm đơn khi đối soát; ERP đích có nhận trường này hay không: OPEN D-01/D-03) và các dòng (sku, số lượng, đơn giá đã chốt). Adapter gọi đúng một lần, không retry, không ném exception cho lỗi ERP. Timeout = `Unknown`, **không** = thất bại. `Rejected` có mã cấu trúc hay không phụ thuộc ERP đích (OPEN D-01); nếu không phân biệt được lỗi nghiệp vụ với lỗi kỹ thuật → coi là `Unknown`.
 - Không có port đọc trạng thái phê duyệt đơn từ ERP đích (OPEN D-01); PoC ghi nhận thủ công.
-- `Optional<DraftOrderStatus> findByExternalRef(ExternalRef ref)` — chỉ gọi khi `supportsExternalRefLookup`.
+- `Optional<DraftOrderStatus> findByExternalRef(ExternalRef ref)` — chỉ gọi khi `supportsExternalRefLookup`. EP-07: gọi đúng một lần ngay sau `Unknown`; tìm thấy → `RECONCILED_CREATED`, không thấy → vẫn `OUTCOME_UNKNOWN` (không thấy ngay sau timeout không chứng minh được gì).
 - **Không có** `approve`, `cancel` thay người, `updatePrice` (SOURCE FACT: agent không phê duyệt).
 
 ## 4. Phương thức bị cấm ở mọi port (ARCH-09)
@@ -72,6 +72,8 @@
 - **EP-06 (2026-11-18/19):** Mock hiện thực thêm `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`. Khách synthetic theo mã ERP `SYNTH-CUST-A` (công nợ tốt), `SYNTH-CUST-B` (bị chặn công nợ), `SYNTH-CUST-C` (không có hồ sơ công nợ → REVIEW_REQUIRED, không có giá); identity ánh xạ ref → mã này. Giá là sentinel SEC-01 (`555444333`, `666777888`) để chứng minh không bao giờ tới model; `SKU-BRK-PAD-B` có nửa đơn vị (kiểm tra làm tròn), `SKU-AIR-FLT-A` có 19 chữ số có nghĩa (kiểm tra đọc chính xác, `USE_BIG_DECIMAL_FOR_FLOATS`). Dòng giá/công nợ thô kèm giá vốn, margin, số dư, hạn mức, người liên hệ; adapter chỉ đọc `unitPrice/currency/priceList/revision` và `creditStatus`. Fault mode `ERROR_WITH_SENTINEL`/`TIMEOUT` → `QuoteSourceUnavailableException`; `MALFORMED_ROWS` → không có giá. `quantityAvailable` đọc cả bảng sản phẩm: giả định của Mock. Một bean hiện thực mọi port: tách theo nhóm port trước khi có `RealErpConnector` (EP-06 review L7). Adapter thật cần deadline/bulkhead cho tối đa 41 lời gọi mỗi yêu cầu (A-36b).
 - **EP-05 (2026-11-18):** backend giả có bảng fitment VIN synthetic (WMI `5ZZ`/`RLZ`, không phải xe thật) trả dòng thô kèm tên chủ xe, số điện thoại và công nợ sentinel; adapter chỉ đọc `vehicleModel` (≤80 ký tự), dòng sai dạng → không fitment (log `erp.vehicle.row_skipped`, không VIN). Lỗi backend → `CatalogUnavailableException` (log `erp.vehicle.unavailable`, tên lớp exception). Đây là giả định của Mock: adapter thật cần API giải mã VIN/fitment đã được duyệt (D-01..D-03, D-05). VIN đầy đủ chỉ được gửi tới nguồn ERP/fitment nội bộ đã duyệt, không đặt trong URL/query string (log proxy), và không gửi tới dịch vụ giải mã VIN công cộng khi chưa được duyệt (EP-05 reviews L7). Tìm theo VIN không có category trả tối đa 5 sản phẩm đầu tiên của model xe: rộng, cần xem lại cùng A-25.
 
+- **EP-07 (2026-11-19):** `erp.internal.MockErpDraftOrders` hiện thực `DraftOrderPort` trên cùng backend giả. Đơn nháp giữ **trong bộ nhớ** (schema `mock_erp` vẫn chưa tạo: DESIGN PROPOSAL, A-41(i)); có khóa idempotency thì trả lại đơn đã có, không có thì mỗi lời gọi tạo một đơn mới (để lời gọi thứ hai lộ ra thành đơn trùng). Câu trả lời thô kèm mã khách, công nợ, giá vốn, tên người duyệt và message lỗi có sentinel; adapter chỉ đọc `draftNo` và `error.code`. Lỗi: `MockErpOrderFault` (`TIMEOUT_BEFORE_COMMIT`, `TIMEOUT_AFTER_COMMIT`, `REJECT`, `UNLISTED_ERROR`, `MALFORMED_RESPONSE`, `ERROR_WITH_SENTINEL`). `MockErpSimulation` (chỉ Mock): test đổi giá/tồn/công nợ giữa lúc báo giá và lúc xác nhận, đặt lỗi, đếm đơn; không endpoint nào tới được (ARCH-03). Mock bỏ qua đơn giá từng dòng (A-41(t)).
+
 ## 6. Adapter ERP thật (tên mục tiêu `RealErpConnector`) — OPEN, gated G4
 Điều kiện tối thiểu trước khi viết: tài liệu API được ERP vendor/IT phê duyệt (D-01), tài khoản tích hợp không có quyền giá vốn/duyệt đơn hoặc có compensating control (D-02), xác nhận idempotency/lookup (D-03), sandbox, contract tests chạy cùng bộ test của Mock.
 
@@ -81,6 +83,6 @@
 | T-ERP-01 | Không phương thức cấm (reflection trên interface) |
 | T-ERP-02 | Field thừa từ ERP bị strip, không có trong DTO/log |
 | T-ERP-03 | Exception message chứa sentinel → lỗi trả ra chỉ có code |
-| T-ERP-04 | Timeout sau commit → `Unknown` |
-| T-ERP-05 | Capabilities false → order không gọi `findByExternalRef`; giá trị capability đọc từ cấu hình, không từ adapter |
+| T-ERP-04 | Timeout sau commit → `Unknown` — VERIFIED 2026-11-19 (Mock): `MockErpDraftOrdersTest.tErp04…`, `DraftOrdersIT.aTimeoutAfterTheErpWroteIsUnknownAndNeverSentAgain` |
+| T-ERP-05 | Capabilities false → order không gọi `findByExternalRef`; giá trị capability đọc từ cấu hình, không từ adapter — VERIFIED 2026-11-19 (Mock): `DraftOrdersIT.capabilitiesDefaultToUnsupported`, `aTimeoutAfterTheErpWroteIsUnknownAndNeverSentAgain`, `withTheCapabilitiesTheKeyIsForwardedAndALookupReconciles` |
 | T-ERP-06 | `findByChannelBinding` với binding sai/không tồn tại → empty, không lộ khác biệt timing đáng kể (best effort) |

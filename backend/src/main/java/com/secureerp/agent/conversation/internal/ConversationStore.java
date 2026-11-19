@@ -177,6 +177,17 @@ class ConversationStore {
                 Timestamp.from(clock.instant()), id.value(), owner.pseudonym());
     }
 
+    /**
+     * Locks the bot for a server-side trigger that has no session principal (EP-07: the confirmation of
+     * a quote needs staff). Guarded by the customer the conversation is bound to (A-35), which the caller
+     * takes from the quote row, never from a request. Idempotent.
+     */
+    void markHandoffPendingForCustomer(ConversationId id, String customerDigest) {
+        jdbc.update("update conversation set status = 'HANDOFF_PENDING', row_version = row_version + 1, updated_at = ? "
+                        + "where conversation_id = ? and customer_digest = ? and status = 'ACTIVE_BOT'",
+                Timestamp.from(clock.instant()), id.value(), customerDigest);
+    }
+
     /** Stores the turn's reply once (unique (turn, direction)); a second write for the same turn is ignored. */
     void insertBot(ConversationId id, UUID turnId, String text, boolean handedOff) {
         jdbc.update("insert into message (conversation_id, turn_id, direction, text, handed_off, created_at) "

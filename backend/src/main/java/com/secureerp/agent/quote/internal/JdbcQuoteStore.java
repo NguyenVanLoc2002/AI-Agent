@@ -77,6 +77,11 @@ class JdbcQuoteStore implements QuoteStore {
 
     /** Customer first, then conversation: one order everywhere, so two writers cannot deadlock. */
     private void lock(String customerDigest, String conversation) {
+        lock(jdbc, customerDigest, conversation);
+    }
+
+    /** The same locks for every quote write, so a confirmation and a new quote cannot race (A-36f, EP-07). */
+    static void lock(JdbcTemplate jdbc, String customerDigest, String conversation) {
         jdbc.execute("set local lock_timeout = '5s'");
         if (customerDigest != null) {
             jdbc.queryForList("select pg_advisory_xact_lock(?, hashtext(?))", LOCK_NAMESPACE, "c:" + customerDigest);

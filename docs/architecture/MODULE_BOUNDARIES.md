@@ -15,7 +15,7 @@
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô; validate + lưu VIN hiện tại của conversation (EP-05) | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum), `VehicleContext`, `CatalogSearch` | APPROVED_TECHNICAL; VIN đầy đủ: nhạy cảm theo ngữ cảnh, không ra khỏi catalog/erp |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
-| order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `OrderApi.submit(quoteId, version)` | RESTRICTED, INTERNAL |
+| order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `DraftOrders` (`register`/`dispatch`/`stateOf`), `OrderReconciliation` (EP-07; tên dự kiến cũ: `OrderApi.submit`) | RESTRICTED, INTERNAL |
 | handoff | Queue, reason code, claim/resolve (EP-08); EP-04: chỉ bản ghi OPEN | `Handoffs.open(conversation, reason)` (EP-04, gọi trực tiếp; event `HandoffOpened/Resolved` ở EP-08) | INTERNAL |
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
@@ -30,7 +30,7 @@ conversation ─► agent ─► gateway ─► policy
       │                    └────► quote (EP-06: QuoteService.request với SKU + khách của phiên)
       ├─► handoff (HandoffApi.open)          handoff ──(event HandoffOpened/Resolved)──► conversation (listener)
       └─► quote (render quote card)
-quote ─► order (OrderApi.submit)
+quote ─► order (DraftOrders; order ─(event DraftOrderStateChanged)─► quote, quote ─(event QuoteStaffRequired)─► conversation)
 gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
 mọi module ─► identity.api, platform.api, audit.api (publish)
 erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi (EP-06: erp dùng identity :: spi chỉ cho ErpCustomerLink)
@@ -55,7 +55,7 @@ bootstrap ─► mọi module (wiring)
 | ARCH-11 | Không `Method.invoke`/reflection gọi tool trong `tools..` | SOURCE FACT rule 20 |
 | ARCH-12 | `catalog..` chỉ phụ thuộc `AvailabilityBucketPort` (enum), không `quote.spi.AvailabilityPort` | review F6 |
 | ARCH-13 | Modulith `verify()` không có cycle | review |
-| ARCH-08d | `identity.spi.ErpCustomerLink` chỉ dùng trong identity, quote, erp (mọi kiểu phụ thuộc, kể cả method reference) | A-19, EP-06 |
+| ARCH-08d | `identity.spi.ErpCustomerLink` chỉ dùng trong identity, quote, order, erp (mọi kiểu phụ thuộc, kể cả method reference). `order` thêm ở EP-07: đơn nháp phải nêu khách ERP (A-41(a), chờ owner xác nhận) | A-19, EP-06, EP-07 |
 | ARCH-08e | `identity.CustomerLinks` (đọc liên kết khách) chỉ dùng trong identity, quote | EP-06 review vòng 2 |
 | ARCH-08f | `identity.CustomerLinkBinding` (tạo ref từ mã ERP) chỉ dùng trong identity | EP-06 review vòng 2 |
 | ARCH-13a | `QuoteCard`/`QuoteCards` (có giá) chỉ dùng trong quote và conversation (render) | EP-06 architecture review M1 |
@@ -109,3 +109,11 @@ bootstrap ─► mọi module (wiring)
 - `conversation`: API `Chat` + `ChatTurn` ở package gốc; hiện thực ở `conversation.internal`; controller và `RequestSizeFilter` ở `conversation.adapter.web` (profile demo, ADR-015).
 - ARCH-14: chỉ gateway, agent, tools phụ thuộc `ModelResponse`/`ToolProposal` (thay cho A-22 trong lúc chờ).
 - Advisory lock: 30_010 (tiếp nhận lượt theo conversation), 30_011 (tạo conversation theo principal); tools 30_003, quote 30_006.
+
+## EP-07 (2026-11-19)
+- API thực tế: `quote.QuoteConfirmations` (xác nhận + xem báo giá của chính khách), `order.DraftOrders` (`register` trong transaction xác nhận, `dispatch` ngoài transaction, `stateOf`; thay tên dự kiến `OrderApi.submit`), `order.OrderReconciliation` (SALES), `order :: spi` (`DraftOrderPort` và các kiểu của nó).
+- Allowlist: `quote` thêm `order`; `order` = identity, `identity :: spi` (chỉ `ErpCustomerLink`), platform, audit; `erp` thêm `order :: spi`. `conversation` không đổi (đã có quote, handoff).
+- Sự kiện đồng bộ, xử lý trong chính transaction phát ra nó: `order.DraftOrderStateChanged` (order → quote, khi đối soát hoặc request quá hạn) và `quote.QuoteStaffRequired` (quote → conversation: khóa bot + `Handoffs.open` cùng transaction với thay đổi của báo giá). Trên đường xác nhận, quote phản chiếu trạng thái từ giá trị trả về của `dispatch` và tự sửa khi đọc lại (`draft_order_request` là nguồn sự thật, ADR-007). Listener của quote ném `order.DraftOrderMirrorRefused` (rollback thay đổi của order; đối soát trả 409) khi báo giá tồn tại nhưng không chuyển được sang trạng thái đích (`DraftOrdersIT.aReconciliationTheQuoteCannotFollowIsRolledBack`). Request quá hạn được xử lý từng cái trong transaction riêng: một listener lỗi không chặn các request khác.
+- Endpoint: `quote.adapter.web.QuoteController` (`GET /api/demo/quotes/{ref}`, `POST …/confirm`), `order.adapter.web.OrderReconciliationController` (`/api/internal/orders/unknown`, `…/{requestId}/reconcile`), cả hai profile demo. `conversation.adapter.web.RequestSizeFilter` nay áp cho cả `/api/internal/*` (A-41(n): nên chuyển sang platform).
+- Bảng (Flyway V10): quote thêm `quote_confirmation`, cột `confirm_token_hash`, `confirmed_at`, `UNIQUE(public_ref, version)`; order sở hữu `draft_order_request`, `draft_order_event`. Khóa advisory: quote vẫn dùng namespace `30_006` cho mọi lần ghi rời khỏi ISSUED và cho việc giữ chỗ lần thử xác nhận.
+- Còn mở: A-41 (k)–(v).
