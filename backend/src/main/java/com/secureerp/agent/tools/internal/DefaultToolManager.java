@@ -4,16 +4,22 @@ import com.secureerp.agent.catalog.CatalogMatch;
 import com.secureerp.agent.catalog.CatalogSearch;
 import com.secureerp.agent.catalog.spi.CatalogUnavailableException;
 import com.secureerp.agent.catalog.spi.ExactProductQuery;
+import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.gateway.api.AvailabilityBucket;
 import com.secureerp.agent.gateway.api.ProductRef;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
 import com.secureerp.agent.gateway.api.Provenance;
+import com.secureerp.agent.gateway.api.QuoteRequestResult;
 import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.gateway.api.ToolResultDto;
 import com.secureerp.agent.gateway.api.ToolSpec;
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Channel;
 import com.secureerp.agent.identity.Role;
+import com.secureerp.agent.quote.QuoteOutcome;
+import com.secureerp.agent.quote.QuoteRequest;
+import com.secureerp.agent.quote.QuoteService;
 import com.secureerp.agent.tools.ToolCallContext;
 import com.secureerp.agent.tools.ToolManager;
 import com.secureerp.agent.tools.ToolOutcome;
@@ -52,10 +58,9 @@ import org.springframework.stereotype.Service;
  * </ol>
  * Every failure is a {@link ToolErrorResult} code; logs carry tool name, code and decision only.
  *
- * <p>{@code vinRef} search uses the conversation's server-side VIN (EP-05). Executors not built yet:
- * {@code requestQuote} (quote service, EP-06), {@code requestHandoff} (handoff module, EP-08). They are
- * validated in full and then answer {@code TOOL_UNAVAILABLE}; a handoff request also sets
- * {@code handoffRequired}.
+ * <p>{@code vinRef} search uses the conversation's server-side VIN (EP-05); {@code requestQuote} calls
+ * the quote service (EP-06). Not built yet: {@code requestHandoff} (handoff module, EP-08), validated
+ * in full and then {@code TOOL_UNAVAILABLE} with {@code handoffRequired}.
  */
 @Service
 class DefaultToolManager implements ToolManager {
@@ -72,15 +77,17 @@ class DefaultToolManager implements ToolManager {
     private final ToolInvocationStore invocations;
     private final ProductRefRegistry productRefs;
     private final CatalogSearch catalog;
+    private final QuoteService quotes;
     private final ObjectProvider<ConversationAccessPort> conversations;
     private final ToolLimits limits;
     private final Clock clock;
 
     DefaultToolManager(ToolInvocationStore invocations, ProductRefRegistry productRefs, CatalogSearch catalog,
-            ObjectProvider<ConversationAccessPort> conversations, ToolLimits limits, Clock clock) {
+            QuoteService quotes, ObjectProvider<ConversationAccessPort> conversations, ToolLimits limits, Clock clock) {
         this.invocations = invocations;
         this.productRefs = productRefs;
         this.catalog = catalog;
+        this.quotes = quotes;
         this.conversations = conversations;
         this.limits = limits;
         this.clock = clock;
@@ -100,12 +107,13 @@ class DefaultToolManager implements ToolManager {
         String toolName = tool.map(ToolName::wireName).orElse(ToolInvocationStore.UNKNOWN_TOOL);
         Access access;
         OptionalLong admitted;
+        ConversationAccessPort port = DENY_ALL;
         try {
             // Ownership first: a call on someone else's conversation counts against the caller only
             // (EP-03 security review M-2). Exactly one port, else deny all (a @Primary bean does not
             // make an ambiguous setup acceptable; second review LOW-2).
             List<ConversationAccessPort> ports = conversations.orderedStream().limit(2).toList();
-            ConversationAccessPort port = ports.size() == 1 ? ports.getFirst() : DENY_ALL;
+            port = ports.size() == 1 ? ports.getFirst() : DENY_ALL;
             Access checked = port.check(context.principal(), context.conversation());
             // Anything but ACTIVE or LOCKED, including null, is "not owned" (second review LOW-1).
             access = checked == Access.ACTIVE || checked == Access.LOCKED ? checked : Access.NOT_OWNED;
@@ -121,10 +129,13 @@ class DefaultToolManager implements ToolManager {
             return new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.QUOTA_EXCEEDED), true);
         }
         try {
-            ToolResultDto result = run(context, tool, access, proposal, now);
+            ToolResultDto result = run(context, tool, access, port, proposal, now);
             invocations.complete(admitted.getAsLong(), ToolInvocationStore.Decision.INVOKED, null);
             log.info("tools.call decision=INVOKED tool={} turn={}", toolName, context.turnId());
-            return new ToolOutcome(result, false);
+            // TOOL_CONTRACTS §3.3: NOT_QUOTED always comes with a staff handoff.
+            boolean handoff = result instanceof QuoteRequestResult quote
+                    && quote.status() == QuoteRequestResult.Status.NOT_QUOTED;
+            return new ToolOutcome(result, handoff);
         } catch (ToolRejection rejection) {
             return reject(context, admitted.getAsLong(), toolName, rejection, now);
         } catch (RuntimeException unexpected) {
@@ -154,8 +165,8 @@ class DefaultToolManager implements ToolManager {
         return new ToolOutcome(new ToolErrorResult(code), handoff);
     }
 
-    private ToolResultDto run(ToolCallContext context, Optional<ToolName> tool, Access access, ToolProposal proposal,
-            Instant now) {
+    private ToolResultDto run(ToolCallContext context, Optional<ToolName> tool, Access access,
+            ConversationAccessPort port, ToolProposal proposal, Instant now) {
         ToolName name = tool.orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNKNOWN));
         if (!name.allows(context.role(), context.channel())) {
             throw ToolRejection.of(ToolErrorResult.Code.TOOL_UNKNOWN);
@@ -178,10 +189,7 @@ class DefaultToolManager implements ToolManager {
             // (TOOL_CONTRACTS §3.1). No current VIN: TOOL_UNAVAILABLE (owner decision 2026-11-18).
             case SearchByVinRef byVin -> search(context, () -> catalog.searchByConversationVin(context.conversation())
                     .orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE)), now);
-            case QuoteLines quote -> {
-                requireOwnedVerifiedProducts(context, quote, now);
-                throw ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE);
-            }
+            case QuoteLines quote -> requestQuote(context, port, quote, now);
             case HandoffRequest handoff -> throw new ToolRejection(ToolErrorResult.Code.TOOL_UNAVAILABLE, true);
         };
     }
@@ -196,7 +204,9 @@ class DefaultToolManager implements ToolManager {
     }
 
     /** T-TOOL-04: every productRef came from a search in this conversation, is unexpired and VERIFIED. */
-    private void requireOwnedVerifiedProducts(ToolCallContext context, QuoteLines quote, Instant now) {
+    private List<QuoteRequest.Line> requireOwnedVerifiedProducts(ToolCallContext context, QuoteLines quote,
+            Instant now) {
+        List<QuoteRequest.Line> lines = new ArrayList<>();
         for (QuoteLines.Line line : quote.lines()) {
             Optional<ProductRefRegistry.IssuedProductRef> issued =
                     productRefs.resolve(context.conversation(), line.productRef(), now);
@@ -204,7 +214,45 @@ class DefaultToolManager implements ToolManager {
                     || issued.get().provenance() != com.secureerp.agent.catalog.spi.Provenance.VERIFIED) {
                 throw ToolRejection.of(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
             }
+            lines.add(new QuoteRequest.Line(new Sku(issued.get().sku()), line.quantity()));
         }
+        return lines;
+    }
+
+    /**
+     * EP-06: quote only the SKUs behind this conversation's VERIFIED productRefs, for the session's
+     * customer (never from arguments). The model sees ISSUED + handle or one NOT_QUOTED (BR-35); NOT_QUOTED
+     * always hands off ({@link #execute}). The same SKU twice is a schema error the model can fix.
+     */
+    private ToolResultDto requestQuote(ToolCallContext context, ConversationAccessPort port, QuoteLines quote,
+            Instant now) {
+        // A-35: price only for the customer the conversation is bound to. A conversation without a
+        // binding, or a session customer that differs, is refused before any ERP call (SEC-02); this
+        // includes "no binding and no session customer" (security review 2 L-4).
+        Optional<AuthenticatedCustomerRef> bound = port.boundCustomer(context.principal(), context.conversation());
+        if (bound == null || bound.isEmpty() || !bound.get().equals(context.customer())) {
+            throw ToolRejection.of(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        }
+        List<QuoteRequest.Line> lines = requireOwnedVerifiedProducts(context, quote, now);
+        QuoteRequest request;
+        try {
+            request = new QuoteRequest(context.conversation(), context.customer(), lines);
+        } catch (IllegalArgumentException duplicateOrOutOfRange) {
+            throw ToolRejection.of(ToolErrorResult.Code.TOOL_SCHEMA);
+        }
+        QuoteOutcome outcome;
+        try {
+            outcome = quotes.request(request);
+        } catch (RuntimeException quoteFailure) {
+            // QuoteService maps its own failures to NOT_QUOTED; anything left still hands off (arch M7).
+            throw new ToolRejection(ToolErrorResult.Code.TOOL_UNAVAILABLE, true);
+        }
+        return switch (outcome) {
+            case QuoteOutcome.Issued issued ->
+                    new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, issued.quoteHandle(), issued.lineCount());
+            case QuoteOutcome.NotQuoted notQuoted ->
+                    new QuoteRequestResult(QuoteRequestResult.Status.NOT_QUOTED, null, notQuoted.lineCount());
+        };
     }
 
     private ToolResultDto search(ToolCallContext context, Supplier<List<CatalogMatch>> lookup, Instant now) {

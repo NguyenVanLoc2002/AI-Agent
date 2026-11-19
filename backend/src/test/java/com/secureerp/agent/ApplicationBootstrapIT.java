@@ -41,7 +41,7 @@ class ApplicationBootstrapIT {
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1", "2", "3", "4", "5");
+        assertThat(applied).containsExactly("1", "2", "3", "4", "5", "6", "7");
     }
 
     @Test
@@ -50,7 +50,9 @@ class ApplicationBootstrapIT {
         List<String> tables = jdbc.queryForList(
                 "select table_name from information_schema.tables where table_schema = 'public'", String.class);
         assertThat(tables).containsExactlyInAnyOrder("flyway_schema_history", "egress_record", "tool_invocation",
-                "product_ref", "conversation_vin"); // V5 (EP-05): current VIN per conversation, module catalog
+                "product_ref", "conversation_vin", // V5 (EP-05): current VIN per conversation, module catalog
+                "quote", "quote_line", "quote_handle", "quote_request", // V6 (EP-06): module quote
+                "customer_link"); // V7 (EP-06, A-19): module identity
     }
 
     @Test

@@ -27,13 +27,14 @@
 ```
 conversation ─► agent ─► gateway ─► policy
       │           └────► tools ─► catalog
-      │                    └ ─ ─► quote (EP-06: QuoteApi.issueQuote với SKU, chưa có)
+      │                    └────► quote (EP-06: QuoteService.request với SKU + khách của phiên)
       ├─► handoff (HandoffApi.open)          handoff ──(event HandoffOpened/Resolved)──► conversation (listener)
       └─► quote (render quote card)
 quote ─► order (OrderApi.submit)
 gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
 mọi module ─► identity.api, platform.api, audit.api (publish)
-erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi
+erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi (EP-06: erp dùng identity :: spi chỉ cho ErpCustomerLink)
+quote ─► identity (CustomerLinks), identity :: spi, catalog :: spi (chỉ Sku, ARCH-13c)
 bootstrap ─► mọi module (wiring)
 ```
 - Không vòng: handoff không gọi conversation trực tiếp; khóa bot qua event. gateway không ghi bảng audit trực tiếp: nó gọi port `audit.EgressAuditLog`, do `audit.internal` hiện thực (audit không phụ thuộc gateway, ARCH-10).
@@ -54,6 +55,12 @@ bootstrap ─► mọi module (wiring)
 | ARCH-11 | Không `Method.invoke`/reflection gọi tool trong `tools..` | SOURCE FACT rule 20 |
 | ARCH-12 | `catalog..` chỉ phụ thuộc `AvailabilityBucketPort` (enum), không `quote.spi.AvailabilityPort` | review F6 |
 | ARCH-13 | Modulith `verify()` không có cycle | review |
+| ARCH-08d | `identity.spi.ErpCustomerLink` chỉ dùng trong identity, quote, erp (mọi kiểu phụ thuộc, kể cả method reference) | A-19, EP-06 |
+| ARCH-08e | `identity.CustomerLinks` (đọc liên kết khách) chỉ dùng trong identity, quote | EP-06 review vòng 2 |
+| ARCH-08f | `identity.CustomerLinkBinding` (tạo ref từ mã ERP) chỉ dùng trong identity | EP-06 review vòng 2 |
+| ARCH-13a | `QuoteCard`/`QuoteCards` (có giá) chỉ dùng trong quote và conversation (render) | EP-06 architecture review M1 |
+| ARCH-13b | `Money` chỉ dùng trong platform, quote, order, erp, conversation | EP-06 architecture review M2 |
+| ARCH-13c | quote chỉ dùng `Sku` từ `catalog.spi` | EP-06 architecture review L2 |
 
 ## 4. Giao tiếp
 - Đồng bộ qua `api` (typed command/result); spi do module sở hữu định nghĩa và erp hiện thực.
@@ -87,3 +94,11 @@ bootstrap ─► mọi module (wiring)
 - `CatalogSearch.search` từ chối `ByVin`: truy vấn VIN chỉ được dựng từ VIN đã lưu của conversation. Kết quả theo VIN bị catalog giới hạn ở `CATALOG_LOOKUP`, không phụ thuộc adapter.
 - `policy` vẫn phát hiện VIN để mask/chặn ở egress và inbound; `catalog.internal.VinExtractor` dùng cùng quy tắc nhóm ký tự (parity kiểm ở `VinSearchIT`). Hai bộ phát hiện song song là nợ kỹ thuật: hợp nhất thành một span finder dùng chung là đề xuất mở (xem A-29).
 - Người gọi `VehicleContext.register` lúc nhận tin là EP-04 (A-29): `conversation` cần thêm `catalog` vào allowlist, đề xuất một named interface hẹp (`catalog :: intake`, chỉ `VehicleContext` + `VinIntake`) để không lộ `CatalogSearch`.
+
+## 10. Ghi chú triển khai EP-06 (2026-11-18/19)
+- API thực tế: `quote.QuoteService` (thay tên dự kiến `QuoteApi`), `quote.QuoteCards` (thay `QuoteHandleService`), `quote.QuoteRequest`/`QuoteOutcome`/`QuoteCard`; `quote :: spi` (named interface) gồm `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`, `PriceQuote`, `EligibilityStatus`, `QuoteSourceUnavailableException`.
+- Allowlist mới: `quote` thêm `identity :: spi`, `catalog :: spi` và bỏ `order` (chưa dùng; thêm lại ở EP-07); `erp` thêm `quote :: spi`, `identity :: spi` (không phải toàn bộ `identity`: §7 L2 vẫn giữ); `tools` thêm `quote` (ARCH-13a chặn `QuoteCard`/`QuoteCards`).
+- `identity`: `CustomerLinks` (đọc, ARCH-08e) + `CustomerLinkBinding` (tạo ref, ARCH-08f) + `identity :: spi` `ErpCustomerLink`; `JdbcCustomerLinks` (`@Component`) nằm trong package `identity` (package-private) vì chỉ package này tạo được `AuthenticatedCustomerRef` (ARCH-08a) — ngoại lệ có chủ đích với quy ước "hiện thực nằm trong internal" (ADR-001). Bảng `customer_link` (Flyway V7) thuộc identity; EP-04 thêm cột binding (A-37).
+- `platform.Money` (DESIGN PROPOSAL, A-36d): kiểu RESTRICTED khi là giá khách; ARCH-13b giới hạn module dùng; ARCH-05 vẫn cấm trong egress.
+- Bảng của quote (Flyway V6): `quote`, `quote_line`, `quote_handle`, `quote_request`; khóa advisory namespace `30_006` (tools dùng `30_003`), theo thứ tự khách rồi conversation, `lock_timeout` 5 s. Khóa/giới hạn A-34 theo khách (`quote_request.customer_digest`).
+- `tools.spi.ConversationAccessPort.boundCustomer` (A-35): EP-04 hiện thực; mặc định không có khách gắn → không báo giá.

@@ -19,14 +19,21 @@ import com.secureerp.agent.gateway.EgressScan;
 import com.secureerp.agent.gateway.api.ModelRequest;
 import com.secureerp.agent.gateway.api.ProductRef;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
+import com.secureerp.agent.gateway.api.QuoteRequestResult;
 import com.secureerp.agent.gateway.api.SafeMessage;
 import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.gateway.api.ToolSpec;
 import com.secureerp.agent.gateway.internal.EgressSerializer;
+import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Channel;
+import com.secureerp.agent.identity.IdentityFixtures;
+import com.secureerp.agent.identity.PrincipalId;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.platform.ConversationId;
+import com.secureerp.agent.quote.QuoteOutcome;
+import com.secureerp.agent.quote.QuoteRequest;
+import com.secureerp.agent.quote.QuoteService;
 import com.secureerp.agent.tools.ToolCallContext;
 import com.secureerp.agent.tools.ToolFixtures;
 import com.secureerp.agent.tools.ToolOutcome;
@@ -63,6 +70,7 @@ class DefaultToolManagerTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-18T08:00:00Z"), ZoneOffset.UTC);
     private static final ToolCallContext CONTEXT = ToolFixtures.customer("alice", 1, 1);
     private static final String SEARCH = "searchVerifiedProduct";
+    private static final String HANDLE = "qh_SynthHandleAAAAAAAAAAA";
     /** Synthetic VIN known to the Mock ERP fitment table (Vios 2019). */
     private static final String NA_VIN = "5ZZAPAS11RA000001";
 
@@ -70,9 +78,32 @@ class DefaultToolManagerTest {
     private final InMemoryProductRefs productRefs = new InMemoryProductRefs();
     private final Map<ConversationId, Access> access = new HashMap<>(Map.of(CONTEXT.conversation(), Access.ACTIVE));
     private CatalogSearch catalog = mockErp(MockErpFaultMode.NONE);
+    private final List<QuoteRequest> quoteRequests = new ArrayList<>();
+    private QuoteOutcome quoteAnswer = new QuoteOutcome.Issued(HANDLE, 1);
+    private RuntimeException quoteFailure;
+    private final QuoteService quotes = request -> {
+        quoteRequests.add(request);
+        if (quoteFailure != null) {
+            throw quoteFailure;
+        }
+        return quoteAnswer;
+    };
+
+    /** Conversation -> bound customer (A-35); conversations not listed are bound to CONTEXT's customer. */
+    private final Map<ConversationId, AuthenticatedCustomerRef> bound = new HashMap<>();
 
     private DefaultToolManager manager() {
-        return manager((principal, conversation) -> access.getOrDefault(conversation, Access.NOT_OWNED));
+        return manager(new ConversationAccessPort() {
+            @Override
+            public Access check(PrincipalId principal, ConversationId conversation) {
+                return access.getOrDefault(conversation, Access.NOT_OWNED);
+            }
+
+            @Override
+            public Optional<AuthenticatedCustomerRef> boundCustomer(PrincipalId principal, ConversationId conversation) {
+                return Optional.ofNullable(bound.containsKey(conversation) ? bound.get(conversation) : CONTEXT.customer());
+            }
+        });
     }
 
     private DefaultToolManager manager(ConversationAccessPort port) {
@@ -80,7 +111,7 @@ class DefaultToolManagerTest {
         if (port != null) {
             beans.addBean("conversationAccess", port);
         }
-        return new DefaultToolManager(invocations, productRefs, catalog, beans.getBeanProvider(ConversationAccessPort.class),
+        return new DefaultToolManager(invocations, productRefs, catalog, quotes, beans.getBeanProvider(ConversationAccessPort.class),
                 ToolLimits.DEFAULTS, CLOCK);
     }
 
@@ -286,6 +317,112 @@ class DefaultToolManagerTest {
         assertThat(output.getAll()).doesNotContain(NA_VIN);
     }
 
+    /**
+     * EP-06: the quote service gets the SKUs behind the refs and the session's customer, never
+     * anything from the arguments; the model gets ISSUED + handle and no price.
+     */
+    @Test
+    void quoteUsesTheSessionCustomerAndTheSkusBehindTheRefs() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager().execute(CONTEXT, quote(ref));
+
+        assertThat(outcome.handoffRequired()).isFalse();
+        assertThat(quoteRequests).singleElement().satisfies(request -> {
+            assertThat(request.conversation()).isEqualTo(CONTEXT.conversation());
+            assertThat(request.customer()).isEqualTo(CONTEXT.customer());
+            assertThat(request.lines()).containsExactly(new QuoteRequest.Line(new Sku("SKU-BRK-PAD-A"), 2));
+        });
+        assertThat(new String(serializedForModel(outcome), StandardCharsets.UTF_8)).contains(HANDLE);
+        // The tool result itself carries only status, handle and line count (the request fixture has its own SKU).
+        assertThat(outcome.result()).isEqualTo(new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, HANDLE, 1));
+    }
+
+    /** BR-35 / TOOL_CONTRACTS §3.3: NOT_QUOTED has no handle, no reason and always hands off. */
+    @Test
+    void notQuotedIsOneCodeAndAlwaysHandsOff() {
+        quoteAnswer = new QuoteOutcome.NotQuoted(1);
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager().execute(CONTEXT, quote(ref));
+
+        assertThat(outcome.result()).isEqualTo(new QuoteRequestResult(QuoteRequestResult.Status.NOT_QUOTED, null, 1));
+        assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(invocations.decisions()).containsExactly("requestQuote:INVOKED:null");
+    }
+
+    /** Architecture review M7: an unexpected quote failure fails closed and always hands off. */
+    @Test
+    void aQuoteServiceFailureHandsOff(CapturedOutput output) {
+        quoteFailure = new IllegalStateException("total 555444333");
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager().execute(CONTEXT, quote(ref));
+
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+        assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(output.getAll()).doesNotContain("555444333");
+    }
+
+    @Test
+    void theSameSkuTwiceIsASchemaError() {
+        String first = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+        String second = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager().execute(CONTEXT, new ToolProposal("requestQuote", "{\"lines\":["
+                + "{\"productRef\":\"" + first + "\",\"quantity\":1},{\"productRef\":\"" + second
+                + "\",\"quantity\":1}]}"));
+
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.TOOL_SCHEMA);
+        assertThat(quoteRequests).isEmpty();
+    }
+
+    /**
+     * D-04 + A-35 (security review 2 L-4): a session without a linked customer, on a conversation with no
+     * binding, is refused before the quote service: FORBIDDEN_RESOURCE with handoff, no lock written.
+     */
+    @Test
+    void aSessionWithoutCustomerIsForbiddenBeforeQuoting() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        bound.put(CONTEXT.conversation(), null);
+        ToolOutcome outcome = manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
+
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(quoteRequests).isEmpty();
+    }
+
+    /**
+     * A-35 (owner 2026-11-18, SEC-02): the session customer must be the one the conversation is bound to;
+     * otherwise FORBIDDEN_RESOURCE with handoff and no quote call (no ERP call).
+     */
+    @Test
+    void aSessionCustomerOtherThanTheBoundOneIsForbidden() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome otherCustomer = manager().execute(
+                ToolFixtures.withCustomer(CONTEXT, IdentityFixtures.customer(ToolFixtures.CUSTOMER_B)), quote(ref));
+        bound.put(CONTEXT.conversation(), IdentityFixtures.customer(ToolFixtures.CUSTOMER_B));
+        ToolOutcome noSessionCustomer = manager().execute(ToolFixtures.withCustomer(CONTEXT, null), quote(ref));
+
+        assertThat(code(otherCustomer)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(otherCustomer.handoffRequired()).isTrue();
+        assertThat(code(noSessionCustomer)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(quoteRequests).isEmpty();
+    }
+
+    /** A port that does not know the binding (the default) never quotes: fail closed. */
+    @Test
+    void withoutAKnownBindingNoQuoteIsMade() {
+        String ref = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-A", Provenance.VERIFIED, CLOCK.instant());
+
+        ToolOutcome outcome = manager((principal, conversation) -> Access.ACTIVE).execute(CONTEXT, quote(ref));
+
+        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        assertThat(quoteRequests).isEmpty();
+    }
+
     /** T-TOOL-04 (in memory; the PostgreSQL version is in ToolRegistryIT). */
     @Test
     void quoteNeedsProductRefsFromThisConversationAndVerified() {
@@ -295,7 +432,8 @@ class DefaultToolManagerTest {
         String unverified = productRefs.issue(CONTEXT.conversation(), "SKU-BRK-PAD-B", Provenance.CATALOG_LOOKUP,
                 CLOCK.instant());
 
-        assertThat(code(manager().execute(CONTEXT, quote(own)))).isEqualTo(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+        assertThat(manager().execute(CONTEXT, quote(own)).result())
+                .isEqualTo(new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, HANDLE, 1));
         assertThat(code(manager().execute(CONTEXT, quote(foreign)))).isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
         assertThat(code(manager().execute(CONTEXT, quote(unverified))))
                 .isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
@@ -449,7 +587,7 @@ class DefaultToolManagerTest {
         StaticListableBeanFactory beans = new StaticListableBeanFactory();
         beans.addBean("first", (ConversationAccessPort) (principal, conversation) -> Access.ACTIVE);
         beans.addBean("second", (ConversationAccessPort) (principal, conversation) -> Access.ACTIVE);
-        DefaultToolManager manager = new DefaultToolManager(invocations, productRefs, catalog,
+        DefaultToolManager manager = new DefaultToolManager(invocations, productRefs, catalog, quotes,
                 beans.getBeanProvider(ConversationAccessPort.class), ToolLimits.DEFAULTS, CLOCK);
 
         assertThat(code(manager.execute(CONTEXT, new ToolProposal(SEARCH, "{\"oe\":\"04465-0K290\"}"))))

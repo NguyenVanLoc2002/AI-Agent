@@ -1,5 +1,9 @@
 package com.secureerp.agent.identity;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -15,9 +19,10 @@ import java.util.regex.Pattern;
  * creator and turn a client-supplied string into a reference (architecture review M4(d): Jackson
  * did exactly that with a single-String constructor).
  *
- * <p>SEC-01a only introduces the type and its guards. Session authentication and the channel
- * binding lookup ({@code CustomerLinkPort}) belong to ADR-010, which is still PROPOSED. How identity
- * builds a reference from an spi result is an OPEN DECISION (architecture review H1).
+ * <p>A-19 (APPROVED 2026-11-18, implemented in EP-06): the value is {@code cref_} plus 128 random bits
+ * with no ERP information; {@link CustomerLinks} maps it to the ERP customer, and the erp adapter never
+ * sees it. Session authentication and the channel binding lookup ({@code CustomerLinkPort}) are EP-04
+ * (ADR-010 ACCEPTED).
  */
 public final class AuthenticatedCustomerRef {
 
@@ -41,6 +46,26 @@ public final class AuthenticatedCustomerRef {
 
     static AuthenticatedCustomerRef fromVerifiedBinding(String opaqueValue) {
         return new AuthenticatedCustomerRef(opaqueValue, Issued.BY_IDENTITY);
+    }
+
+    /** For {@link JdbcCustomerLinks} only (same package): the stored reference value. */
+    String opaqueValue() {
+        return opaqueValue;
+    }
+
+    /**
+     * SHA-256 (hex) of the reference, for binding server-side rows (quote, quote handle) to the
+     * customer without storing the reference itself (ADR-008). The reference is 128 random bits with
+     * no ERP information (A-19), so the digest can neither be reversed nor be computed from an ERP key.
+     */
+    public String bindingDigest() {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(("apas:customer-binding:" + opaqueValue).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     @Override

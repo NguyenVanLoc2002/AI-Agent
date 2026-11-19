@@ -51,10 +51,11 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → `HandoffApi.
 ## 5. Lưu trữ (DESIGN PROPOSAL; retention OPEN D-09)
 | Bảng | Module | Lớp | Ràng buộc chính |
 |---|---|---|---|
-| customer_link | identity | R | UNIQUE(channel, provider_user_hash) |
+| customer_link | identity | R | EP-06 (Flyway V7): PK `customer_ref` (ref ngẫu nhiên), `erp_link`, `revoked_at`. EP-04 (A-37): thêm cột binding kênh + UNIQUE(channel, provider_user_hash) bằng migration mới, để mỗi binding có một ref ổn định |
 | conversation | conversation | I | `row_version`, `bot_locked` |
 | message | conversation | I/T (đã sanitize) | UNIQUE(conversation_id, client_event_id); direction CUSTOMER/BOT/STAFF |
-| quote / quote_line | quote | R | UNIQUE(quote_id, version); CHECK qty>0; kiểu số tiền NUMERIC — scale OPEN D-13 (VND thường không có phần lẻ) |
+| quote / quote_line | quote | R | EP-06 (Flyway V6): `quote.version` + `row_version`; một ISSUED mỗi conversation (unique index một phần); UNIQUE(quote_id, line_no), UNIQUE(quote_id, sku); CHECK qty 1..9999; NUMERIC(19,4), VND scale 0 (ADR-014) |
+| quote_request | quote | R | EP-06: outcome, mã lý do (chỉ nhân viên), `customer_digest` (khóa/giới hạn A-34 theo khách) |
 | quote_handle | quote | I | PK hash; binding; expires_at; revoked |
 | draft_order_request | order | I | UNIQUE(quote_id, quote_version); idempotency_key server-derived |
 | handoff | handoff | I | reason_code NOT NULL |

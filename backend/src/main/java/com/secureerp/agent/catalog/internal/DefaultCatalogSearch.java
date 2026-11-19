@@ -35,14 +35,21 @@ class DefaultCatalogSearch implements CatalogSearch {
      * {@link ExactProductQuery.ByVin} is refused here: a VIN query is built only from the
      * conversation's stored VIN ({@link #searchByConversationVin}), never by a caller (EP-05
      * architecture review M2).
+     *
+     * <p>A-31 (APPROVED 2026-11-18): VERIFIED means "part identity verified". Only an exact OE
+     * search keeps the adapter's label; a category + vehicle-model search narrows by vehicle and is
+     * at most CATALOG_LOOKUP, like a VIN search.
      */
     @Override
     public List<CatalogMatch> search(ExactProductQuery query) {
         Objects.requireNonNull(query, "query");
-        if (query instanceof ExactProductQuery.ByVin) {
-            throw new IllegalArgumentException("vin queries only through searchByConversationVin");
-        }
-        return lookup(query);
+        return switch (query) {
+            case ExactProductQuery.ByOe byOe -> lookup(byOe);
+            case ExactProductQuery.ByCategoryAndModel byModel ->
+                    lookup(byModel).stream().map(DefaultCatalogSearch::capAtCatalogLookup).toList();
+            case ExactProductQuery.ByVin byVin ->
+                    throw new IllegalArgumentException("vin queries only through searchByConversationVin");
+        };
     }
 
     @Override
@@ -62,9 +69,9 @@ class DefaultCatalogSearch implements CatalogSearch {
     }
 
     /**
-     * A VIN narrows the catalog to a vehicle model; it does not identify the exact part. A VIN result
-     * is therefore at most CATALOG_LOOKUP (BR-06), whatever the adapter reports; enforced here, not
-     * only in the Mock adapter (EP-05 architecture review M1).
+     * A VIN or a vehicle model narrows the catalog; it does not identify the exact part. Such a result
+     * is therefore at most CATALOG_LOOKUP (BR-06, A-31), whatever the adapter reports; enforced here,
+     * not only in the Mock adapter (EP-05 architecture review M1).
      */
     private static CatalogMatch capAtCatalogLookup(CatalogMatch match) {
         ProductCandidate c = match.candidate();

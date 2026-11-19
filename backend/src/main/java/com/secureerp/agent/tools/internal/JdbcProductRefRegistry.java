@@ -23,7 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Repository
 class JdbcProductRefRegistry implements ProductRefRegistry {
 
-    private static final int MAX_DRAWS = 16;
+    /** About 28 % of random tokens contain a VIN-like run; 64 draws make a failure negligible. */
+    private static final int MAX_DRAWS = 64;
 
     private final JdbcTemplate jdbc;
     private final ToolLimits limits;
@@ -58,12 +59,19 @@ class JdbcProductRefRegistry implements ProductRefRegistry {
                 .stream().findFirst();
     }
 
-    /** A random token that satisfies the egress format (draws again on a rare 7-digit run). */
+    /**
+     * A random token that satisfies the egress format (draws again on a 7-digit run) and does not
+     * look like a VIN: otherwise the model's own {@code requestQuote} arguments would be refused as
+     * T-TOOL-13 (EP-06 finding: about 28 % of quote calls failed with TOOL_SCHEMA).
+     */
     private String newToken() {
         byte[] bytes = new byte[16];
         for (int draw = 0; draw < MAX_DRAWS; draw++) {
             random.nextBytes(bytes);
             String token = ProductRef.PRODUCT_REF_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            if (ArgumentParser.containsFullVin(token)) {
+                continue;
+            }
             try {
                 return EgressText.serverToken(token, "productRef", ProductRef.PRODUCT_REF_PREFIX);
             } catch (IllegalArgumentException digitRun) {

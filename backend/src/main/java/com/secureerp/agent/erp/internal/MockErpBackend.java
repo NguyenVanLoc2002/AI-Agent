@@ -51,10 +51,57 @@ class MockErpBackend {
             ASIA_VIN, VEHICLE.formatted(ASIA_VIN, "Innova 2020"));
     private static final String MALFORMED_VEHICLE = "{\"vehicleModel\":987654321,\"registeredOwner\":\"ZZHoney CustomerA\"}";
 
+    /**
+     * Synthetic ERP customer keys (EP-06). Deliberately unlike the session reference format (A-19):
+     * identity maps references to these keys. A is in good standing, B is blocked for credit, C has
+     * no credit record (review required) and no prices.
+     */
+    static final String CUSTOMER_A = "SYNTH-CUST-A";
+    static final String CUSTOMER_B = "SYNTH-CUST-B";
+    static final String CUSTOMER_C = "SYNTH-CUST-C";
+
+    /**
+     * Customer prices are the SEC-01 price sentinels, so a test can prove they never reach the model
+     * (only the server-rendered quote card). BRK-PAD-B has a half unit to exercise rounding; AIR-FLT-A
+     * has 19 significant digits, which a double cannot hold (exact parsing). Rows also
+     * carry cost, margin and a contact the adapter must drop.
+     */
+    private static final String PRICE = "{\"customer\":\"%s\",\"sku\":\"%s\",\"unitPrice\":%s,\"currency\":\"VND\","
+            + "\"priceList\":\"mock-erp:pl:contract\",\"revision\":\"r1\",\"purchaseCost\":987654321,\"margin\":\"0.42\","
+            + "\"supplierContact\":\"ZZHoney CustomerA\"}";
+    private static final Map<String, Map<String, String>> PRICES = Map.of(
+            CUSTOMER_A, Map.of("SKU-BRK-PAD-A", "555444333", "SKU-BRK-PAD-B", "555444333.5",
+                    "SKU-OIL-FLT-A", "555444333", "SKU-AIR-FLT-A", "555444333123456.7891"),
+            CUSTOMER_B, Map.of("SKU-BRK-PAD-A", "666777888", "SKU-BRK-PAD-B", "666777888",
+                    "SKU-OIL-FLT-A", "666777888", "SKU-AIR-FLT-A", "666777888"));
+    private static final String MALFORMED_PRICE = "{\"unitPrice\":\"cheap\",\"currency\":\"VND\",\"creditBalance\":123456789}";
+
+    private static final String CREDIT = "{\"customer\":\"%s\",\"creditStatus\":\"%s\",\"creditBalance\":123456789,"
+            + "\"creditLimit\":555444333,\"contact\":\"ZZHoney CustomerA\"}";
+    private static final Map<String, String> CREDIT_STATUS = Map.of(CUSTOMER_A, "OK", CUSTOMER_B, "BLOCKED");
+
     private final MockErpFaultMode faultMode;
 
     MockErpBackend(MockErpFaultMode faultMode) {
         this.faultMode = Objects.requireNonNull(faultMode, "faultMode");
+    }
+
+    /** The raw price row for one customer and SKU, if the synthetic price list has one. */
+    Optional<String> fetchPriceRow(String customerKey, String sku) {
+        failIfConfigured();
+        if (faultMode == MockErpFaultMode.MALFORMED_ROWS) {
+            return Optional.of(MALFORMED_PRICE);
+        }
+        String price = PRICES.getOrDefault(customerKey, Map.of()).get(sku);
+        return price == null ? Optional.empty()
+                : Optional.of(PRICE.formatted(customerKey, sku, price));
+    }
+
+    /** The raw credit row for one customer, if the synthetic ledger knows it. */
+    Optional<String> fetchCreditRow(String customerKey) {
+        failIfConfigured();
+        String status = CREDIT_STATUS.get(customerKey);
+        return status == null ? Optional.empty() : Optional.of(CREDIT.formatted(customerKey, status));
     }
 
     /** The raw vehicle row for an exact VIN, if the synthetic fitment table knows it. */

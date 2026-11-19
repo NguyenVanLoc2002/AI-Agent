@@ -84,9 +84,19 @@ class DefaultCatalogSearchTest {
         assertThatThrownBy(() -> catalog.search(new ExactProductQuery.ByVin(VIN)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(queries).isEmpty();
-        // Other queries keep the adapter's label (OE search is unchanged; A-31 OPEN).
+    }
+
+    /** A-31 (APPROVED 2026-11-18): only an exact OE search keeps VERIFIED. */
+    @Test
+    void onlyAnExactOeSearchIsVerified() {
+        DefaultCatalogSearch catalog = search(Optional.of(VIN));
+
         assertThat(catalog.search(new ExactProductQuery.ByOe("04465-0K290")))
                 .extracting(m -> m.candidate().provenance()).containsExactly(Provenance.VERIFIED);
+        assertThat(catalog.search(new ExactProductQuery.ByCategoryAndModel("Ma phanh truoc", "Vios 2019")))
+                .extracting(m -> m.candidate().provenance()).containsExactly(Provenance.CATALOG_LOOKUP);
+        assertThat(catalog.searchByConversationVin(CONVERSATION).orElseThrow())
+                .extracting(m -> m.candidate().provenance()).containsExactly(Provenance.CATALOG_LOOKUP);
     }
 
     @ParameterizedTest

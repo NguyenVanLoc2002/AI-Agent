@@ -1,11 +1,11 @@
 /**
  * Module {@code tools}: tool registry, strict schemas, per-call authorization and quotas.
  *
- * <p>DESIGN PROPOSAL (ADR-001, docs/architecture/MODULE_BOUNDARIES.md). Skeleton created by
- * POC-001; no business logic yet. Allowed module dependencies are enforced by
- * {@code ModuleStructureTest}; finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
+ * <p>EP-03 registry, EP-05 vinRef search, EP-06 requestQuote through {@code quote.QuoteService} (never the
+ * price-bearing card, ARCH-13a). Allowed module dependencies are enforced by {@code ModuleStructureTest};
+ * finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
  */
-@ApplicationModule(displayName = "Tools", allowedDependencies = { "catalog", "catalog :: spi", "gateway :: api", "identity", "platform" })
+@ApplicationModule(displayName = "Tools", allowedDependencies = { "catalog", "catalog :: spi", "quote", "gateway :: api", "identity", "platform" })
 package com.secureerp.agent.tools;
 
 import org.springframework.modulith.ApplicationModule;

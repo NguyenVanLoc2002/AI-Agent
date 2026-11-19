@@ -53,7 +53,7 @@ class VinSearchIT {
 
         @Bean
         ConversationAccessPort conversationAccess() {
-            return (principal, conversation) -> Access.ACTIVE;
+            return ToolFixtures.ownedByCustomerA();
         }
     }
 
@@ -203,6 +203,32 @@ class VinSearchIT {
         vehicles.register(ToolFixtures.conversation(33), "khong co so khung");
 
         assertThat(jdbc.queryForObject("select count(*) from conversation_vin", Integer.class)).isZero();
+    }
+
+    /**
+     * A-31 end to end: a category + vehicle-model result is CATALOG_LOOKUP and cannot be quoted; an
+     * exact OE result for the same SKU is VERIFIED and passes the productRef check.
+     */
+    @Test
+    void onlyExactOeResultsPassTheQuoteCheck() {
+        ToolCallContext context = ToolFixtures.customer("alice", 34, 1);
+        ProductSearchResult byModel = (ProductSearchResult) tools.execute(context, new ToolProposal(
+                "searchVerifiedProduct", "{\"category\":\"Ma phanh truoc\",\"vehicleModel\":\"Vios 2019\"}")).result();
+        ProductSearchResult byOe = (ProductSearchResult) tools.execute(ToolFixtures.customer("alice", 34, 2),
+                new ToolProposal("searchVerifiedProduct", "{\"oe\":\"04465-0K290\"}")).result();
+
+        assertThat(byModel.candidates()).isNotEmpty().extracting(ProductRef::provenance)
+                .containsOnly(Provenance.CATALOG_LOOKUP);
+        assertThat(byOe.candidates()).extracting(ProductRef::provenance).containsExactly(Provenance.VERIFIED);
+        assertThat(code(tools.execute(ToolFixtures.customer("alice", 34, 3), quote(byModel))))
+                .isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
+        // Ownership and VERIFIED pass, and the quote is issued (EP-06; no error code).
+        assertThat(code(tools.execute(ToolFixtures.customer("alice", 34, 4), quote(byOe)))).isNull();
+    }
+
+    private static ToolProposal quote(ProductSearchResult result) {
+        return new ToolProposal("requestQuote",
+                "{\"lines\":[{\"productRef\":\"" + result.candidates().getFirst().productRef() + "\",\"quantity\":1}]}");
     }
 
     /** T-TOOL-13 end to end: the model cannot pass the VIN itself. */

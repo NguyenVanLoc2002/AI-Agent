@@ -9,6 +9,17 @@ import com.secureerp.agent.catalog.spi.Provenance;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.catalog.spi.Vin;
 import com.secureerp.agent.catalog.spi.VerifiedProductPort;
+import com.secureerp.agent.identity.spi.ErpCustomerLink;
+import com.secureerp.agent.platform.Money;
+import com.secureerp.agent.quote.spi.AvailabilityPort;
+import com.secureerp.agent.quote.spi.CreditEligibilityPort;
+import com.secureerp.agent.quote.spi.EligibilityStatus;
+import com.secureerp.agent.quote.spi.PriceQuote;
+import com.secureerp.agent.quote.spi.PricingPort;
+import com.secureerp.agent.quote.spi.QuoteSourceUnavailableException;
+import java.math.BigDecimal;
+import java.util.Currency;
+import java.util.OptionalInt;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,13 +31,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Mock ERP connector for the PoC (target name {@code MockErpConnector}, ERP_CONNECTOR §5; ADR-005
- * and A-07 ACCEPTED/APPROVED 2026-11-18). Implements the catalog ports only; pricing, credit and
- * draft orders come with their own issues.
+ * and A-07 ACCEPTED/APPROVED 2026-11-18). Implements the catalog ports (SEC-01a, EP-05) and the quote
+ * ports for price, stock and credit (EP-06); draft orders come with EP-07. Mock-only assumption: the
+ * fake backend returns whole tables and the adapter filters (a real adapter queries per key).
  *
  * <p>Boundary rules (rule 20, T-ERP-02/03):
  * <ul>
@@ -38,7 +51,8 @@ import tools.jackson.databind.json.JsonMapper;
  * </ul>
  */
 @Component
-public class MockErpConnector implements VerifiedProductPort, AvailabilityBucketPort {
+public class MockErpConnector implements VerifiedProductPort, AvailabilityBucketPort, PricingPort, AvailabilityPort,
+        CreditEligibilityPort {
 
     private static final Logger log = LoggerFactory.getLogger(MockErpConnector.class);
 
@@ -59,12 +73,15 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
      * VERIFIED: the vehicle model narrows the catalog, it does not identify the exact part. DESIGN
      * PROPOSAL (EP-05); {@code catalog} caps VIN results at CATALOG_LOOKUP as well. The label belongs
      * to the query, not the SKU: an exact OE search for the same SKU still answers VERIFIED, so
-     * whether a VIN-found part may be quoted after an OE re-search is OPEN (A-31).
+     * a VIN-found part may be quoted after an exact OE re-search (A-31 APPROVED 2026-11-18).
      */
     static final Provenance FITMENT_PROVENANCE = Provenance.CATALOG_LOOKUP;
 
     private final MockErpBackend backend;
-    private final JsonMapper mapper = JsonMapper.builder().build();
+    /** Fractional JSON numbers become BigDecimal, never double: prices stay exact (rule 20, EP-06 review). */
+    private final JsonMapper mapper = JsonMapper.builder()
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+            .build();
 
     public MockErpConnector(@Value("${apas.erp.mock.fault-mode:NONE}") MockErpFaultMode faultMode) {
         this.backend = new MockErpBackend(faultMode);
@@ -125,6 +142,82 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
             // Never the VIN or the row: a malformed fitment row means "no fitment".
             log.warn("erp.vehicle.row_skipped");
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Customer price (EP-06, ERP_CONNECTOR §3.3). Only {@code unitPrice}, {@code currency},
+     * {@code priceList} and {@code revision} are read; cost, margin and contact are dropped here. A
+     * malformed row means "no price" (fail closed), never a partial price.
+     */
+    @Override
+    public Optional<PriceQuote> priceFor(ErpCustomerLink customer, Sku sku) {
+        Optional<String> raw;
+        try {
+            raw = backend.fetchPriceRow(customer.value(), sku.value());
+        } catch (RuntimeException e) {
+            log.warn("erp.price.unavailable code=SERVICE_UNAVAILABLE exception={}", e.getClass().getSimpleName());
+            throw new QuoteSourceUnavailableException();
+        }
+        if (raw.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode node = mapper.readTree(raw.get());
+            JsonNode unitPrice = node == null ? null : node.get("unitPrice");
+            if (unitPrice == null || !unitPrice.isNumber()) {
+                throw new IllegalArgumentException("missing or non-numeric price");
+            }
+            BigDecimal amount = unitPrice.decimalValue();
+            Money price = Money.of(amount, Currency.getInstance(string(node, "currency")));
+            String revision = node.hasNonNull("revision") ? string(node, "revision") : null;
+            return Optional.of(new PriceQuote(price, string(node, "priceList"), revision));
+        } catch (JacksonException | IllegalArgumentException | NullPointerException e) {
+            log.warn("erp.price.row_skipped");
+            return Optional.empty();
+        }
+    }
+
+    /** Stock quantity (INTERNAL, ERP_CONNECTOR §3.4); unknown or malformed means "not available". */
+    @Override
+    public OptionalInt quantityAvailable(Sku sku) {
+        List<ErpRow> all;
+        try {
+            all = rows();
+        } catch (CatalogUnavailableException e) {
+            throw new QuoteSourceUnavailableException();
+        }
+        return all.stream()
+                .filter(row -> row.candidate().sku().equals(sku) && row.quantityOnHand() != null
+                        && row.quantityOnHand() >= 0)
+                .mapToInt(ErpRow::quantityOnHand)
+                .findFirst();
+    }
+
+    /**
+     * Credit status (RESTRICTED, ERP_CONNECTOR §3.5). Only {@code creditStatus} is read; balance and
+     * limit are dropped. Unknown customer or status: REVIEW_REQUIRED (fail closed).
+     */
+    @Override
+    public EligibilityStatus check(ErpCustomerLink customer) {
+        Optional<String> raw;
+        try {
+            raw = backend.fetchCreditRow(customer.value());
+        } catch (RuntimeException e) {
+            log.warn("erp.eligibility.unavailable code=SERVICE_UNAVAILABLE exception={}", e.getClass().getSimpleName());
+            throw new QuoteSourceUnavailableException();
+        }
+        if (raw.isEmpty()) {
+            return EligibilityStatus.REVIEW_REQUIRED;
+        }
+        try {
+            return switch (string(mapper.readTree(raw.get()), "creditStatus")) {
+                case "OK" -> EligibilityStatus.ELIGIBLE;
+                case "BLOCKED" -> EligibilityStatus.NOT_ELIGIBLE;
+                default -> EligibilityStatus.REVIEW_REQUIRED;
+            };
+        } catch (JacksonException | IllegalArgumentException | NullPointerException e) {
+            return EligibilityStatus.REVIEW_REQUIRED;
         }
     }
 
@@ -216,7 +309,7 @@ public class MockErpConnector implements VerifiedProductPort, AvailabilityBucket
         return text.strip().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
-    /** Parsed row after stripping. Quantity is INTERNAL and only used for the bucket mapping. */
+    /** Parsed row after stripping. Quantity is INTERNAL: bucket mapping and the quote stock check only. */
     private record ErpRow(ProductCandidate candidate, String vehicleModel, Integer quantityOnHand) {
     }
 }
