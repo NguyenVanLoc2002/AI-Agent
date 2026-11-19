@@ -236,13 +236,13 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
             }
             case 4, 5 -> {
                 catalog.use(index % SCRIPTS == 4 ? CatalogMode.ERROR_WITH_SENTINEL : CatalogMode.TIMEOUT);
-                // TOOL_CONTRACTS §5: CATALOG_UNAVAILABLE goes back to the model as a bare code (no handoff on
-                // the first rejection); the second request carries that error result and is scanned too.
+                // A-40(b): an ERP outage hands off at once; the error (with sentinels in the Mock ERP message)
+                // never reaches a second model request, and the sinks below are still scanned for it.
                 script(toolCall("searchVerifiedProduct", "{\"oe\":\"" + OE + "\"}"),
                         text("Hệ thống tra cứu đang bận, bạn thử lại sau nhé."));
-                answered(send(client, conversation, "Cần má phanh " + OE));
-                assertThat(providerBodies().getLast()).contains("\"code\":\"CATALOG_UNAVAILABLE\"");
-                expectCalls(2, before, Outcome.ERP_FAILURE);
+                handedOff(send(client, conversation, "Cần má phanh " + OE), conversation, "CATALOG_UNAVAILABLE");
+                assertThat(providerBodies()).noneMatch(body -> body.contains("CATALOG_UNAVAILABLE"));
+                expectCalls(1, before, Outcome.ERP_FAILURE);
             }
             case 6 -> {
                 String sentinel = DIGIT_SENTINELS.get(random.nextInt(DIGIT_SENTINELS.size()));

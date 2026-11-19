@@ -232,6 +232,8 @@ class DefaultToolManagerTest {
         ToolOutcome outcome = manager().execute(CONTEXT, new ToolProposal(SEARCH, "{\"oe\":\"04465-0K290\"}"));
 
         assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.CATALOG_UNAVAILABLE);
+        // A-40(b): an ERP outage hands off at once (rule 10: fail closed, human fallback).
+        assertThat(outcome.handoffRequired()).isTrue();
         assertThat(EgressScan.containsSentinel(serializedForModel(outcome))).isFalse();
         // The error result passes the gateway's property-name allowlist (it is a gateway.api type).
         assertThat(EgressSerializer.structure(serializedForModel(outcome))).isPresent();
@@ -313,6 +315,7 @@ class DefaultToolManagerTest {
         ToolOutcome outcome = manager().execute(withVin, new ToolProposal(SEARCH, "{\"vinRef\":\"current\"}"));
 
         assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.CATALOG_UNAVAILABLE);
+        assertThat(outcome.handoffRequired()).isTrue();
         assertThat(EgressScan.containsSentinel(output.getAll())).isFalse();
         assertThat(output.getAll()).doesNotContain(NA_VIN);
     }
