@@ -10,10 +10,10 @@
 
 | BRD §12 | Port đề xuất | Module sở hữu | Ai được phụ thuộc |
 |---|---|---|---|
-| findLinkedCustomer | `CustomerLinkPort.findByChannelBinding` | identity | identity |
+| findLinkedCustomer | `CustomerLinkPort.findByChannelBinding` (trong `identity :: spi`, erp hiện thực; EP-04) | identity | identity |
 | searchVerifiedProduct | `VerifiedProductPort.search` | catalog | catalog |
 | getCustomerPrice | `PricingPort.priceFor` | quote | quote, order |
-| getAvailability | `AvailabilityPort.check` (chi tiết, INTERNAL) | quote | quote, order |
+| getAvailability | `AvailabilityPort.quantityAvailable` (chi tiết, INTERNAL) | quote | quote, order |
 | getAvailability | `AvailabilityBucketPort.bucket` (chỉ enum) | catalog | catalog |
 | getCreditEligibility | `CreditEligibilityPort.check` | quote | quote, order |
 | createDraftOrder, findDraftByExternalRef | `DraftOrderPort` | order | order |
@@ -27,11 +27,11 @@
 | `ErpCustomerLink` | mã khách theo định dạng của ERP, chuỗi mờ | EP-06, A-19: `identity.spi.ErpCustomerLink`; chỉ identity, quote, erp dùng (ARCH-08d); không liên quan tới định dạng `AuthenticatedCustomerRef` |
 | `PriceSource` | EP-06: chuỗi mã nguồn giá (ví dụ mã bảng giá) + `revision` (string opaque, **tùy chọn**, có thể null) trong `quote.spi.PriceQuote` | ERP đích có trả revision hay không: OPEN D-01. Fallback: so sánh `unitPrice` bằng `compareTo` khi recheck (EP-07) |
 | `EligibilityStatus` | `ELIGIBLE / NOT_ELIGIBLE / REVIEW_REQUIRED` (EP-06; bản nháp cũ gọi là `NEEDS_REVIEW`) | **không** trả số dư/hạn mức |
-| `AvailabilityResult` | `bucket: CON_HANG / HET_HANG / CAN_KIEM_TRA` + `quantityAvailable` (INTERNAL, chỉ quote dùng) | bucket là SOURCE FACT BRD §08 |
+| Tồn kho | quote: `OptionalInt quantityAvailable` (INTERNAL, chỉ quote dùng); catalog: `AvailabilityBucket` `CON_HANG / HET_HANG / CAN_KIEM_TRA` | bucket là SOURCE FACT BRD §08; EP-06 không dùng kiểu gộp `AvailabilityResult` của bản nháp |
 
 ## 3. Port
 ### 3.1 `CustomerLinkPort` (identity)
-- `Optional<AuthenticatedCustomerRef> findByChannelBinding(ChannelIdentity binding)`
+- EP-04 (theo A-19, A-37): `Optional<ErpCustomerLink> findByChannelBinding(ChannelIdentity binding)` — trả mã khách ERP (RESTRICTED), **không** trả `AuthenticatedCustomerRef` (erp không tạo được ref, ARCH-08a). Identity tìm hoặc tạo ref ổn định cho binding đó (A-37) rồi mới đưa ra ngoài.
 - Chỉ tra theo binding đã xác thực (kênh + provider user hash). **Không** tìm theo tên, SĐT, tiền tố (chống enumerate — rule 10).
 - PoC: seed tĩnh. Khách chưa liên kết: MVP (OPEN D-06/D-08).
 - **A-19 (APPROVED, triển khai EP-06):** port trả về một `ErpCustomerLink` mờ; `identity.CustomerLinks.bind` tạo `AuthenticatedCustomerRef` ngẫu nhiên (`cref_` + 128 bit) và lưu ánh xạ trong `customer_link` (Flyway V7). `erp` không bao giờ thấy hay tạo ref; quote hỏi identity lấy `ErpCustomerLink` rồi truyền cho port. EP-04 hiện thực `CustomerLinkPort`.

@@ -56,6 +56,8 @@ bootstrap ─► mọi module (wiring)
 | ARCH-12 | `catalog..` chỉ phụ thuộc `AvailabilityBucketPort` (enum), không `quote.spi.AvailabilityPort` | review F6 |
 | ARCH-13 | Modulith `verify()` không có cycle | review |
 | ARCH-08d | `identity.spi.ErpCustomerLink` chỉ dùng trong identity, quote, erp (mọi kiểu phụ thuộc, kể cả method reference) | A-19, EP-06 |
+| ARCH-08e | `identity.CustomerLinks` (đọc liên kết khách) chỉ dùng trong identity, quote | EP-06 review vòng 2 |
+| ARCH-08f | `identity.CustomerLinkBinding` (tạo ref từ mã ERP) chỉ dùng trong identity | EP-06 review vòng 2 |
 | ARCH-13a | `QuoteCard`/`QuoteCards` (có giá) chỉ dùng trong quote và conversation (render) | EP-06 architecture review M1 |
 | ARCH-13b | `Money` chỉ dùng trong platform, quote, order, erp, conversation | EP-06 architecture review M2 |
 | ARCH-13c | quote chỉ dùng `Sku` từ `catalog.spi` | EP-06 architecture review L2 |
@@ -95,8 +97,8 @@ bootstrap ─► mọi module (wiring)
 
 ## 10. Ghi chú triển khai EP-06 (2026-11-18/19)
 - API thực tế: `quote.QuoteService` (thay tên dự kiến `QuoteApi`), `quote.QuoteCards` (thay `QuoteHandleService`), `quote.QuoteRequest`/`QuoteOutcome`/`QuoteCard`; `quote :: spi` (named interface) gồm `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`, `PriceQuote`, `EligibilityStatus`, `QuoteSourceUnavailableException`.
-- Allowlist mới: `quote` thêm `identity :: spi`, `catalog :: spi`; `erp` thêm `quote :: spi`, `identity :: spi` (không phải toàn bộ `identity`: §7 L2 vẫn giữ); `tools` thêm `quote` (ARCH-13a chặn `QuoteCard`/`QuoteCards`).
-- `identity`: `CustomerLinks` (API) + `identity :: spi` `ErpCustomerLink`; `JdbcCustomerLinks` nằm trong package `identity` (package-private) vì chỉ package này tạo được `AuthenticatedCustomerRef` (ARCH-08a). Bảng `customer_link` (Flyway V7) thuộc identity.
+- Allowlist mới: `quote` thêm `identity :: spi`, `catalog :: spi` và bỏ `order` (chưa dùng; thêm lại ở EP-07); `erp` thêm `quote :: spi`, `identity :: spi` (không phải toàn bộ `identity`: §7 L2 vẫn giữ); `tools` thêm `quote` (ARCH-13a chặn `QuoteCard`/`QuoteCards`).
+- `identity`: `CustomerLinks` (đọc, ARCH-08e) + `CustomerLinkBinding` (tạo ref, ARCH-08f) + `identity :: spi` `ErpCustomerLink`; `JdbcCustomerLinks` (`@Component`) nằm trong package `identity` (package-private) vì chỉ package này tạo được `AuthenticatedCustomerRef` (ARCH-08a) — ngoại lệ có chủ đích với quy ước "hiện thực nằm trong internal" (ADR-001). Bảng `customer_link` (Flyway V7) thuộc identity; EP-04 thêm cột binding (A-37).
 - `platform.Money` (DESIGN PROPOSAL, A-36d): kiểu RESTRICTED khi là giá khách; ARCH-13b giới hạn module dùng; ARCH-05 vẫn cấm trong egress.
-- Bảng của quote (Flyway V6): `quote`, `quote_line`, `quote_handle`, `quote_request`; khóa advisory namespace `30_006` (tools dùng `30_003`).
+- Bảng của quote (Flyway V6): `quote`, `quote_line`, `quote_handle`, `quote_request`; khóa advisory namespace `30_006` (tools dùng `30_003`), theo thứ tự khách rồi conversation, `lock_timeout` 5 s. Khóa/giới hạn A-34 theo khách (`quote_request.customer_digest`).
 - `tools.spi.ConversationAccessPort.boundCustomer` (A-35): EP-04 hiện thực; mặc định không có khách gắn → không báo giá.

@@ -46,7 +46,8 @@
 | Thông báo lỗi tới khách | mã lỗi + thông điệp chung | chi tiết nội bộ |
 | Bảng `quote`, `quote_line` (EP-06) | RESTRICTED: giá theo khách, tổng, nguồn/bảng giá và revision; `customer_digest` là SHA-256 của ref ngẫu nhiên | giá vốn, công nợ, mã khách ERP |
 | Bảng `quote_handle` (EP-06) | SHA-256 của handle + ràng buộc conversation/khách/version/hạn | handle gốc |
-| Bảng `quote_request` (EP-06) | outcome, mã lý do NOT_QUOTED (RESTRICTED: có thể cho biết tình trạng công nợ; chỉ nhân viên đọc, A-14), số dòng | giá, số tồn, handle, digest |
+| Bảng `quote_request` (EP-06) | outcome, mã lý do NOT_QUOTED (RESTRICTED: có thể cho biết tình trạng công nợ; chỉ nhân viên đọc, A-14), số dòng, `customer_digest` (SHA-256 của ref ngẫu nhiên, để khóa A-34 theo khách) | giá, số tồn, handle |
+| Log transaction/JDBC | mức INFO trở lên ở mọi profile (`application.yml`): ở DEBUG, lỗi ràng buộc có thể trích dòng dữ liệu (giá, digest) | DEBUG cho `org.springframework.transaction`, `org.springframework.jdbc` |
 | Bảng `customer_link` (EP-06, A-19) | RESTRICTED: ref ngẫu nhiên ↔ mã khách ERP; chỉ identity đọc | dữ liệu khác của khách |
 | Retention các bảng trên | OPEN (D-09); chưa có job xoá | |
 
