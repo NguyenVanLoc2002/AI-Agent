@@ -1,5 +1,6 @@
 # ADR-011 Conversation history: policy-safe summary
-- **Status:** PROPOSED (sửa sau review 2026-11-13)
+- **Status:** ACCEPTED (2026-11-19, project owner, kế hoạch EP-04; N = 6 lượt khách gần nhất)
 - **Context:** SOURCE FACT rule 30 §2. security-auditor: giá đã render quay lại qua replay/summary là đường rò Critical; tin nhắn nhân viên (có thể chứa giá) có thể vào history sau khi bot được mở khóa; gọi LLM để tóm tắt cũng là egress.
 - **Decision:** history gửi model = summary deterministic dựng từ structured state (sản phẩm đã xác minh, handle, câu hỏi mở, N lượt **khách** đã sanitize gần nhất). Loại trừ: assistant text nguyên văn, quote card, mọi tin direction STAFF. Không dùng LLM tóm tắt trong PoC.
-- **Evidence required:** T-SEC01-HISTORY, T-SEC01-STAFF. NOT RUN.
+- **Triển khai EP-04:** `agent.internal.DefaultAgent.history` — các tin khách đã sanitize trước đó thành một đoạn CONTEXT_SUMMARY, tin hiện tại là CUSTOMER; `conversation` chỉ truyền tối đa 6 tin khách không bị chặn (`AgentTurn.MAX_HISTORY`). Sản phẩm của lượt trước không được mang sang (model tìm lại từ OE trong history) — DESIGN PROPOSAL. ARCH-14: output thô của model không ra khỏi gateway/agent/tools.
+- **Evidence required:** T-SEC01-HISTORY (VERIFIED 2026-11-19, `ChatFlowIT.anIssuedQuoteIsRenderedForTheCustomerAndNeverReachesTheModel`), T-SEC01-STAFF (NOT RUN, EP-08: chưa có tin nhân viên).

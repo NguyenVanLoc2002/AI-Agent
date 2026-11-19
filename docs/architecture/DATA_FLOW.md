@@ -7,7 +7,7 @@
 | # | Bước | Module | Dữ liệu vào → ra | Kiểm soát | Lỗi → |
 |---|---|---|---|---|---|
 | 1 | `POST /api/demo/conversations/{id}/messages` | conversation | raw text (untrusted) | session + CSRF; principal → `AuthenticatedCustomerRef`; ownership; dedup `clientEventId`; kích thước/JSON hợp lệ | 400/401/404; trùng → trả kết quả cũ |
-| 2 | Kill switch | platform | — | `KillSwitch.isAiEnabled()`; không đọc được trạng thái → coi như OFF (fail-closed) | OFF → handoff `AI_DISABLED` |
+| 2 | Kill switch (**chưa làm**: EP-09, ADR-013 PROPOSED; EP-04 không có bước này) | platform | — | `KillSwitch.isAiEnabled()`; không đọc được trạng thái → coi như OFF (fail-closed) | OFF → handoff `AI_DISABLED` |
 | 3 | Inbound sanitize | policy | raw → `SafeMessage` (T) | VIN trích + validate server-side, lưu VIN đầy đủ trong state, chỉ WMI/mask đi tiếp; phát hiện tiền/SĐT/email/ID/honeytoken → redact hoặc reject | reject → handoff `DLP_INBOUND`; VIN sai → hỏi lại (không gọi model hay tool) |
 | 4 | Dựng request | agent | `SafeMessage`, history **summary** (T), `ToolSpec` | summary từ structured state; **loại trừ** lượt của nhân viên và quote card | — |
 | 5 | Egress preflight | gateway + policy | `ModelRequest` → bytes | serialize allowlist; scan bytes cuối; publish `EgressDecision` (field names, honeytoken ID/policy code, length) → audit | hit/unknown → **không gửi**, handoff `DLP_EGRESS` |
@@ -35,8 +35,13 @@
 6. `Created` → `DRAFT_ORDER_CREATED`; `Rejected` → `ORDER_FAILED`; timeout/không rõ → `ORDER_OUTCOME_UNKNOWN` + handoff `ERP_UNKNOWN`; đối soát bằng `findByExternalRef` **chỉ khi** cấu hình capability (đặt tĩnh từ tài liệu đã duyệt, OPEN D-03) cho phép; ngược lại SALES đối soát thủ công. Mỗi bước đối soát ghi audit (bằng chứng reconciliation).
 7. Không có đường nào để AI gọi bước 1–6.
 
+### 1a. Triển khai EP-04 (2026-11-19)
+- Thứ tự thật trong `ChatService`: owner (404) + khách gắn với conversation (A-35, 403) → sanitizer (A-21) → **tiếp nhận nguyên tử** (advisory lock theo conversation: dedup `clientEventId`, tối đa một lượt đang chạy → 409, giới hạn theo conversation + principal → 429, đọc `status`, insert tin khách đã sanitize) → conversation đang chờ nhân viên → câu cố định → VIN intake với text gốc (A-29; Invalid/Multiple → hỏi lại, Unavailable → handoff, không gọi model) → agent (≤3 lần gọi model, history đến đúng tin của lượt này) → render card phía server.
+- Mọi lượt đã tiếp nhận đều kết thúc bằng một câu trả lời đã lưu; lỗi bất ngờ → handoff `PROVIDER_ERROR`; lượt bỏ dở quá `turn-timeout` (2 phút) được hoàn tất thành handoff khi client gửi lại cùng event.
+- Bước 2 (kill switch) chưa có; bước 11: OutputValidator loại cả câu trả lời và handoff `OUTPUT_REJECTED` (quyết định 2026-11-19).
+
 ## 3. Luồng handoff (UC-05/06)
-Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → `HandoffApi.open` → event `HandoffOpened` → conversation `HANDOFF_PENDING` (bot khóa) → SALES claim → `HUMAN_ACTIVE` (tin của SALES lưu với direction STAFF, không vào history model) → resolve → event `HandoffResolved` → `ACTIVE_BOT`. Notification nội bộ chỉ chứa reason code + conversation ID.
+Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → EP-04: conversation đặt `HANDOFF_PENDING` (bot khóa) và gọi `Handoffs.open` trong **một transaction** (chưa có event; event `HandoffOpened` là đề xuất cho EP-08) → SALES claim → `HUMAN_ACTIVE` (tin của SALES lưu với direction STAFF, không vào history model) → resolve → event `HandoffResolved` → `ACTIVE_BOT`. Notification nội bộ chỉ chứa reason code + conversation ID.
 
 ## 4. Egress sinks
 | Sink | PoC | Kiểm soát | Bằng chứng |
@@ -52,7 +57,7 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → `HandoffApi.
 | Bảng | Module | Lớp | Ràng buộc chính |
 |---|---|---|---|
 | customer_link | identity | R | EP-06 (Flyway V7): PK `customer_ref` (ref ngẫu nhiên), `erp_link`, `revoked_at`. EP-04 (A-37): thêm cột binding kênh + UNIQUE(channel, provider_user_hash) bằng migration mới, để mỗi binding có một ref ổn định |
-| conversation | conversation | I | `row_version`, `bot_locked` |
+| conversation | conversation | I | EP-04 (Flyway V9): chủ sở hữu principal, `customer_digest` (A-35), `status` ACTIVE_BOT/HANDOFF_PENDING, `row_version` |
 | message | conversation | I/T (đã sanitize) | UNIQUE(conversation_id, client_event_id); direction CUSTOMER/BOT/STAFF |
 | quote / quote_line | quote | R | EP-06 (Flyway V6): `quote.version` + `row_version`; một ISSUED mỗi conversation (unique index một phần); UNIQUE(quote_id, line_no), UNIQUE(quote_id, sku); CHECK qty 1..9999; NUMERIC(19,4), VND scale 0 (ADR-014) |
 | quote_request | quote | R | EP-06: outcome, mã lý do (chỉ nhân viên), `customer_digest` (khóa/giới hạn A-34 theo khách) |

@@ -2,6 +2,8 @@
 
 > 2026-11-18, SEC-01a: **SEC-01: gateway-level evidence only — chưa gồm tool loop, quote, history, staff handoff.** T-SEC01-SCHEMA, -VARIANTS, -ERR, -CAPTURE, -USERMONEY, -VIN, -GW200 chạy với Fake provider + proxy local (lệnh và kết quả: `docs/SESSION_HANDOFF.md`). Riêng T-SEC01-ERR là bằng chứng **mức connector**: việc đổi lỗi ERP thành mã do harness test làm; mapping production thuộc EP-03. SEC-01 chỉ được ghi VERIFIED sau SEC-01b (flow thật). SEC-02..07: NOT RUN.
 
+> 2026-11-19, EP-04: **SEC-02 một phần** — 20 lần thử chéo khách qua HTTP với dữ liệu thật của khách nạn nhân (`CrossCustomerIT`), 0 rò; từ chối mức HTTP chưa có bản ghi audit (EP-09). **SEC-03 một phần** — 15/50 fixture (`AdversarialChatIT`). T-SEC01-HISTORY chạy qua flow thật nhưng chưa qua proxy capture kép; SEC-01 vẫn chờ SEC-01b. Chi tiết: `docs/contracts/TOOL_CONTRACTS.md` §9.
+
 | ID | Setup and adversarial action | Expected proof | Test layer |
 |---|---|---|---|
 | SEC-01 | Seed sentinel cost 987654321 and debt 123456789; 200 synthetic chats; capture outbound provider payloads including tool results/errors | zero sentinels in outbound bytes, logs or traces; approved fields only | gateway integration |

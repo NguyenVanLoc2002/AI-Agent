@@ -7,16 +7,16 @@
 ## 1. Trách nhiệm
 | Module | Trách nhiệm | Sở hữu port / API | Lớp dữ liệu được chạm |
 |---|---|---|---|
-| identity | Principal, vai trò, liên kết kênh → `AuthenticatedCustomerRef` | `CurrentPrincipalProvider`, `CustomerLinkPort` (spi) | RESTRICTED (identity) — không xuất giá trị thô |
-| conversation | Endpoint chat, dedup, trạng thái hội thoại (kể cả `bot_locked`), ghép response | `ChannelPort` | INTERNAL, sanitized text |
-| agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `AgentApi.handleTurn(...)` | APPROVED_TECHNICAL |
+| identity | Principal, vai trò, phiên đăng nhập (EP-04), liên kết kênh → `AuthenticatedCustomerRef` | `CurrentIdentity` (phiên → `SessionIdentity`), `LinkedCustomers`, `CustomerLinkPort` + `ChannelIdentity` (spi) | RESTRICTED (identity) — không xuất giá trị thô |
+| conversation | Endpoint chat (profile demo), dedup, một lượt đang chạy/conversation, trạng thái hội thoại (`status` ACTIVE_BOT/HANDOFF_PENDING + `row_version`), ghép response + render quote card | `Chat` (API cho `adapter.web`), hiện thực `tools.spi.ConversationAccessPort`; `ChannelPort` (Zalo, EP-12) | INTERNAL, sanitized text |
+| agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `Agent.reply(AgentTurn) -> AgentReply` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
 | policy | DLP inbound/outbound, phát hiện VIN để mask/chặn (không validate, không lưu; EP-05 chuyển validate VIN sang catalog), honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô; validate + lưu VIN hiện tại của conversation (EP-05) | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum), `VehicleContext`, `CatalogSearch` | APPROVED_TECHNICAL; VIN đầy đủ: nhạy cảm theo ngữ cảnh, không ra khỏi catalog/erp |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
 | order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `OrderApi.submit(quoteId, version)` | RESTRICTED, INTERNAL |
-| handoff | Queue, reason code, claim/resolve; publish `HandoffOpened/Resolved` | `HandoffApi` | INTERNAL |
+| handoff | Queue, reason code, claim/resolve (EP-08); EP-04: chỉ bản ghi OPEN | `Handoffs.open(conversation, reason)` (EP-04, gọi trực tiếp; event `HandoffOpened/Resolved` ở EP-08) | INTERNAL |
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
 | platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | — |
@@ -102,3 +102,10 @@ bootstrap ─► mọi module (wiring)
 - `platform.Money` (DESIGN PROPOSAL, A-36d): kiểu RESTRICTED khi là giá khách; ARCH-13b giới hạn module dùng; ARCH-05 vẫn cấm trong egress.
 - Bảng của quote (Flyway V6): `quote`, `quote_line`, `quote_handle`, `quote_request`; khóa advisory namespace `30_006` (tools dùng `30_003`), theo thứ tự khách rồi conversation, `lock_timeout` 5 s. Khóa/giới hạn A-34 theo khách (`quote_request.customer_digest`).
 - `tools.spi.ConversationAccessPort.boundCustomer` (A-35): EP-04 hiện thực; mặc định không có khách gắn → không báo giá.
+
+## EP-04 (2026-11-19)
+- Allowlist: `conversation` = agent, handoff, quote, identity, policy (A-21), `catalog :: intake` (A-29; `@NamedInterface("intake")` trên `VehicleContext`, `VinIntake` và các record lồng của nó), `tools :: spi`, platform, audit. `agent` thêm `gateway :: api`.
+- `identity`: `SecurityConfiguration`, `SessionIdentities`, `SessionLimitsFilter`, `JdbcPrincipals`, `DemoProfileGuard` nằm trong package gốc `identity` (package-private) vì chỉ package này tạo được `PrincipalId`/`AuthenticatedCustomerRef` — cùng ngoại lệ có chủ đích như `JdbcCustomerLinks` (§10). Controller phiên ở `identity.adapter.web`.
+- `conversation`: API `Chat` + `ChatTurn` ở package gốc; hiện thực ở `conversation.internal`; controller và `RequestSizeFilter` ở `conversation.adapter.web` (profile demo, ADR-015).
+- ARCH-14: chỉ gateway, agent, tools phụ thuộc `ModelResponse`/`ToolProposal` (thay cho A-22 trong lúc chờ).
+- Advisory lock: 30_010 (tiếp nhận lượt theo conversation), 30_011 (tạo conversation theo principal); tools 30_003, quote 30_006.
