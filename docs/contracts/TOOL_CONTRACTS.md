@@ -33,10 +33,10 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 
 ### 3.3 `requestQuote`
 - Input: `{ "lines": [ { "productRef": opaque, "quantity": int 1..9999 } ] (1..20) }` — `productRef` phải đến từ kết quả search **của chính conversation**.
-- Authz: principal CUST; mọi productRef thuộc conversation; provenance VERIFIED; không có quote ISSUED đang chờ cho cùng tập dòng (DESIGN PROPOSAL).
-- Xử lý nội bộ: quote module lấy giá/tồn/eligibility.
+- Authz: principal CUST; mọi productRef thuộc conversation; provenance VERIFIED (chỉ kết quả tìm OE chính xác, A-31); khách của phiên phải là khách đã gắn với conversation (A-35, lệch → `FORBIDDEN_RESOURCE` + handoff); cùng SKU hai lần → `TOOL_SCHEMA`. Mỗi conversation chỉ có một báo giá ISSUED: báo giá mới thay báo giá cũ (ADR-007), thay cho đề xuất cũ "không có quote ISSUED đang chờ cho cùng tập dòng".
+- Xử lý nội bộ: tools đổi productRef → SKU và gọi `quote.QuoteService` với conversation, khách của phiên và các dòng SKU; quote lấy liên kết ERP từ identity (A-19) rồi lấy giá/tồn/eligibility. Khách chưa liên kết → `NOT_QUOTED`. Sau một `NOT_QUOTED` conversation không được báo giá tự động trong 24 h; tối đa 5 báo giá ISSUED/conversation/giờ (A-34, kiểm tra trước mọi lời gọi ERP).
 - Output: `{ "status": enum[ISSUED, NOT_QUOTED], "quoteHandle": opaque? , "lineCount": int }`.
-  - `NOT_QUOTED` là **một** giá trị duy nhất cho mọi lý do (hết hàng theo số lượng, công nợ không đạt, cần xem xét, giá thiếu). Lý do chi tiết chỉ ghi trong handoff nội bộ (reason code) và audit, **không** tới model. `NOT_QUOTED` luôn kèm handoff.
+  - `NOT_QUOTED` là **một** giá trị duy nhất cho mọi lý do (hết hàng theo số lượng, công nợ không đạt, cần xem xét, giá thiếu, ERP hoặc DB lỗi, đã chuyển nhân viên, vượt giới hạn, thua cuộc đua đồng thời). Một `NOT_QUOTED` thu hồi báo giá ISSUED cũ hơn của conversation (A-33). Lý do chi tiết chỉ ghi trong handoff nội bộ (reason code) và audit, **không** tới model. `NOT_QUOTED` luôn kèm handoff.
   - Lý do (security review F1/F2): trả `INELIGIBLE`/`OUT_OF_STOCK` riêng biệt cho phép dò hạn mức công nợ (vary quantity → orderTotal) và dò số tồn; eligibility là RESTRICTED (rule 30 §5).
 
 ### 3.4 `requestHandoff`
@@ -103,3 +103,24 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 | T-UC02-OE-FABRICATED | NOT RUN | cần OutputValidator (EP-04) |
 | T-UC02-AMBIG | NOT RUN | từ chối báo giá thuộc EP-06 |
 | T-TOOL-13 (end to end) | VERIFIED (PostgreSQL) | `VinSearchIT.theModelCannotPassAVinAsAnArgument` |
+
+## 8. Triển khai EP-06 (2026-11-18/19)
+- Quyết định owner: ADR-007/008/014 ACCEPTED; A-03, A-14, A-31 (VERIFIED = đúng mã phụ tùng), D-04/D-13 một phần; sau review: A-19 giữ nguyên và được hiện thực, A-33, A-34, A-35 APPROVED, A-26 phần `quoteHandle` DECIDED; A-36 ghi các điểm còn mở.
+- Code: `quote.QuoteService` / `quote.internal.DefaultQuoteService`, `quote.QuoteCards` (render card phía server), `quote.spi` (giá, tồn, công nợ), `platform.Money`, `identity.CustomerLinks` + `identity.spi.ErpCustomerLink`, Flyway V6 (`quote`, `quote_line`, `quote_handle`, `quote_request`) và V7 (`customer_link`). Executor `requestQuote` trong `tools`; `ToolCallContext.customer` (do EP-04 điền từ phiên); `ConversationAccessPort.boundCustomer` (mặc định: không có → không báo giá).
+- Model chỉ nhận `QuoteRequestResult(status, quoteHandle?, lineCount)`; `NOT_QUOTED` luôn kèm handoff, kể cả khi DB/ERP lỗi; lỗi bất ngờ của quote → `TOOL_UNAVAILABLE` + handoff. Lý do chi tiết chỉ nằm trong `quote_request.reason_code` cho nhân viên (A-14), không trong log.
+- Sửa lỗi từ EP-03: khoảng 28 % token `productRef` ngẫu nhiên chứa chuỗi giống VIN nên chính lệnh `requestQuote` của model bị từ chối `TOOL_SCHEMA` (T-TOOL-13). Token và quote handle giờ được rút lại khi giống VIN (`ProductRefRegistryIT`, `QuoteTokensTest`).
+- Review (advisory): backend-reviewer 0H/4M/8L, security-auditor 0H/3M/6L, architecture-reviewer 1H/8M/9L. Đã sửa có test: race báo giá cũ thắng (newest wins), lỗi sau bước ERP → NOT_QUOTED + handoff, Mock đọc giá không qua `double`, revision tùy chọn, record lưu trữ không in số tiền, handle phải khớp cả conversation của quote, số tiền trên card đúng scale, ràng buộc DB, ARCH-08d (cả method reference), ARCH-13a (QuoteCard), ARCH-13b (Money), ARCH-13c (quote chỉ dùng `Sku` của catalog.spi), A-19/A-33/A-34/A-35. Ghi nhận, chưa sửa: A-36.
+
+| ID | Trạng thái | Bằng chứng |
+|---|---|---|
+| T-TOOL-09 | VERIFIED (PostgreSQL) | `QuoteServiceIT.creditStockAndMissingCustomerLookIdenticalToTheModel` (công nợ bị chặn, cần xem xét, hết hàng, thiếu số lượng, không có khách → cùng một kết quả + handoff) |
+| T-TOOL-10 | VERIFIED (PostgreSQL), có rủi ro còn lại | `QuoteServiceIT.quantityProbingRevealsNoStockNumber` (sau NOT_QUOTED: HANDED_OFF, không gọi ERP), `theSixthQuoteInAnHourIsRefused`; `DefaultQuoteServiceTest.theGateRefusesBeforeAnyErpCall`. Còn lộ được "tồn < q" qua một NOT_QUOTED (A-34) |
+| T-SEC01-QUOTE | VERIFIED (PostgreSQL + unit) | `QuoteServiceIT.issuedQuoteGivesTheModelAHandleAndTheCustomerACard`, `DefaultToolManagerTest.quoteUsesTheSessionCustomerAndTheSkusBehindTheRefs`; sentinel giá: 0 lần trong log build và báo cáo test |
+| T-UC03-MONEY | VERIFIED (unit + PostgreSQL) | `MoneyTest`, `QuoteCalculatorTest`, `QuoteServiceIT.halfUnitPriceIsRoundedUpPerLine`, `cardAmountsUseTheQuoteMoneyScale`, `MockErpConnectorTest.pricesAreParsedExactly` |
+| T-UC03-LIMITS | VERIFIED (unit + PostgreSQL) | `QuoteRequest` (1..20 dòng, 1..9999), `ArgumentParserTest`, `QuoteServiceIT.databaseConstraintsBackTheLimits` |
+| T-UC03-INELIGIBLE | VERIFIED (unit + PostgreSQL) | `DefaultQuoteServiceTest.everyReasonIsTheSameNotQuotedAndOnlyTheStoreKnowsWhy`, `QuoteServiceIT.creditStockAndMissingCustomerLookIdenticalToTheModel` |
+| T-UC03-UNVERIFIED | VERIFIED (PostgreSQL) | `VinSearchIT.onlyExactOeResultsPassTheQuoteCheck`, `DefaultToolManagerTest.quoteNeedsProductRefsFromThisConversationAndVerified` |
+| T-UC03-RENDER | VERIFIED ở mức service | `QuoteServiceIT.issuedQuoteGivesTheModelAHandleAndTheCustomerACard`; endpoint HTTP/UI: NOT RUN (EP-04/EP-10) |
+| T-UC03-TOKEN-REPLAY | VERIFIED (PostgreSQL) | `QuoteServiceIT.handleOnlyRendersForItsConversationCustomerAndValidity`, `revokedOrStaleVersionHandlesDoNotRender`, `aHandleBoundToAnotherConversationThanItsQuoteDoesNotRender`, `aNewQuoteSupersedesTheOldOne`, `aNotQuotedRequestRetiresTheOlderQuote` |
+| T-AUTH-02 | Một phần | handle 128 bit, chỉ lưu SHA-256, kết quả rỗng đồng nhất; rate limit HTTP: NOT RUN (EP-04) |
+| SEC-02 (một phần) | VERIFIED (unit + PostgreSQL) | `DefaultToolManagerTest.aSessionCustomerOtherThanTheBoundOneIsForbidden`, `QuoteServiceIT.aSessionCustomerOtherThanTheBoundOneGetsNoQuote`; bộ 20 lần thử chéo khách: NOT RUN (EP-04) |
