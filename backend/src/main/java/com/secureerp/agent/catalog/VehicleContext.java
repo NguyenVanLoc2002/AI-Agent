@@ -1,6 +1,7 @@
 package com.secureerp.agent.catalog;
 
 import com.secureerp.agent.platform.ConversationId;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * Server-side VIN handling for a conversation (UC-02 AC-02.1, TOOL_CONTRACTS §3.1, BR-37). The full
@@ -17,6 +18,7 @@ import com.secureerp.agent.platform.ConversationId;
  *       for this message.</li>
  * </ul>
  */
+@NamedInterface("intake")
 public interface VehicleContext {
 
     /**

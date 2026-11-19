@@ -6,6 +6,8 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 
 2026-11-18, G0-2 (một phần): owner duyệt ADR-001, 002, 003, 004, 016 cùng A-04, A-05, A-09, A-13 (nhóm chặn SEC-01a). Các ADR khác vẫn PROPOSED.
 
+2026-11-19, kế hoạch EP-04: owner duyệt ADR-011 và ADR-015.
+
 2026-11-18, lập kế hoạch SEC-01a: owner duyệt ADR-005, ADR-012 cùng A-07, A-10, A-11, A-12.
 
 | ADR | Tiêu đề | Trạng thái | Quyết định cần duyệt |
@@ -20,9 +22,9 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 | [008](ADR-008-quote-handle.md) | Opaque quote handle & server render | ACCEPTED 2026-11-18 | — |
 | [009](ADR-009-idempotency-unknown-outcome.md) | Idempotency & unknown ERP outcome | PROPOSED | D-03 |
 | [010](ADR-010-identity-session.md) | Identity/session demo & RBAC | ACCEPTED 2026-11-18 | D-08, UX-12 (phần còn lại) |
-| [011](ADR-011-history-summary.md) | History policy-safe summary | PROPOSED | — |
+| [011](ADR-011-history-summary.md) | History policy-safe summary | ACCEPTED 2026-11-19 | — |
 | [012](ADR-012-logging-audit.md) | Logging/audit/observability | ACCEPTED 2026-11-18 | D-09 (mở) |
 | [013](ADR-013-kill-switch-provider-failure.md) | Kill switch & provider failure | PROPOSED | — |
 | [014](ADR-014-money-vnd.md) | Money/VND | ACCEPTED 2026-11-18 | D-04, D-13 (VAT, unit) |
-| [015](ADR-015-endpoint-exposure.md) | Phơi bày endpoint demo/inspector/ops | PROPOSED | — |
+| [015](ADR-015-endpoint-exposure.md) | Phơi bày endpoint demo/inspector/ops | ACCEPTED 2026-11-19 | — |
 | [016](ADR-016-egress-capture.md) | Egress capture & network route | ACCEPTED 2026-11-18 | — |

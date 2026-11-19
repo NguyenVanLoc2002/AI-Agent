@@ -38,13 +38,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.convention.TestBean;
 
 /**
  * EP-06 against PostgreSQL (Flyway V6) and the Mock ERP: requestQuote end to end, quote card
@@ -53,19 +53,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @SpringBootTest
 @ExtendWith(OutputCaptureExtension.class)
-@Import({TestcontainersConfiguration.class, QuoteServiceIT.ConversationAccess.class})
+@Import(TestcontainersConfiguration.class)
 class QuoteServiceIT {
 
     /** Mock ERP sentinels: customer prices, cost, credit balance (never in a model payload or log). */
     private static final List<String> RESTRICTED = List.of("555444333", "666777888", "987654321", "123456789");
 
-    @TestConfiguration
-    static class ConversationAccess {
+    @TestBean(methodName = "conversationAccess")
+    ConversationAccessPort conversationAccess;
 
-        @Bean
-        ConversationAccessPort conversationAccess() {
-            return ToolFixtures.accessPort((principal, conversation) -> Access.ACTIVE, BOUND::get);
-        }
+    /** EP-04: replaces the conversation module's port (exactly one port must exist, EP-03 LOW-2). */
+    static ConversationAccessPort conversationAccess() {
+        return ToolFixtures.accessPort((principal, conversation) -> Access.ACTIVE, BOUND::get);
     }
 
     /** A-35: the customer each test conversation is bound to; filled by {@link #context}. */

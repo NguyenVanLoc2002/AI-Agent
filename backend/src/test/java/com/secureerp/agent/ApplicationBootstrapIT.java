@@ -1,6 +1,7 @@
 package com.secureerp.agent;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,7 +17,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * Full application context against a real PostgreSQL (Testcontainers): Flyway baseline applied,
@@ -37,11 +41,17 @@ class ApplicationBootstrapIT {
     @Autowired
     AiGateway gateway;
 
+    @Autowired
+    RequestMappingHandlerMapping requestMappingHandlerMapping;
+
+    @Autowired
+    UserDetailsService demoUsers;
+
     @Test
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1", "2", "3", "4", "5", "6", "7");
+        assertThat(applied).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
     }
 
     @Test
@@ -52,7 +62,9 @@ class ApplicationBootstrapIT {
         assertThat(tables).containsExactlyInAnyOrder("flyway_schema_history", "egress_record", "tool_invocation",
                 "product_ref", "conversation_vin", // V5 (EP-05): current VIN per conversation, module catalog
                 "quote", "quote_line", "quote_handle", "quote_request", // V6 (EP-06): module quote
-                "customer_link"); // V7 (EP-06, A-19): module identity
+                "customer_link", // V7 (EP-06, A-19): module identity
+                "principal_binding", // V8 (EP-04, A-37): module identity
+                "conversation", "message", "handoff"); // V9 (EP-04): modules conversation and handoff
     }
 
     @Test
@@ -90,8 +102,19 @@ class ApplicationBootstrapIT {
         }
     }
 
+    /** ADR-015 (ACCEPTED 2026-11-19): without profile demo no /api/demo/** handler is registered. */
     @Test
-    void noDemoEndpointsExistYet() throws Exception {
-        mvc.perform(get("/api/demo/conversations")).andExpect(status().isNotFound());
+    void noDemoEndpointsWithoutTheDemoProfile() {
+        assertThat(requestMappingHandlerMapping.getHandlerMethods().keySet())
+                .flatMap(info -> List.copyOf(info.getPatternValues()))
+                .noneMatch(pattern -> pattern.startsWith("/api/demo"));
+    }
+
+    @Test
+    void apiRequiresAuthenticationAndNoDemoUserExists() throws Exception {
+        mvc.perform(get("/api/demo/conversations")).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+        assertThatThrownBy(() -> demoUsers.loadUserByUsername("cust-a"))
+                .isInstanceOf(UsernameNotFoundException.class);
     }
 }

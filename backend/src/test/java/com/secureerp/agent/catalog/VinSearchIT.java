@@ -26,13 +26,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.convention.TestBean;
 
 /**
  * EP-05 against PostgreSQL (Flyway V5): VIN intake → {@code conversation_vin} → tool
@@ -41,20 +41,19 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @SpringBootTest
 @ExtendWith(OutputCaptureExtension.class)
-@Import({TestcontainersConfiguration.class, VinSearchIT.ConversationAccess.class})
+@Import(TestcontainersConfiguration.class)
 class VinSearchIT {
 
     private static final String VIN = "5ZZAPAS11RA000001";
     private static final String OTHER_VIN = "RLZAPAS20RA000002";
     private static final ToolProposal SEARCH_VIN = new ToolProposal("searchVerifiedProduct", "{\"vinRef\":\"current\"}");
 
-    @TestConfiguration
-    static class ConversationAccess {
+    @TestBean(methodName = "conversationAccess")
+    ConversationAccessPort conversationAccess;
 
-        @Bean
-        ConversationAccessPort conversationAccess() {
-            return ToolFixtures.ownedByCustomerA();
-        }
+    /** EP-04: replaces the conversation module's port (exactly one port must exist, EP-03 LOW-2). */
+    static ConversationAccessPort conversationAccess() {
+        return ToolFixtures.ownedByCustomerA();
     }
 
     @Autowired

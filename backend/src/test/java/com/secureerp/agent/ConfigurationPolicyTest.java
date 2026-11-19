@@ -35,6 +35,23 @@ class ConfigurationPolicyTest {
         assertThat(base.getProperty("spring.datasource.password")).isEqualTo("${APP_DB_PASSWORD}");
     }
 
+    /** EP-04, ADR-010/ADR-015 (decisions 2026-11-19): demo password from the environment only. */
+    @Test
+    void demoProfileTakesThePasswordFromTheEnvironmentAndSessionCookieIsSafe() {
+        Properties demo = load("application-demo.yml");
+        assertThat(demo.getProperty("apas.identity.demo-password")).isEqualTo("${APAS_DEMO_PASSWORD:}");
+        assertThat(demo.stringPropertyNames()).noneMatch(name -> name.contains("password") && !name.equals(
+                "apas.identity.demo-password"));
+        Properties base = load("application.yml");
+        assertThat(base.getProperty("apas.identity.demo-password")).isNull();
+        assertThat(base.getProperty("spring.profiles.group.local")).isEqualTo("demo");
+        assertThat(base.getProperty("server.servlet.session.cookie.http-only")).isEqualTo("true");
+        assertThat(base.getProperty("server.servlet.session.cookie.secure")).isEqualTo("true");
+        assertThat(base.getProperty("server.servlet.session.cookie.same-site")).isEqualTo("lax");
+        assertThat(base.getProperty("server.servlet.session.timeout")).isEqualTo("30m");
+        assertThat(base.getProperty("apas.identity.absolute-timeout")).isEqualTo("8h");
+    }
+
     @Test
     void localProfileDoesNotCommitPassword() {
         Properties local = load("application-local.yml");
