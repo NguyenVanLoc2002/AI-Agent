@@ -40,8 +40,10 @@ Viết tắt dùng trong các tài liệu khác: CUST = CUSTOMER, OPS = OPERATOR
 - Ownership kiểm tra mỗi lần truy cập hàng dữ liệu, kể cả URL trực tiếp và worker bất đồng bộ (rule 20).
 - Tài nguyên của người khác trả `404` (không lộ tồn tại) — DESIGN PROPOSAL; audit `FORBIDDEN_RESOURCE`.
 - Một người dùng chỉ có một vai trò trong PoC (DESIGN PROPOSAL, đơn giản hóa).
-- Quyền của SALES với conversation sau khi resolve: **OPEN D-08**. Mặc định PoC (least privilege): mất quyền đọc nội dung khi handoff RESOLVED; chỉ còn xem bản ghi handoff của chính mình.
+- Quyền của SALES với conversation sau khi resolve: **A-15 APPROVED 2026-11-19 (owner)**: mất quyền đọc nội dung khi handoff RESOLVED (EP-08a: chỉ người đang giữ handoff CLAIMED mới đọc/ghi; kiểm lại ở mỗi lời gọi). Xem lại bản ghi handoff đã resolve: chưa có endpoint.
+- **Team (D-08, mặc định PoC, owner 2026-11-19):** mỗi SALES thuộc một team, mỗi khách do một team phục vụ, cả hai lấy từ cấu hình demo. "Team mình" = team của khách. Team khác nhận 404 như tài nguyên không tồn tại. Khách đã liên kết nhưng không có team: không tạo được conversation (403 `CUSTOMER_NOT_ASSIGNED`, owner 2026-11-19); phần còn lại cho dữ liệu cũ: A-42(e).
+- **EP-08a (2026-11-19):** `/api/internal/**` chỉ SALES ngay ở mức URL; các dòng "Danh sách handoff", "Claim/resolve handoff", "Gửi tin chat" (SALES khi HUMAN_ACTIVE và đã claim), "Xem nội dung conversation" (SALES đã claim), "Xử lý ORDER_OUTCOME_UNKNOWN" (team mình) đã có mã và test. "Xem quote (có giá)" cho SALES và ghi quyết định duyệt đơn: EP-08b.
 - Ghi nhận quyết định duyệt/từ chối đơn (`staff-decision`) và đối soát UNKNOWN: chỉ SALES của team được giao; mọi thao tác audit.
 
-## 4. Tests (NOT RUN)
+## 4. Tests (EP-08a 2026-11-19: T-UC06-XTEAM, T-UC06-OPS, T-RBAC-AFTER-RESOLVE VERIFIED — `StaffInboxIT`, `HandoffInboxIT`; T-RBAC-MATRIX VERIFIED cho 12 endpoint hiện có × 4 vai trò + ẩn danh trong một test (`StaffInboxIT.everyEndpointAnswersEveryRoleAsTheMatrixSays`), chưa gồm trace/dashboard SEC/kill switch (EP-09) và SALES xem quote (EP-08b); T-SEC02 xem TOOL_CONTRACTS §9; T-UC07-RBAC NOT RUN, EP-09)
 T-SEC02-* (20 cross-customer), T-UC06-XTEAM, T-UC06-OPS, T-UC07-RBAC, T-RBAC-MATRIX (test tham số hóa từng ô ma trận × vai trò; tài nguyên của người khác → 404, chức năng ngoài vai trò → 403), T-RBAC-AFTER-RESOLVE (SALES đọc conversation sau resolve → 404 theo mặc định PoC).

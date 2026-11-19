@@ -9,16 +9,26 @@ apas:
     demo-users:
       # Customers A, B and C are linked to Mock ERP customers through the channel binding (A-37);
       # cust-new has no ERP link (cannot start a conversation, decision 2026-11-19).
+      # EP-08 (D-08 PoC default, owner 2026-11-19): `team` is the team serving a customer, or the team a
+      # SALES user belongs to. Not an approved assignment rule. A linked customer without a team cannot
+      # start a conversation (403 CUSTOMER_NOT_ASSIGNED, owner 2026-11-19).
       - username: cust-a
         role: CUST
+        team: team-1
       - username: cust-b
         role: CUST
+        team: team-2
       - username: cust-c
         role: CUST
+        team: team-1
       - username: cust-new
         role: CUST
       - username: sales-1
         role: SALES
+        team: team-1
+      - username: sales-2
+        role: SALES
+        team: team-2
       - username: secrev-1
         role: SECREV
       - username: ops-1

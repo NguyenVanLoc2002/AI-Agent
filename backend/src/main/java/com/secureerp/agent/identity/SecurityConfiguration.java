@@ -67,6 +67,9 @@ class SecurityConfiguration {
                         .requestMatchers("/actuator/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, CSRF_URL).permitAll()
                         .requestMatchers(LOGIN_URL).permitAll()
+                        // EP-08 (owner approval 2026-11-19, A-41(m)): staff endpoints are SALES only at the
+                        // URL level as well; the services still check the role, the team and the resource.
+                        .requestMatchers("/api/internal/**").hasRole(Role.SALES.name())
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage(LOGIN_URL)

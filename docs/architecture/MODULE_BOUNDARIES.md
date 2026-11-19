@@ -117,3 +117,11 @@ bootstrap ─► mọi module (wiring)
 - Endpoint: `quote.adapter.web.QuoteController` (`GET /api/demo/quotes/{ref}`, `POST …/confirm`), `order.adapter.web.OrderReconciliationController` (`/api/internal/orders/unknown`, `…/{requestId}/reconcile`), cả hai profile demo. `conversation.adapter.web.RequestSizeFilter` nay áp cho cả `/api/internal/*` (A-41(n): nên chuyển sang platform).
 - Bảng (Flyway V10): quote thêm `quote_confirmation`, cột `confirm_token_hash`, `confirmed_at`, `UNIQUE(public_ref, version)`; order sở hữu `draft_order_request`, `draft_order_event`. Khóa advisory: quote vẫn dùng namespace `30_006` cho mọi lần ghi rời khỏi ISSUED và cho việc giữ chỗ lần thử xác nhận.
 - Còn mở: A-41 (k)–(v).
+
+## EP-08a (2026-11-19)
+- API mới: `identity.Team` + `SessionIdentity.team()` (team của SALES, hoặc team phục vụ khách; cấu hình demo); `handoff.HandoffInbox` (list/claim/resolve), `Handoffs.open(conversation, reason, team)`, `heldBy`, `holdFor`, event `HandoffClaimed` / `HandoffResolved`, `ConversationNotFollowing`; `conversation.StaffChat`; `order.DraftOrders.register(submission, team)`.
+- Không thêm cạnh phụ thuộc: handoff → identity, conversation → handoff, order/quote → identity đều đã có trong allowlist. handoff vẫn không gọi conversation: conversation mở handoff bằng lời gọi trực tiếp (cùng transaction với khóa bot) và theo claim/resolve qua event đồng bộ. Sơ đồ §2 ghi `HandoffOpened/Resolved`: thực tế là `HandoffClaimed/Resolved`, không có `HandoffOpened`.
+- Endpoint (profile demo): `handoff.adapter.web.HandoffController` (`/api/internal/handoffs`), `conversation.adapter.web.StaffConversationController` (`/api/internal/conversations/{id}/messages`). `identity.SecurityConfiguration`: `/api/internal/**` chỉ vai trò SALES.
+- Bảng (Flyway V11): handoff thêm trạng thái CLAIMED/RESOLVED, `team`, người claim/resolve, `followup_reason`; conversation thêm `HUMAN_ACTIVE`, `team`; `draft_order_request.team`. Khóa advisory mới: handoff `30_012` (theo conversation).
+- `handoff.ConversationNotFollowing` do listener của conversation ném (cùng kiểu với `order.DraftOrderMirrorRefused`). `Handoffs.open` đặt `lock_timeout` 5 s trong transaction của bên gọi (A-42(r)).
+- Còn mở: A-42 (e, phần dữ liệu cũ)–(r), trong đó (g): identity đang giữ cả việc định tuyến khách → team.

@@ -15,6 +15,8 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
     /** EP-04 (decision 2026-11-19): a customer session without an ERP link cannot start a conversation. */
     CUSTOMER_NOT_LINKED(HttpStatus.FORBIDDEN, "Customer not linked"),
+    /** EP-08a (owner decision 2026-11-19, A-42(e)): no sales team serves this customer, so nobody could take a handoff. */
+    CUSTOMER_NOT_ASSIGNED(HttpStatus.FORBIDDEN, "Customer not assigned to a team"),
     CONFLICT(HttpStatus.CONFLICT, "Conflict"),
     /** EP-07 (DATA_FLOW §2): the confirmed version is not the quote's current one. */
     QUOTE_STALE_VERSION(HttpStatus.CONFLICT, "Quote version is not current"),

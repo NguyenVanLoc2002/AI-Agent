@@ -3,6 +3,7 @@ package com.secureerp.agent.identity;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -16,12 +17,25 @@ record IdentityProperties(Duration idleTimeout, Duration absoluteTimeout, String
 
     static final int MIN_PASSWORD_CHARS = 12;
 
-    record DemoUser(String username, Role role) {
+    /**
+     * @param team EP-08 (D-08 PoC default): the SALES user's team, or the team serving the customer.
+     *             Required for SALES, not allowed for OPS and SECREV (they are not business readers)
+     */
+    record DemoUser(String username, Role role, Team team) {
 
         DemoUser {
             Objects.requireNonNull(username, "username");
             Objects.requireNonNull(role, "role");
+            if ((role == Role.SALES && team == null) || ((role == Role.OPS || role == Role.SECREV) && team != null)) {
+                throw new IllegalArgumentException("demo user team does not fit its role");
+            }
         }
+    }
+
+    /** The configured team of a demo user; empty when the user is unknown or has none. */
+    Optional<Team> teamOf(String username) {
+        return demoUsers.stream().filter(user -> user.username().equals(username)).findFirst()
+                .map(DemoUser::team);
     }
 
     IdentityProperties {

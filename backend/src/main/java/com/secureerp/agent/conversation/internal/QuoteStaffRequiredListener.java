@@ -33,9 +33,15 @@ class QuoteStaffRequiredListener {
     @EventListener
     void on(QuoteStaffRequired event) {
         HandoffReason reason = reason(event.reason());
+        if (!store.boundTo(event.conversation(), event.customerDigest())) {
+            // No handoff on a conversation that is not this customer's: staff would get access to it
+            // without the bot being locked (review 2026-11-19).
+            log.error("conversation.handoff refused code=CUSTOMER_NOT_BOUND reason={}", reason);
+            return;
+        }
         transactions.executeWithoutResult(tx -> {
+            handoffs.open(event.conversation(), reason, store.teamOf(event.conversation()).orElse(null));
             store.markHandoffPendingForCustomer(event.conversation(), event.customerDigest());
-            handoffs.open(event.conversation(), reason);
         });
         log.info("conversation.handoff quote_confirmation reason={}", reason);
     }

@@ -39,15 +39,21 @@ class DraftOrderStore {
 
     /** @return the new request's id; empty when the quote version already has a request */
     Optional<Long> insertPending(String quoteRef, int quoteVersion, String idempotencyKey, String payloadDigest,
-            Instant now) {
+            String team, Instant now) {
         return jdbc.queryForList("""
-                insert into draft_order_request (quote_ref, quote_version, idempotency_key, payload_digest, status,
-                                                 created_at)
-                values (?, ?, ?, ?, 'PENDING', ?)
+                insert into draft_order_request (quote_ref, quote_version, idempotency_key, payload_digest, team,
+                                                 status, created_at)
+                values (?, ?, ?, ?, ?, 'PENDING', ?)
                 on conflict (quote_ref, quote_version) do nothing
                 returning id
-                """, Long.class, quoteRef, quoteVersion, idempotencyKey, payloadDigest, Timestamp.from(now))
+                """, Long.class, quoteRef, quoteVersion, idempotencyKey, payloadDigest, team, Timestamp.from(now))
                 .stream().findFirst();
+    }
+
+    /** A request of this team only (rule 20: ownership on every row access). */
+    Optional<Request> findForTeam(long id, String team) {
+        return jdbc.query("select " + COLUMNS + " from draft_order_request where id = ? and team = ?",
+                (rs, row) -> toRequest(rs), id, team).stream().findFirst();
     }
 
     Optional<Request> find(String quoteRef, int quoteVersion) {
@@ -123,9 +129,9 @@ class DraftOrderStore {
                 """, erpOrderRef, detailCode, id);
     }
 
-    List<Request> unknown(int limit) {
+    List<Request> unknown(String team, int limit) {
         return jdbc.query("select " + COLUMNS + " from draft_order_request where status = 'OUTCOME_UNKNOWN' "
-                + "order by created_at, id limit ?", (rs, row) -> toRequest(rs), limit);
+                + "and team = ? order by created_at, id limit ?", (rs, row) -> toRequest(rs), team, limit);
     }
 
     void event(long requestId, String event, String actor, Instant now) {

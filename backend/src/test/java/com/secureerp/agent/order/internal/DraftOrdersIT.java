@@ -117,7 +117,8 @@ class DraftOrdersIT {
     }
 
     private void register(DefaultDraftOrders service, String quoteRef, int version) {
-        transactions.executeWithoutResult(tx -> service.register(submission(quoteRef, version)));
+        transactions.executeWithoutResult(tx -> service.register(submission(quoteRef, version),
+                IdentityFixtures.TEAM_1));
     }
 
     private static DraftOrderSubmission submission(String quoteRef, int version) {
@@ -147,7 +148,8 @@ class DraftOrdersIT {
 
     @Test
     void transactionBoundariesAreExplicit() {
-        assertThatThrownBy(() -> orders.register(submission(QUOTE, 1))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> orders.register(submission(QUOTE, 1), IdentityFixtures.TEAM_1))
+                .isInstanceOf(IllegalStateException.class);
         register(orders, QUOTE, 1);
         assertThatThrownBy(() -> transactions.executeWithoutResult(tx -> orders.dispatch(submission(QUOTE, 1))))
                 .isInstanceOf(IllegalStateException.class);
@@ -504,6 +506,35 @@ class DraftOrdersIT {
                             e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
         }
         assertThat(orders.stateOf(QUOTE, 1)).contains(DraftOrderState.OUTCOME_UNKNOWN);
+    }
+
+    /**
+     * EP-08a (A-41(k), RBAC_MATRIX "team mình"): a request belongs to the team serving the customer.
+     * SALES of another team neither see nor reconcile it (404, like a missing one); a request without a
+     * team is visible to nobody.
+     */
+    @Test
+    void reconciliationIsScopedToTheTeamOfTheCustomer() {
+        register(orders, QUOTE, 1);
+        transactions.executeWithoutResult(tx -> orders.register(submission(QUOTE, 2), null));
+        erp.failOrders(MockErpOrderFault.TIMEOUT_AFTER_COMMIT);
+        orders.dispatch(submission(QUOTE, 1));
+        orders.dispatch(submission(QUOTE, 2));
+        SessionIdentity otherTeam = IdentityFixtures.salesIdentity("sales2", IdentityFixtures.TEAM_2);
+        List<UnknownDraftOrder> mine = orders.unknown(sales());
+        assertThat(mine).extracting(UnknownDraftOrder::quoteVersion).containsExactly(1);
+        long id = mine.getFirst().requestId();
+        long unassigned = jdbc.queryForObject("select id from draft_order_request where quote_version = 2",
+                Long.class);
+
+        assertThat(orders.unknown(otherTeam)).isEmpty();
+        assertCode(() -> orders.reconcile(otherTeam, id, Finding.ABSENT, null), ErrorCode.NOT_FOUND);
+        assertCode(() -> orders.reconcile(otherTeam, unassigned, Finding.ABSENT, null), ErrorCode.NOT_FOUND);
+        assertCode(() -> orders.reconcile(sales(), unassigned, Finding.ABSENT, null), ErrorCode.NOT_FOUND);
+        assertThat(orders.stateOf(QUOTE, 1)).contains(DraftOrderState.OUTCOME_UNKNOWN);
+
+        assertThat(orders.reconcile(sales(), id, Finding.CREATED, "MOCK-DO-000001"))
+                .isEqualTo(DraftOrderState.RECONCILED_CREATED);
     }
 
     /** SEC-04 reconciliation evidence: the decision, its actor and its time are stored; nothing is sent. */

@@ -395,6 +395,10 @@ class QuoteConfirmationIT extends ChatEnvironment {
                 .doesNotContain(ERP_CUSTOMER_A).doesNotContain("cref_");
         String reconcile = "/api/internal/orders/" + number(queue.body(), "requestId") + "/reconcile";
         assertThat(client.postJson(reconcile, "{\"outcome\":\"ABSENT\"}").statusCode()).isEqualTo(403);
+        // EP-08a: the queue belongs to the team serving the customer; another team sees and changes nothing.
+        DemoHttpClient otherTeam = loggedIn("sales-2");
+        assertThat(otherTeam.get("/api/internal/orders/unknown").body()).isEqualTo("[]");
+        assertThat(otherTeam.postJson(reconcile, "{\"outcome\":\"ABSENT\"}").statusCode()).isEqualTo(404);
         assertThat(sales.postJson(reconcile, "{\"outcome\":\"CREATED\"}").statusCode()).isEqualTo(400);
 
         HttpResponse<String> reconciled =

@@ -1,6 +1,7 @@
 package com.secureerp.agent.conversation.internal;
 
 import com.secureerp.agent.identity.PrincipalId;
+import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.platform.ConversationId;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
@@ -34,12 +35,16 @@ class ConversationStore {
 
     enum Status {
         ACTIVE_BOT,
-        HANDOFF_PENDING
+        HANDOFF_PENDING,
+        /** EP-08a: a staff member claimed the handoff; the bot stays locked until they resolve it. */
+        HUMAN_ACTIVE
     }
 
     enum Direction {
         CUSTOMER,
-        BOT
+        BOT,
+        /** EP-08a: written by the staff member holding the conversation; never part of the model history. */
+        STAFF
     }
 
     record Conversation(ConversationId id, String customerDigest, Status status) {
@@ -86,7 +91,8 @@ class ConversationStore {
     }
 
     /** Creates a conversation unless the principal reached the hourly limit (atomic per principal). */
-    Optional<ConversationId> create(PrincipalId owner, String customerDigest, String channel, int limit, Instant since) {
+    Optional<ConversationId> create(PrincipalId owner, String customerDigest, String channel, Team team, int limit,
+            Instant since) {
         return transactions.execute(tx -> {
             jdbc.queryForList("select pg_advisory_xact_lock(?, hashtext(?))", CREATE_LOCK, owner.pseudonym());
             Integer count = jdbc.queryForObject(
@@ -100,8 +106,9 @@ class ConversationStore {
             ConversationId id = new ConversationId("cv_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes));
             Timestamp now = Timestamp.from(clock.instant());
             jdbc.update("insert into conversation (conversation_id, owner_principal, customer_digest, channel, status, "
-                            + "created_at, updated_at) values (?, ?, ?, ?, 'ACTIVE_BOT', ?, ?)",
-                    id.value(), owner.pseudonym(), customerDigest, channel, now, now);
+                            + "team, created_at, updated_at) values (?, ?, ?, ?, 'ACTIVE_BOT', ?, ?, ?)",
+                    id.value(), owner.pseudonym(), customerDigest, channel, team == null ? null : team.value(), now,
+                    now);
             return Optional.of(id);
         });
     }
@@ -188,6 +195,61 @@ class ConversationStore {
                 Timestamp.from(clock.instant()), id.value(), customerDigest);
     }
 
+    /** Whether the conversation exists and is bound to this customer (A-35). */
+    boolean boundTo(ConversationId id, String customerDigest) {
+        Integer found = jdbc.queryForObject("select count(*) from conversation where conversation_id = ? "
+                + "and customer_digest = ?", Integer.class, id.value(), customerDigest);
+        return found != null && found == 1;
+    }
+
+    boolean exists(ConversationId id) {
+        Integer found = jdbc.queryForObject("select count(*) from conversation where conversation_id = ?",
+                Integer.class, id.value());
+        return found != null && found == 1;
+    }
+
+    /**
+     * The team serving the conversation's customer, fixed when the conversation was created (EP-08a, D-08
+     * PoC default); empty only for a conversation created before teams existed.
+     */
+    Optional<Team> teamOf(ConversationId id) {
+        return jdbc.queryForList("select team from conversation where conversation_id = ?", String.class, id.value())
+                .stream().filter(Objects::nonNull).findFirst().map(Team::new);
+    }
+
+    /** HANDOFF_PENDING → HUMAN_ACTIVE when staff claimed the handoff (called inside the claiming transaction). */
+    boolean markHumanActive(ConversationId id) {
+        return jdbc.update("update conversation set status = 'HUMAN_ACTIVE', row_version = row_version + 1, "
+                        + "updated_at = ? where conversation_id = ? and status = 'HANDOFF_PENDING'",
+                Timestamp.from(clock.instant()), id.value()) == 1;
+    }
+
+    /** Back to the bot when staff resolved the handoff (BR-22); called inside the resolving transaction. */
+    boolean markBotActive(ConversationId id) {
+        return jdbc.update("update conversation set status = 'ACTIVE_BOT', row_version = row_version + 1, "
+                        + "updated_at = ? where conversation_id = ? and status = 'HUMAN_ACTIVE'",
+                Timestamp.from(clock.instant()), id.value()) == 1;
+    }
+
+    /** Resolved, but another handoff was opened for it in the same transaction: wait for staff again. */
+    boolean markWaitingForStaffAgain(ConversationId id) {
+        return jdbc.update("update conversation set status = 'HANDOFF_PENDING', row_version = row_version + 1, "
+                        + "updated_at = ? where conversation_id = ? and status = 'HUMAN_ACTIVE'",
+                Timestamp.from(clock.instant()), id.value()) == 1;
+    }
+
+    /**
+     * Stores a staff message, only while the conversation is HUMAN_ACTIVE (the caller has checked that the
+     * staff member holds the handoff). The text is stored as written: staff may quote a price to the
+     * customer, which is why direction STAFF never enters the model history (BR-36).
+     */
+    boolean insertStaff(ConversationId id, String text) {
+        return jdbc.update("insert into message (conversation_id, turn_id, direction, text, created_at) "
+                        + "select conversation_id, ?, 'STAFF', ?, ? from conversation where conversation_id = ? "
+                        + "and status = 'HUMAN_ACTIVE'", UUID.randomUUID(), text, Timestamp.from(clock.instant()),
+                id.value()) == 1;
+    }
+
     /** Stores the turn's reply once (unique (turn, direction)); a second write for the same turn is ignored. */
     void insertBot(ConversationId id, UUID turnId, String text, boolean handedOff) {
         jdbc.update("insert into message (conversation_id, turn_id, direction, text, handed_off, created_at) "
@@ -207,10 +269,13 @@ class ConversationStore {
         return newestFirst.reversed();
     }
 
-    /** Customer and bot messages for the owner's view, oldest first (staff messages are EP-08). */
+    /**
+     * Customer, bot and staff messages, oldest first: for the owning customer and for the staff member
+     * holding the conversation (both callers check their own access first).
+     */
     List<StoredMessage> messages(ConversationId id, int limit) {
         List<StoredMessage> newestFirst = jdbc.query("select direction, text from message where conversation_id = ? "
-                        + "and direction in ('CUSTOMER', 'BOT') order by message_id desc limit ?",
+                        + "and direction in ('CUSTOMER', 'BOT', 'STAFF') order by message_id desc limit ?",
                 (rs, row) -> new StoredMessage(Direction.valueOf(rs.getString(1)), rs.getString(2)), id.value(), limit);
         return newestFirst.reversed();
     }
