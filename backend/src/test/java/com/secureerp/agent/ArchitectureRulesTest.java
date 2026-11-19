@@ -147,7 +147,10 @@ class ArchitectureRulesTest {
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.RawBodyController.tree",
                         f + "conversation.adapter.web.SafeChatController"),
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.RawBodyController.bytes",
-                        f + "conversation.adapter.web.SafeChatController"));
+                        f + "conversation.adapter.web.SafeChatController"),
+                // EP-04 (decision 2026-11-19, instead of A-22 for now).
+                Arguments.of("ARCH-14", f + "conversation.internal.StoresModelOutput",
+                        f + "agent.internal.ValidatesModelOutput"));
     }
 
     @Test

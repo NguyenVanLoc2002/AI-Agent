@@ -36,6 +36,11 @@ public record QuoteCard(String quoteRef, int version, List<Line> lines, Money to
             Objects.requireNonNull(unitPrice, "unitPrice");
             Objects.requireNonNull(lineTotal, "lineTotal");
         }
+
+        /** The SKU code as text, so the conversation render does not depend on {@code catalog.spi} (EP-04). */
+        public String skuCode() {
+            return sku.value();
+        }
     }
 
     @Override

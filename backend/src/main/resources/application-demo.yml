@@ -1,0 +1,25 @@
+# Profile "demo" (ADR-015 ACCEPTED 2026-11-19): registers /api/demo/** and the synthetic demo users.
+# Included by profile "local". Synthetic data only (CLAUDE.md).
+# Decision 2026-11-19 (owner): user names and roles are configuration; the password is NOT in the
+# repository. Export APAS_DEMO_PASSWORD (at least 12 characters) before starting; it is hashed at
+# startup and shared by every demo user. Without it, no demo user exists and every login fails.
+apas:
+  identity:
+    demo-password: ${APAS_DEMO_PASSWORD:}
+    demo-users:
+      # Customers A, B and C are linked to Mock ERP customers through the channel binding (A-37);
+      # cust-new has no ERP link (cannot start a conversation, decision 2026-11-19).
+      - username: cust-a
+        role: CUST
+      - username: cust-b
+        role: CUST
+      - username: cust-c
+        role: CUST
+      - username: cust-new
+        role: CUST
+      - username: sales-1
+        role: SALES
+      - username: secrev-1
+        role: SECREV
+      - username: ops-1
+        role: OPS

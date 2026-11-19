@@ -233,6 +233,16 @@ public final class ArchitectureRules {
                 .as("ARCH-13 quote uses only Sku from catalog.spi")
                 .allowEmptyShould(true));
 
+        // EP-04 (decision 2026-11-19, in place of A-22 for now): untrusted model output stays inside the
+        // gateway, agent and tools; conversation and every other module see only validated AgentReply text,
+        // so raw model output cannot be stored or replayed into history (ADR-011).
+        rules.put("ARCH-14", noClasses()
+                .that().resideOutsideOfPackages(base + ".gateway..", base + ".agent..", base + ".tools..")
+                .should().dependOnClassesThat().haveSimpleNameStartingWith("ModelResponse")
+                .orShould().dependOnClassesThat().haveSimpleName("ToolProposal")
+                .as("ARCH-14 only gateway, agent and tools handle raw model output (ModelResponse, ToolProposal)")
+                .allowEmptyShould(true));
+
         rules.put("ARCH-08b", methods()
                 .that().areDeclaredInClassesThat().areMetaAnnotatedWith(simpleNameIn("RestController", "Controller"))
                 .should(notAcceptCustomerIdentityFromRequest(base))

@@ -13,6 +13,8 @@ public enum ErrorCode {
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "Malformed request"),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Authentication required"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
+    /** EP-04 (decision 2026-11-19): a customer session without an ERP link cannot start a conversation. */
+    CUSTOMER_NOT_LINKED(HttpStatus.FORBIDDEN, "Customer not linked"),
     CONFLICT(HttpStatus.CONFLICT, "Conflict"),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
     NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found"),

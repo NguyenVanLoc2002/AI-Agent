@@ -5,6 +5,10 @@
 spring:
   application:
     name: secure-erp-agent
+  # ADR-015 (ACCEPTED 2026-11-19): /api/demo/** exists only with profile demo; local includes demo.
+  profiles:
+    group:
+      local: demo
   main:
     banner-mode: off
   datasource:
@@ -31,6 +35,16 @@ spring:
 
 server:
   shutdown: graceful
+  # ADR-010 (ACCEPTED): HttpOnly + Secure + SameSite=Lax session cookie; 30 min idle (the 8 h maximum
+  # and a clock-driven idle check are enforced by identity's session filter as well).
+  servlet:
+    session:
+      timeout: 30m
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
   max-http-request-header-size: 16KB
   error:
     include-stacktrace: never
@@ -96,6 +110,19 @@ apas:
       max-string-chars: 256
       rejections-before-handoff: 3
       product-ref-ttl: 2h
+  # EP-04 / ADR-010: session limits (owner 2026-11-18, UX-12 part). Demo users only in profile demo.
+  identity:
+    idle-timeout: 30m
+    absolute-timeout: 8h
+  # EP-04 chat limits (DESIGN PROPOSAL): HTTP turns drive model calls, so they are bounded too.
+  conversation:
+    new-conversations-per-principal-per-hour: 5
+    messages-per-conversation-per-hour: 30
+    messages-per-principal-per-hour: 60
+    max-request-bytes: 8192
+    # An unanswered turn counts as running this long (409 meanwhile); a replay after it completes it as
+    # handed off (EP-04 reviews).
+    turn-timeout: 2m
   # EP-05: lifetime of a conversation's current VIN (owner decision 2026-11-18: 2 h, like a productRef).
   catalog:
     vin-ttl: 2h

@@ -22,34 +22,33 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.bean.override.convention.TestBean;
 
 /**
  * EP-03 against PostgreSQL (rule 60: quota and ownership on a real database, with concurrency):
  * T-TOOL-04, T-TOOL-05, T-TOOL-12, audit metadata only, and the Mock ERP search end to end.
  */
 @SpringBootTest
-@Import({TestcontainersConfiguration.class, ToolRegistryIT.ConversationAccess.class})
+@Import(TestcontainersConfiguration.class)
 class ToolRegistryIT {
 
     private static final String SEARCH = "searchVerifiedProduct";
     private static final ToolProposal SEARCH_OE = new ToolProposal(SEARCH, "{\"oe\":\"04465-0K290\"}");
 
     /** Every conversation is owned by its caller, except conversation 13 for principal "mallory". */
-    @TestConfiguration
-    static class ConversationAccess {
+    @TestBean(methodName = "conversationAccess")
+    ConversationAccessPort conversationAccess;
 
-        @Bean
-        ConversationAccessPort conversationAccess() {
-            return ToolFixtures.accessPort((principal, conversation) -> principal.equals(IdentityFixtures.principal("mallory"))
-                    && conversation.equals(ToolFixtures.conversation(13)) ? Access.NOT_OWNED : Access.ACTIVE,
-                    conversation -> IdentityFixtures.customer(ToolFixtures.CUSTOMER_A));
-        }
+    /** EP-04: replaces the conversation module's port (exactly one port must exist, EP-03 LOW-2). */
+    static ConversationAccessPort conversationAccess() {
+        return ToolFixtures.accessPort((principal, conversation) -> principal.equals(IdentityFixtures.principal("mallory"))
+                && conversation.equals(ToolFixtures.conversation(13)) ? Access.NOT_OWNED : Access.ACTIVE,
+                conversation -> IdentityFixtures.customer(ToolFixtures.CUSTOMER_A));
     }
 
     @Autowired

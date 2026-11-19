@@ -39,6 +39,11 @@ public final class IdentityFixtures {
         return AuthenticatedCustomerRef.fromVerifiedBinding("cref_" + pad(seed));
     }
 
+    /** A customer session identity (web chat) for unit tests of session consumers (EP-04). */
+    public static SessionIdentity sessionIdentity(String principalSeed, String customerSeed) {
+        return new SessionIdentity(principal(principalSeed), Role.CUST, Channel.WEB_CHAT, customer(customerSeed));
+    }
+
     static String pad(String seed) {
         String padded = (seed + "ZZZZZZZZZZZZZZZZZZZZZZ").substring(0, 22);
         if (!padded.matches("[A-Za-z0-9_-]{22}")) {
