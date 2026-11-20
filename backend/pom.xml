@@ -157,6 +157,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- EP-09c reviews (SEC-05): the complete output of every test class goes to a file in the
+                         scanned report directory, not only the per-test system-out of the XML report. -->
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <excludes>
                         <exclude>**/*IT.java</exclude>
                     </excludes>
@@ -166,12 +169,32 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                    <!-- EP-09c SEC-05 (A-46 3A): scan the surefire/failsafe reports of this build for restricted
+                         values, after the tests above passed. Own report directory and summary, so the scan
+                         never reads its own output; a fixed test name, so -Dit.test does not change it. -->
+                    <execution>
+                        <id>sec05-artifact-scan</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <test>Sec05ArtifactScan</test>
+                            <failIfNoSpecifiedTests>true</failIfNoSpecifiedTests>
+                            <reportsDirectory>${project.build.directory}/sec05-reports</reportsDirectory>
+                            <summaryFile>${project.build.directory}/sec05-reports/failsafe-summary.xml</summaryFile>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

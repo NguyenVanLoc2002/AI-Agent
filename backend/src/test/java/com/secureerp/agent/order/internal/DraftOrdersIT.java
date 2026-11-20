@@ -40,6 +40,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +48,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -95,6 +97,9 @@ class DraftOrdersIT {
 
     @Autowired
     AuditTrail audit;
+
+    @Autowired
+    ApplicationContext context;
 
     private final MutableClock clock = new MutableClock(START);
     private MockErpSimulation erp;
@@ -490,6 +495,106 @@ class DraftOrdersIT {
         assertThat(jdbc.queryForList("select distinct detail_code from draft_order_request", String.class))
                 .containsExactly("NO_RECORDED_ANSWER");
         assertThat(eventsOf(QUOTE)).contains("TIMED_OUT");
+    }
+
+    /**
+     * EP-09c reviews (backend M1, security L-3): one hundred requests whose expiry keeps failing (here the
+     * listener throws) no longer starve a newer one: the background sweep pages by key. A read path still sweeps
+     * one page only (A-46 residual).
+     */
+    @Test
+    void requestsThatCannotBeExpiredDoNotStarveANewerOne() {
+        ApplicationEventPublisher failingForOldVersions = event -> {
+            if (event instanceof DraftOrderStateChanged changed
+                    && changed.quoteVersion() <= DefaultDraftOrders.MAX_SWEPT) {
+                throw new IllegalStateException("listener failed");
+            }
+            events.publishEvent(event);
+        };
+        DefaultDraftOrders poisoned = service(configuredCapabilities, port, failingForOldVersions);
+        for (int version = 1; version <= DefaultDraftOrders.MAX_SWEPT + 1; version++) {
+            register(poisoned, QUOTE, version);
+        }
+        clock.advance(properties.submitTimeout());
+
+        assertThat(poisoned.sweep(DefaultDraftOrders.READ_PATH_PAGES)).as("one page: only failing rows").isZero();
+        assertThat(poisoned.sweep(DefaultDraftOrders.BACKGROUND_PAGES)).isEqualTo(1);
+
+        assertThat(jdbc.queryForObject("select status from draft_order_request where quote_version = ?", String.class,
+                DefaultDraftOrders.MAX_SWEPT + 1)).isEqualTo("OUTCOME_UNKNOWN");
+        assertThat(count("select count(*) from draft_order_request where status = 'PENDING'"))
+                .isEqualTo(DefaultDraftOrders.MAX_SWEPT);
+        assertThat(erp.createCalls()).isZero();
+    }
+
+    /** EP-09c: two sweeps at once (two instances, or the sweeper and a read) expire a request once. */
+    @Test
+    void parallelSweepsExpireARequestOnce() throws Exception {
+        register(orders, QUOTE, 1);
+        clock.advance(properties.submitTimeout());
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Integer>> sweeps = new ArrayList<>();
+        try (ExecutorService pool = Executors.newFixedThreadPool(4)) {
+            for (int i = 0; i < 4; i++) {
+                Callable<Integer> sweep = () -> {
+                    start.await();
+                    return orders.sweep(DefaultDraftOrders.BACKGROUND_PAGES);
+                };
+                sweeps.add(pool.submit(sweep));
+            }
+            start.countDown();
+            int expired = 0;
+            for (Future<Integer> sweep : sweeps) {
+                expired += sweep.get(30, TimeUnit.SECONDS);
+            }
+            assertThat(expired).isEqualTo(1);
+        }
+        assertThat(eventsOf(QUOTE)).containsOnlyOnce("TIMED_OUT");
+    }
+
+    /**
+     * Round-2 review (backend M1): a read expires only the request it reads; another request past the timeout is
+     * left to the background sweeper, so a customer request runs no other customer's listeners.
+     */
+    @Test
+    void aReadExpiresOnlyTheRequestItReads() {
+        register(orders, QUOTE, 1);
+        register(orders, QUOTE, 2);
+        clock.advance(properties.submitTimeout());
+
+        assertThat(orders.stateOf(QUOTE, 1)).contains(DraftOrderState.OUTCOME_UNKNOWN);
+        assertThat(jdbc.queryForObject("select status from draft_order_request where quote_version = 2",
+                String.class)).isEqualTo("PENDING");
+        assertThat(orders.stateOf(QUOTE, 3)).isEmpty();
+    }
+
+    /**
+     * Round-2 review (backend M2): each expiry runs in a transaction of its own, so a request whose expiry fails
+     * does not mark the caller's transaction rollback-only.
+     */
+    @Test
+    void aFailingExpiryDoesNotPoisonTheCallersTransaction() {
+        ApplicationEventPublisher failing = event -> {
+            throw new IllegalStateException("listener failed");
+        };
+        DefaultDraftOrders poisoned = service(configuredCapabilities, port, failing);
+        register(poisoned, QUOTE, 1);
+        clock.advance(properties.submitTimeout());
+
+        transactions.executeWithoutResult(tx -> {
+            assertThat(jdbc.queryForObject("select 1", Integer.class)).isEqualTo(1); // holds a connection
+            assertThat(poisoned.sweep(DefaultDraftOrders.BACKGROUND_PAGES)).isZero();
+        });
+
+        assertThat(jdbc.queryForObject("select status from draft_order_request where quote_version = 1",
+                String.class)).isEqualTo("PENDING");
+    }
+
+    /** EP-09c: the tests switch the background sweeper off (src/test/resources/config); production keeps it on. */
+    @Test
+    void theSweeperIsOffInTestsUnlessATestSwitchesItOn() {
+        assertThat(context.getBeansOfType(DraftOrderSweeper.class)).isEmpty();
+        assertThat(context.getEnvironment().getProperty("apas.order.sweeper.enabled")).isEqualTo("false");
     }
 
     /** RBAC_MATRIX: only SALES handles an unknown outcome; an operator is not a business reader. */

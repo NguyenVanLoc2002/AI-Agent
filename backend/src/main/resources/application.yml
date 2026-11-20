@@ -142,6 +142,11 @@ apas:
   # unknown outcome for staff; it is never sent again.
   order:
     submit-timeout: 2m
+    # EP-09c (A-46 decision 2A): background sweep of unfinished requests; every instance sweeps (a conditional
+    # update per request makes it safe), the read paths still sweep as a safety net.
+    sweeper:
+      enabled: true
+      interval: PT30S
   # ADR-009: what the target ERP supports is static configuration taken from approved ERP API
   # documentation, never reported by the adapter. Both are OPEN (D-03), so both stay false: no
   # idempotency key is forwarded, no lookup is made, every unknown outcome goes to staff.
