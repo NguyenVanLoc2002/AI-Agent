@@ -280,6 +280,65 @@ class StaffInboxIT extends ChatEnvironment {
         sales.postEmpty("/api/internal/handoffs/" + id + "/resolve");
         assertThat(sales.get(quote).statusCode()).as("T-RBAC-AFTER-RESOLVE").isEqualTo(404);
         assertThat(output.getAll()).doesNotContain("555444333");
+        // AUDIT-STRICT-READ: exactly one record for the one answered read, none for the refused ones.
+        assertThat(jdbc.queryForObject("select count(*) from audit_event where action = 'STAFF_QUOTE_READ'",
+                Integer.class)).isEqualTo(1);
+        assertThat(output.getAll()).doesNotContain("separate_write_inside_transaction");
+    }
+
+    /**
+     * AUDIT-STRICT-READ (A-45(y)): the staff read of customer prices is recorded in the read transaction. Without
+     * the record the staff member gets 503 and no price; a read that is answered leaves exactly one record.
+     */
+    @Test
+    void aStaffQuoteReadWithoutItsAuditRecordShowsNoPrice(CapturedOutput output) {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = createConversation(customer);
+        requestQuote(customer, conversation, 2);
+        providerStatus(500);
+        assertThat(send(customer, conversation, "Cho tôi gặp nhân viên").body()).contains("\"handedOff\":true");
+        script();
+        DemoHttpClient sales = loggedIn("sales-1");
+        claimOnlyHandoff(sales);
+        String quote = "/api/internal/conversations/" + conversation + "/quote";
+        String reads = "select count(*) from audit_event where action = 'STAFF_QUOTE_READ'";
+
+        jdbc.execute("alter table audit_event rename to audit_event_moved");
+        HttpResponse<String> refused;
+        try {
+            refused = sales.get(quote);
+        } finally {
+            jdbc.execute("alter table audit_event_moved rename to audit_event");
+        }
+
+        assertThat(refused.statusCode()).isEqualTo(503);
+        assertThat(refused.body()).doesNotContain("555444333").doesNotContain("unitPrice").doesNotContain("audit_event");
+        assertThat(jdbc.queryForObject(reads, Integer.class)).isZero();
+
+        // Reviews L-1/L-3: a failure at COMMIT (a deferred constraint trigger refuses the row) is refused the same way.
+        jdbc.execute("create function audit_event_refuse() returns trigger language plpgsql as "
+                + "$$ begin raise exception 'refused at commit'; end $$");
+        jdbc.execute("create constraint trigger audit_event_refuse_at_commit after insert on audit_event "
+                + "deferrable initially deferred for each row execute function audit_event_refuse()");
+        HttpResponse<String> refusedAtCommit;
+        try {
+            refusedAtCommit = sales.get(quote);
+        } finally {
+            jdbc.execute("drop trigger audit_event_refuse_at_commit on audit_event");
+            jdbc.execute("drop function audit_event_refuse()");
+        }
+        assertThat(refusedAtCommit.statusCode()).isEqualTo(503);
+        assertThat(refusedAtCommit.body()).doesNotContain("555444333").doesNotContain("unitPrice");
+        assertThat(jdbc.queryForObject(reads, Integer.class)).isZero();
+        assertThat(output.getAll()).contains("conversation.staff_quote refused code=SERVICE_UNAVAILABLE")
+                .doesNotContain("555444333").doesNotContain("refused at commit")
+                .doesNotContain("quote.staff_read outcome=RENDERED");
+        HttpResponse<String> answered = sales.get(quote);
+        assertThat(answered.statusCode()).isEqualTo(200);
+        assertThat(answered.body()).contains("\"unitPrice\":\"555444333\"");
+        assertThat(jdbc.queryForObject(reads, Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select actor_role from audit_event where action = 'STAFF_QUOTE_READ'",
+                String.class)).isEqualTo("SALES");
     }
 
     /** A held conversation without any quote is the same 404. */

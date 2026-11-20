@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -57,12 +58,20 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
     private static final Logger log = LoggerFactory.getLogger(DefaultDraftOrders.class);
     static final int MAX_LISTED = 50;
     static final int MAX_SWEPT = 100;
+    /**
+     * Pages of {@link #MAX_SWEPT} the background sweep reads, by key, in one run: requests that cannot be expired
+     * (their transaction keeps failing) no longer starve newer ones (EP-09c reviews, backend M1, security L-3).
+     * A read path sweeps one page only, so a customer request stays short.
+     */
+    static final int BACKGROUND_PAGES = 10;
+    static final int READ_PATH_PAGES = 1;
 
     private final DraftOrderStore store;
     private final DraftOrderPort erp;
     private final ErpCapabilities capabilities;
     private final OrderProperties properties;
     private final TransactionTemplate transactions;
+    private final TransactionTemplate ownTransaction;
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final AuditTrail audit;
@@ -76,6 +85,10 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
         this.capabilities = capabilities;
         this.properties = properties;
         this.transactions = transactions;
+        // EP-09c round-2 review (backend M2): each expiry has a transaction of its own, so a failing request
+        // never marks a caller's transaction rollback-only, whoever calls the sweep.
+        this.ownTransaction = new TransactionTemplate(Objects.requireNonNull(transactions.getTransactionManager()));
+        this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.events = events;
         this.clock = clock;
     }
@@ -251,30 +264,65 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
         if (quoteRef == null || quoteVersion < 1) {
             throw new IllegalArgumentException("invalid quote reference or version");
         }
-        expireUnfinished();
-        return store.find(quoteRef, quoteVersion).map(DraftOrderStore.Request::state);
+        // EP-09c round-2 review (backend M1): the background sweeper covers every request; a read expires only
+        // the request it reads, so a customer request runs no other customer's listeners.
+        Optional<DraftOrderStore.Request> request = store.find(quoteRef, quoteVersion);
+        if (request.isEmpty()) {
+            return Optional.empty();
+        }
+        Instant now = clock.instant();
+        if (expire(request.get().id(), now.minus(properties.submitTimeout()), now)) {
+            return store.find(quoteRef, quoteVersion).map(DraftOrderStore.Request::state);
+        }
+        return request.map(DraftOrderStore.Request::state);
     }
 
     /**
      * Unfinished requests past the submit timeout become OUTCOME_UNKNOWN. Each request has its own
      * transaction, which quote and the handoff join through the event; a failure for one request is
      * logged and leaves that request for the next sweep, without touching the others or the caller.
+     * Called by the background sweeper ({@link DraftOrderSweeper}, EP-09c) and, as a safety net, by the
+     * read paths.
+     *
+     * @param pages how many keyset pages of {@link #MAX_SWEPT} requests to read at most
+     * @return how many requests this sweep turned into unknown outcomes
      */
-    private void expireUnfinished() {
+    int sweep(int pages) {
         Instant now = clock.instant();
         Instant cutoff = now.minus(properties.submitTimeout());
-        for (Long id : store.unfinishedBefore(cutoff, MAX_SWEPT)) {
-            try {
-                transactions.executeWithoutResult(tx -> store.expireUnfinished(id, cutoff, now).ifPresent(request -> {
-                    store.event(request.id(), "TIMED_OUT", null, now);
-                    events.publishEvent(new DraftOrderStateChanged(request.quoteRef(), request.quoteVersion(),
-                            DraftOrderState.OUTCOME_UNKNOWN));
-                    log.warn("order.request timed_out");
-                }));
-            } catch (RuntimeException failure) {
-                log.error("order.request timeout_not_recorded exception={}", failure.getClass().getSimpleName());
+        int expired = 0;
+        long afterId = 0;
+        for (int page = 0; page < pages; page++) {
+            List<Long> ids = store.unfinishedBefore(cutoff, afterId, MAX_SWEPT);
+            for (Long id : ids) {
+                expired += expire(id, cutoff, now) ? 1 : 0;
+                afterId = id;
+            }
+            if (ids.size() < MAX_SWEPT) {
+                break;
             }
         }
+        return expired;
+    }
+
+    private boolean expire(long id, Instant cutoff, Instant now) {
+        try {
+            Boolean done = ownTransaction.execute(tx -> store.expireUnfinished(id, cutoff, now).map(request -> {
+                store.event(request.id(), "TIMED_OUT", null, now);
+                events.publishEvent(new DraftOrderStateChanged(request.quoteRef(), request.quoteVersion(),
+                        DraftOrderState.OUTCOME_UNKNOWN));
+                log.warn("order.request timed_out");
+                return true;
+            }).orElse(false));
+            return Boolean.TRUE.equals(done);
+        } catch (RuntimeException failure) {
+            log.error("order.request timeout_not_recorded exception={}", failure.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    private void expireUnfinished() {
+        sweep(READ_PATH_PAGES);
     }
 
     @Override

@@ -21,6 +21,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -43,6 +45,8 @@ class DefaultSecurityInspector implements SecurityInspector {
     static final Duration CLOCK_SKEW = Duration.ofDays(1);
     /** Roles whose pseudonym the reviewer sees (staff); the pseudonym of a customer is never shown. */
     private static final Set<String> STAFF_ROLES = Set.of(Role.SALES.name(), Role.OPS.name(), Role.SECREV.name());
+    private static final Set<String> ROLES = Arrays.stream(Role.values()).map(Enum::name)
+            .collect(Collectors.toUnmodifiableSet());
     private static final Set<String> ACTIONS = Stream.concat(
                     Arrays.stream(AuditEvent.Action.values()).map(Enum::name), Stream.of(KILL_SWITCH_CHANGED))
             .collect(Collectors.toUnmodifiableSet());
@@ -68,15 +72,19 @@ class DefaultSecurityInspector implements SecurityInspector {
         if (traceId == null || !TraceIds.FORMAT.matcher(traceId).matches()) {
             throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
         }
-        Trace trace = new Trace(traceId,
-                audits.egressOfTrace(traceId, MAX_TRACE_ROWS).stream()
-                        .map(row -> new EgressView(row.decision(), row.attempt(), row.policyCode(), row.honeytokenId(),
-                                row.blockedFieldPath(), row.fieldNames(), row.byteLength(), row.occurredAt()))
-                        .toList(),
-                tools.ofTurn(traceId, MAX_TRACE_ROWS).stream()
-                        .map(row -> new ToolView(row.toolName(), row.decision(), row.reasonCode(), row.occurredAt()))
-                        .toList(),
-                audits.eventsOfTrace(traceId, MAX_TRACE_ROWS).stream().map(DefaultSecurityInspector::view).toList());
+        // AUDIT-FLOOD: one row more than shown tells whether a section was cut.
+        List<EgressView> egress = audits.egressOfTrace(traceId, MAX_TRACE_ROWS + 1).stream()
+                .map(row -> new EgressView(row.decision(), row.attempt(), row.policyCode(), row.honeytokenId(),
+                        row.blockedFieldPath(), row.fieldNames(), row.byteLength(), row.occurredAt()))
+                .toList();
+        List<ToolView> calls = tools.ofTurn(traceId, MAX_TRACE_ROWS + 1).stream()
+                .map(row -> new ToolView(row.toolName(), row.decision(), row.reasonCode(), row.occurredAt()))
+                .toList();
+        List<EventView> events = audits.eventsOfTrace(traceId, MAX_TRACE_ROWS + 1).stream()
+                .map(DefaultSecurityInspector::view).toList();
+        boolean truncated = egress.size() > MAX_TRACE_ROWS || calls.size() > MAX_TRACE_ROWS
+                || events.size() > MAX_TRACE_ROWS;
+        Trace trace = new Trace(traceId, first(egress), first(calls), first(events), truncated);
         boolean empty = trace.egress().isEmpty() && trace.tools().isEmpty() && trace.events().isEmpty();
         String outcome = empty ? "NOT_FOUND" : "READ";
         audit.recordSeparately(new AuditEvent(AuditEvent.Action.INSPECTOR_READ, AuditEvent.Resource.SECURITY_TRACE,
@@ -88,8 +96,12 @@ class DefaultSecurityInspector implements SecurityInspector {
         return trace;
     }
 
+    private static <T> List<T> first(List<T> rows) {
+        return rows.size() > MAX_TRACE_ROWS ? rows.subList(0, MAX_TRACE_ROWS) : rows;
+    }
+
     @Override
-    public List<EventView> events(SessionIdentity reviewer, EventQuery query) {
+    public EventPage events(SessionIdentity reviewer, EventQuery query) {
         requireReviewer(reviewer, AuditEvent.Resource.SECURITY_EVENTS);
         Objects.requireNonNull(query, "query");
         Instant now = clock.instant();
@@ -103,26 +115,78 @@ class DefaultSecurityInspector implements SecurityInspector {
         if (from.isBefore(EARLIEST)
                 || !from.isBefore(to) || Duration.between(from, to).compareTo(MAX_WINDOW) > 0
                 || limit < 1 || limit > MAX_EVENTS
-                || (query.action() != null && !ACTIONS.contains(query.action()))) {
+                || (query.action() != null && !ACTIONS.contains(query.action()))
+                || (query.role() != null && !ROLES.contains(query.role()))) {
             throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
         }
+        Cursor before = query.before() == null ? null : Cursor.parse(query.before());
         boolean switchesOnly = KILL_SWITCH_CHANGED.equals(query.action());
-        List<EventView> found = new ArrayList<>();
+        List<Item> found = new ArrayList<>();
         if (!switchesOnly) {
             AuditEvent.Action action = query.action() == null ? null : AuditEvent.Action.valueOf(query.action());
-            audits.events(action, from, to, limit).stream().map(DefaultSecurityInspector::view).forEach(found::add);
+            // At one instant audit rows come before switch rows: after a switch cursor no audit row of that instant
+            // is left (id 0), after an audit cursor every switch row of that instant is (Long.MAX_VALUE).
+            AuditQueries.Before bound = before == null ? null
+                    : new AuditQueries.Before(before.at(), before.source() == Cursor.AUDIT ? before.id() : 0);
+            // One more than the page: tells whether a next page exists (AUDIT-FLOOD reviews L3).
+            audits.events(action, query.role(), from, to, bound, limit + 1).forEach(row -> found.add(
+                    new Item(view(row), Cursor.AUDIT, row.id())));
         }
-        if (query.action() == null || switchesOnly) {
-            switches.changes(from, to, limit).stream().map(DefaultSecurityInspector::view).forEach(found::add);
+        boolean switchRole = query.role() == null || Role.OPS.name().equals(query.role());
+        if ((query.action() == null || switchesOnly) && switchRole) {
+            long beforeId = before == null ? 0 : before.source() == Cursor.SWITCH ? before.id() : Long.MAX_VALUE;
+            switches.changes(from, to, before == null ? null : before.at(), beforeId, limit + 1).stream()
+                    // With a role filter only operator changes count; the breaker (system) has no role.
+                    .filter(change -> query.role() == null || change.actor() != null)
+                    .forEach(change -> found.add(new Item(view(change), Cursor.SWITCH, change.id())));
         }
-        List<EventView> newest = found.stream()
-                .sorted(Comparator.comparing(EventView::occurredAt).reversed())
-                .limit(limit)
-                .toList();
+        List<Item> sorted = found.stream().sorted(Item.NEWEST_FIRST).toList();
+        List<Item> page = sorted.stream().limit(limit).toList();
+        String next = sorted.size() > limit ? page.getLast().cursor().format() : null;
         audit.recordSeparately(new AuditEvent(AuditEvent.Action.INSPECTOR_READ, AuditEvent.Resource.SECURITY_EVENTS,
                 "READ", reviewer.auditActor()));
-        log.info("securityinspector.events count={}", newest.size());
-        return newest;
+        log.info("securityinspector.events count={}", page.size());
+        return new EventPage(page.stream().map(Item::view).toList(), next);
+    }
+
+    /** One event of the merged list with the key it is paged by (newest first, audit before switch, id). */
+    private record Item(EventView view, char source, long id) {
+
+        static final Comparator<Item> NEWEST_FIRST = Comparator.comparing((Item item) -> item.view().occurredAt())
+                .reversed()
+                .thenComparing(Item::source)
+                .thenComparing(Comparator.comparingLong(Item::id).reversed());
+
+        Cursor cursor() {
+            return new Cursor(view.occurredAt(), source, id);
+        }
+    }
+
+    /**
+     * Keyset cursor of the merged event list (AUDIT-FLOOD, A-45(z)): {@code <epoch second>.<nanos><A|K><row id>}.
+     * Opaque to the reviewer; the row id is the audit or switch row key, not an identifier of any resource.
+     */
+    record Cursor(Instant at, char source, long id) {
+
+        static final char AUDIT = 'A';
+        static final char SWITCH = 'K';
+        private static final Pattern FORMAT = Pattern.compile("^(\\d{1,12})\\.(\\d{9})([AK])(\\d{1,18})$");
+
+        static Cursor parse(String text) {
+            Matcher matcher = text == null ? null : FORMAT.matcher(text);
+            if (matcher == null || !matcher.matches()) {
+                throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
+            }
+            Instant at = Instant.ofEpochSecond(Long.parseLong(matcher.group(1)), Long.parseLong(matcher.group(2)));
+            if (at.isBefore(EARLIEST)) {
+                throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
+            }
+            return new Cursor(at, matcher.group(3).charAt(0), Long.parseLong(matcher.group(4)));
+        }
+
+        String format() {
+            return at.getEpochSecond() + "." + String.format("%09d", at.getNano()) + source + id;
+        }
     }
 
     private void requireReviewer(SessionIdentity reviewer, AuditEvent.Resource resource) {
@@ -137,7 +201,7 @@ class DefaultSecurityInspector implements SecurityInspector {
     static EventView view(AuditQueries.EventRow row) {
         String actor = row.actorRole() != null && STAFF_ROLES.contains(row.actorRole()) ? row.actor() : null;
         return new EventView(row.action().name(), row.resource().name(), row.outcome(), row.actorRole(), actor,
-                row.traceId(), row.occurredAt());
+                row.traceId(), row.occurredAt(), row.occurrences(), row.lastOccurredAt(), row.lastTraceId());
     }
 
     static EventView view(KillSwitchHistory.Change change) {
@@ -146,6 +210,6 @@ class DefaultSecurityInspector implements SecurityInspector {
         // Only an operator changes the switch by hand; the system actor (null) is the provider-auth breaker.
         String role = change.actor() == null ? null : Role.OPS.name();
         return new EventView(KILL_SWITCH_CHANGED, AuditEvent.Resource.KILL_SWITCH.name(), outcome, role,
-                change.actor(), null, change.occurredAt());
+                change.actor(), null, change.occurredAt(), 1, null, null);
     }
 }

@@ -7,7 +7,6 @@ import com.secureerp.agent.platform.ErrorCode;
 import com.secureerp.agent.securityinspector.SecurityInspector;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
-import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 class SecurityInspectorController {
 
     private static final int MAX_PARAMETER = 40;
+    /** A cursor is at most 12 + 1 + 9 + 1 + 18 characters (AUDIT-FLOOD reviews L4). */
+    private static final int MAX_CURSOR = 48;
 
     private final CurrentIdentity identity;
     private final SecurityInspector inspector;
@@ -42,13 +43,16 @@ class SecurityInspectorController {
     }
 
     @GetMapping("/events")
-    List<SecurityInspector.EventView> events(@RequestParam(required = false) String type,
+    SecurityInspector.EventPage events(@RequestParam(required = false) String type,
             @RequestParam(required = false) String from, @RequestParam(required = false) String to,
-            @RequestParam(required = false) Integer limit) {
-        if (type != null && type.length() > MAX_PARAMETER) {
+            @RequestParam(required = false) Integer limit, @RequestParam(required = false) String before,
+            @RequestParam(required = false) String role) {
+        if ((type != null && type.length() > MAX_PARAMETER) || (before != null && before.length() > MAX_CURSOR)
+                || (role != null && role.length() > MAX_PARAMETER)) {
             throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
         }
-        return inspector.events(session(), new SecurityInspector.EventQuery(type, instant(from), instant(to), limit));
+        return inspector.events(session(),
+                new SecurityInspector.EventQuery(type, instant(from), instant(to), limit, before, role));
     }
 
     private static Instant instant(String value) {

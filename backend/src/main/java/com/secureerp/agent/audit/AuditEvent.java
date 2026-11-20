@@ -32,7 +32,13 @@ public record AuditEvent(Action action, Resource resource, String outcome, Audit
         DRAFT_ORDER,
         KILL_SWITCH,
         SECURITY_TRACE,
-        SECURITY_EVENTS
+        SECURITY_EVENTS,
+        /** EP-09d (V17): areas of a URL refused by Spring Security; never the URL itself. */
+        ENDPOINT_INTERNAL,
+        ENDPOINT_OPS,
+        ENDPOINT_SECURITY,
+        ENDPOINT_DEMO,
+        ENDPOINT_OTHER
     }
 
     /** Outcome codes used for denials. */
@@ -47,6 +53,14 @@ public record AuditEvent(Action action, Resource resource, String outcome, Audit
         if (outcome == null || !CODE.matcher(outcome).matches()) {
             throw new IllegalArgumentException("invalid audit field: outcome");
         }
+    }
+
+    /**
+     * AUDIT-FLOOD (A-45(z)): whether identical separate events of a minute may be counted on one row. An accepted
+     * confirmation is an order and stays one row per event (EP-09b reviews L1).
+     */
+    public boolean collapsible() {
+        return !(action == Action.QUOTE_CONFIRMATION && "ACCEPTED".equals(outcome));
     }
 
     public static AuditEvent denied(Resource resource, String code, AuditActor actor) {
