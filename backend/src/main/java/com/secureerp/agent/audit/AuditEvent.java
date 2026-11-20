@@ -49,6 +49,14 @@ public record AuditEvent(Action action, Resource resource, String outcome, Audit
         }
     }
 
+    /**
+     * AUDIT-FLOOD (A-45(z)): whether identical separate events of a minute may be counted on one row. An accepted
+     * confirmation is an order and stays one row per event (EP-09b reviews L1).
+     */
+    public boolean collapsible() {
+        return !(action == Action.QUOTE_CONFIRMATION && "ACCEPTED".equals(outcome));
+    }
+
     public static AuditEvent denied(Resource resource, String code, AuditActor actor) {
         return new AuditEvent(Action.ACCESS_DENIED, resource, code, actor);
     }

@@ -6,6 +6,8 @@ import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.platform.TraceIds;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +47,7 @@ class JdbcAuditTrail implements AuditTrail {
     @Override
     public void record(AuditEvent event) {
         Objects.requireNonNull(event, "event");
-        joined.executeWithoutResult(status -> insert(event));
+        joined.executeWithoutResult(status -> insert(event, false));
     }
 
     @Override
@@ -57,18 +59,39 @@ class JdbcAuditTrail implements AuditTrail {
                 // after their transaction (DeniedInTransaction). Written anyway, but tests look for this line.
                 log.error("audit.event separate_write_inside_transaction");
             }
-            own.executeWithoutResult(status -> insert(event));
+            own.executeWithoutResult(status -> insert(event, true));
         } catch (RuntimeException failure) {
             log.error("audit.event not_recorded exception={}", failure.getClass().getSimpleName());
         }
     }
 
-    private void insert(AuditEvent event) {
+    /**
+     * @param separate AUDIT-FLOOD (A-45(z), V16): a separate write of a collapsible event joins the row of the same
+     *                 action, resource type, outcome, actor and role of the same UTC minute (one more occurrence, its
+     *                 trace ID as the latest) instead of adding a row; a write that commits with a business change and
+     *                 a non-collapsible event ({@link AuditEvent#collapsible()}) are never collapsed
+     */
+    private void insert(AuditEvent event, boolean separate) {
         AuditActor actor = event.actor();
-        jdbc.update("insert into audit_event (trace_id, action, resource_type, outcome, actor, actor_role, occurred_at) "
-                        + "values (?, ?, ?, ?, ?, ?, ?)",
-                TraceIds.current().orElse(null), event.action().name(), event.resource().name(), event.outcome(),
-                actor == null ? null : actor.pseudonym(), actor == null ? null : actor.role(),
-                Timestamp.from(clock.instant()));
+        // Microseconds, as PostgreSQL stores them: a nanosecond instant rounded up by the driver could land in the
+        // next minute and break the bucket check (EP-09b reviews, AUDIT-FLOOD M1/L2).
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        boolean collapse = separate && event.collapsible();
+        Timestamp at = Timestamp.from(now);
+        String trace = TraceIds.current().orElse(null);
+        Timestamp bucket = collapse ? Timestamp.from(now.truncatedTo(ChronoUnit.MINUTES)) : null;
+        jdbc.update("""
+                insert into audit_event (trace_id, action, resource_type, outcome, actor, actor_role, occurred_at,
+                    last_occurred_at, last_trace_id, bucket_start)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict (action, resource_type, outcome, (coalesce(actor, '')), (coalesce(actor_role, '')), bucket_start)
+                    where bucket_start is not null
+                do update set occurrences = audit_event.occurrences + 1,
+                    last_occurred_at = greatest(audit_event.last_occurred_at, excluded.last_occurred_at),
+                    last_trace_id = coalesce(excluded.last_trace_id, audit_event.last_trace_id)
+                """,
+                trace, event.action().name(), event.resource().name(), event.outcome(),
+                actor == null ? null : actor.pseudonym(), actor == null ? null : actor.role(), at,
+                collapse ? at : null, collapse ? trace : null, bucket);
     }
 }

@@ -222,10 +222,10 @@ class StaffDecisionIT extends ChatEnvironment {
             jdbc.execute("alter table audit_event_moved rename to audit_event");
         }
         assertThat(requestStatus(unknown.requestId())).isEqualTo("OUTCOME_UNKNOWN");
-        assertThat(jdbc.queryForList("select action || ':' || resource_type || ':' || outcome from audit_event "
-                + "where action = 'ACCESS_DENIED' order by id", String.class))
-                .containsExactly("ACCESS_DENIED:DRAFT_ORDER:FORBIDDEN_RESOURCE",
-                        "ACCESS_DENIED:DRAFT_ORDER:FORBIDDEN_RESOURCE");
+        // AUDIT-FLOOD: the decision and reconciliation denials of sales-2 in one minute are one row counted twice.
+        assertThat(jdbc.queryForList("select action || ':' || resource_type || ':' || outcome || ':' || occurrences "
+                + "from audit_event where action = 'ACCESS_DENIED' order by id", String.class))
+                .containsExactly("ACCESS_DENIED:DRAFT_ORDER:FORBIDDEN_RESOURCE:2");
         assertThat(output.getAll()).doesNotContain("separate_write_inside_transaction");
     }
 

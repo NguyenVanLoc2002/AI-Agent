@@ -19,9 +19,24 @@ public interface AuditQueries {
         }
     }
 
-    /** One {@code audit_event} row; {@code actor} and {@code actorRole} are null for a system event. */
-    record EventRow(AuditEvent.Action action, AuditEvent.Resource resource, String outcome, String actor,
-            String actorRole, String traceId, Instant occurredAt) {
+    /**
+     * One {@code audit_event} row; {@code actor} and {@code actorRole} are null for a system event.
+     *
+     * @param id             the row key, used for keyset paging only (not an identifier of any resource)
+     * @param occurrences    identical separate events of the same minute collapsed into this row (AUDIT-FLOOD, V16)
+     * @param lastOccurredAt the latest of them; {@code null} for a row that is never collapsed
+     * @param lastTraceId    the trace ID of the latest of them; {@code null} for a row that is never collapsed
+     */
+    record EventRow(long id, AuditEvent.Action action, AuditEvent.Resource resource, String outcome, String actor,
+            String actorRole, String traceId, Instant occurredAt, int occurrences, Instant lastOccurredAt,
+            String lastTraceId) {
+    }
+
+    /**
+     * Keyset bound for paging newest first: rows with {@code occurredAt < at}, or {@code occurredAt == at} and
+     * {@code id < id}.
+     */
+    record Before(Instant at, long id) {
     }
 
     /**
@@ -30,13 +45,17 @@ public interface AuditQueries {
      */
     List<EgressRow> egressOfTrace(String traceId, int limit);
 
-    /** Audit events of one trace (a request), oldest first. */
+    /** Audit events of one trace (a request; the first or the latest event of a collapsed row), oldest first. */
     List<EventRow> eventsOfTrace(String traceId, int limit);
 
     /**
-     * Audit events with {@code from <= occurredAt <= to}, newest first.
+     * Audit events with at least one occurrence in {@code [from, to]}, newest first ({@code occurredAt}, then
+     * {@code id}).
      *
-     * @param action {@code null} for every action
+     * @param action    {@code null} for every action
+     * @param actorRole {@code null} for every role; else only events of actors with this role (AUDIT-FLOOD reviews L5)
+     * @param before    {@code null} for the first page
      */
-    List<EventRow> events(AuditEvent.Action action, Instant from, Instant to, int limit);
+    List<EventRow> events(AuditEvent.Action action, String actorRole, Instant from, Instant to, Before before,
+            int limit);
 }
