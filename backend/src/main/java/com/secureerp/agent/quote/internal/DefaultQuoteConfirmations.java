@@ -5,6 +5,7 @@ import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.CustomerLinks;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
+import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.identity.spi.ErpCustomerLink;
 import com.secureerp.agent.order.DraftOrderState;
 import com.secureerp.agent.order.DraftOrderSubmission;
@@ -129,7 +130,8 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
             throw new ApplicationException(ErrorCode.SERVICE_UNAVAILABLE);
         }
         try {
-            return confirm(new Attempt(attempt, digest, customer), quoteRef, version, confirmationToken, now);
+            return confirm(new Attempt(attempt, digest, customer, identity.team().orElse(null)), quoteRef, version,
+                    confirmationToken, now);
         } catch (PessimisticLockingFailureException busy) {
             // Another write of this customer or conversation held the lock too long: nothing changed here.
             finish(attempt, null, ConfirmationStore.Attempt.CONFLICT, null);
@@ -138,8 +140,8 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
         }
     }
 
-    /** One admitted attempt of the session customer. */
-    private record Attempt(long id, String digest, AuthenticatedCustomerRef customer) {
+    /** One admitted attempt of the session customer; {@code team} is the team serving them (EP-08a, may be null). */
+    private record Attempt(long id, String digest, AuthenticatedCustomerRef customer, Team team) {
     }
 
     private Confirmation confirm(Attempt attempt, String quoteRef, int version, String confirmationToken,
@@ -190,7 +192,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
             }
             case Recheck.Passed passed -> {
                 DraftOrderSubmission submission = submission(row, erpCustomer.get(), lines);
-                if (!store.confirm(row, () -> orders.register(submission))) {
+                if (!store.confirm(row, () -> orders.register(submission, attempt.team()))) {
                     yield changedMeanwhile(attempt, row);
                 }
                 finish(attempt.id(), row.id(), ConfirmationStore.Attempt.ACCEPTED, null);

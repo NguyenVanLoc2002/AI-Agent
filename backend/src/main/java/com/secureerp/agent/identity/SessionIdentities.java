@@ -31,11 +31,14 @@ class SessionIdentities implements CurrentIdentity, LinkedCustomers {
     private final JdbcPrincipals principals;
     private final JdbcCustomerLinks links;
     private final CustomerLinkPort erpLinks;
+    private final IdentityProperties properties;
 
-    SessionIdentities(JdbcPrincipals principals, JdbcCustomerLinks links, CustomerLinkPort erpLinks) {
+    SessionIdentities(JdbcPrincipals principals, JdbcCustomerLinks links, CustomerLinkPort erpLinks,
+            IdentityProperties properties) {
         this.principals = principals;
         this.links = links;
         this.erpLinks = erpLinks;
+        this.properties = properties;
     }
 
     /**
@@ -71,8 +74,11 @@ class SessionIdentities implements CurrentIdentity, LinkedCustomers {
             return Optional.empty();
         }
         ChannelIdentity binding = ChannelIdentity.of(CHANNEL.name(), authentication.getName());
+        // The team comes from server configuration by the authenticated user name, never from the request.
+        Team team = role.get() == Role.CUST || role.get() == Role.SALES
+                ? properties.teamOf(authentication.getName()).orElse(null) : null;
         return principals.find(binding).map(principal -> new SessionIdentity(principal, role.get(), CHANNEL,
-                role.get() == Role.CUST ? links.activeRefFor(binding).orElse(null) : null));
+                role.get() == Role.CUST ? links.activeRefFor(binding).orElse(null) : null, team));
     }
 
     @Override

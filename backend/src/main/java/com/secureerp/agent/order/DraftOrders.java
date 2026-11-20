@@ -1,5 +1,6 @@
 package com.secureerp.agent.order;
 
+import com.secureerp.agent.identity.Team;
 import java.util.Optional;
 
 /**
@@ -13,8 +14,11 @@ public interface DraftOrders {
      * Registers the request (the outbox row) inside the caller's transaction, so it exists exactly
      * when the quote's confirmation is committed, together with a digest of the submission. A second
      * registration of the same quote version is ignored. Fails when no transaction is active.
+     *
+     * @param team the team serving the customer (EP-08a): only its SALES members may reconcile the
+     *             request; {@code null} when none is configured, so nobody can (fail closed)
      */
-    void register(DraftOrderSubmission submission);
+    void register(DraftOrderSubmission submission, Team team);
 
     /**
      * Sends a registered request to the ERP if no one has yet, and returns the request's state. Only

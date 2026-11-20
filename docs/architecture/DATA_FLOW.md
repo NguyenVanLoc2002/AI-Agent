@@ -48,7 +48,14 @@
 - Bước 2 (kill switch) chưa có; bước 11: OutputValidator loại cả câu trả lời và handoff `OUTPUT_REJECTED` (quyết định 2026-11-19).
 
 ## 3. Luồng handoff (UC-05/06)
-Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → EP-04: conversation đặt `HANDOFF_PENDING` (bot khóa) và gọi `Handoffs.open` trong **một transaction** (chưa có event; event `HandoffOpened` là đề xuất cho EP-08) → SALES claim → `HUMAN_ACTIVE` (tin của SALES lưu với direction STAFF, không vào history model) → resolve → event `HandoffResolved` → `ACTIVE_BOT`. Notification nội bộ chỉ chứa reason code + conversation ID.
+Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation gọi `Handoffs.open` rồi đặt `HANDOFF_PENDING` (bot khóa) trong **một transaction** (EP-08a đổi thứ tự so với EP-04, xem §3a; không có event `HandoffOpened`) → SALES claim → `HUMAN_ACTIVE` (tin của SALES lưu với direction STAFF, không vào history model) → resolve → event `HandoffResolved` → `ACTIVE_BOT`. Notification nội bộ chỉ chứa reason code + conversation ID.
+
+### 3a. Triển khai EP-08a (2026-11-19)
+- Mở handoff: conversation gọi `Handoffs.open(conversation, reason, team)` rồi khóa bot (`HANDOFF_PENDING`) trong một transaction; `open` lấy khóa advisory theo conversation (namespace `30_012`) nên mở/claim/resolve được tuần tự hóa. Team là team của khách, lưu trên conversation lúc tạo. Không có event `HandoffOpened`.
+- Inbox: `GET /api/internal/handoffs` (team mình, chưa resolve) → `POST …/{id}/claim` (OPEN → CLAIMED, event `HandoffClaimed` → conversation `HUMAN_ACTIVE`) → SALES đọc/ghi `/api/internal/conversations/{id}/messages` chỉ khi đang giữ handoff → `POST …/{id}/resolve` (CLAIMED → RESOLVED, event `HandoffResolved` → `ACTIVE_BOT`). Event xử lý đồng bộ trong chính transaction; conversation không theo được thì thay đổi của handoff bị rollback (409).
+- Lý do mới với nhân viên (khác lý do đang mở, hoặc bất kỳ lý do nào phát sinh sau khi đã claim, ví dụ xác nhận báo giá bị chặn) được ghi làm follow-up, chỉ lý do đầu tiên; resolve khi đó mở handoff mới với lý do này và conversation về `HANDOFF_PENDING` thay vì `ACTIVE_BOT`.
+- Khách nhắn khi bot khóa: 200 kèm câu cố định (`HANDOFF_PENDING`: đang chờ; `HUMAN_ACTIVE`: nhân viên đã nhận tin), không gọi model. Tin nhân viên lưu direction STAFF, khách đọc được, **không** vào history model (history chỉ lấy tin CUSTOMER).
+- Tạo conversation: khách phải có team (403 `CUSTOMER_NOT_ASSIGNED` nếu không; owner 2026-11-19). Còn mở: A-42 (e, phần dữ liệu cũ)–(r); EP-08b: quyết định duyệt đơn, SALES xem báo giá, executor `requestHandoff`, gỡ khóa A-34 khi resolve.
 
 ## 4. Egress sinks
 | Sink | PoC | Kiểm soát | Bằng chứng |
@@ -64,15 +71,15 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → EP-04: conve
 | Bảng | Module | Lớp | Ràng buộc chính |
 |---|---|---|---|
 | customer_link | identity | R | EP-06 (Flyway V7): PK `customer_ref` (ref ngẫu nhiên), `erp_link`, `revoked_at`. EP-04 (A-37): thêm cột binding kênh + UNIQUE(channel, provider_user_hash) bằng migration mới, để mỗi binding có một ref ổn định |
-| conversation | conversation | I | EP-04 (Flyway V9): chủ sở hữu principal, `customer_digest` (A-35), `status` ACTIVE_BOT/HANDOFF_PENDING, `row_version` |
+| conversation | conversation | I | EP-04 (Flyway V9): chủ sở hữu principal, `customer_digest` (A-35), `status` ACTIVE_BOT/HANDOFF_PENDING/HUMAN_ACTIVE (V11), `team` (V11), `row_version` |
 | message | conversation | I/T (đã sanitize) | UNIQUE(conversation_id, client_event_id); direction CUSTOMER/BOT/STAFF |
 | quote / quote_line | quote | R | EP-06 (Flyway V6): `quote.version` + `row_version`; một ISSUED mỗi conversation (unique index một phần); UNIQUE(quote_id, line_no), UNIQUE(quote_id, sku); CHECK qty 1..9999; NUMERIC(19,4), VND scale 0 (ADR-014) |
 | quote_request | quote | R | EP-06: outcome, mã lý do (chỉ nhân viên), `customer_digest` (khóa/giới hạn A-34 theo khách) |
 | quote_handle | quote | I | PK hash; binding; expires_at; revoked |
 | quote_confirmation | quote | R | EP-07 (Flyway V10): mỗi lần thử xác nhận một dòng (kết quả, mã lý do nội bộ khi bị chặn, `customer_digest`); dùng cho giới hạn 20 lần/giờ |
-| draft_order_request | order | I | EP-07 (Flyway V10): UNIQUE(quote_ref, quote_version); `idempotency_key` = `<mã báo giá>:<version>` do server sinh; `payload_digest` (SHA-256 không khóa của mã khách ERP + các dòng, A-41(x)); `key_forwarded`; `erp_order_ref`; `late_erp_order_ref` (ERP trả lời sau khi đã quá hạn); không có mã khách hay giá ở dạng đọc được |
+| draft_order_request | order | I | EP-07 (Flyway V10): UNIQUE(quote_ref, quote_version); `idempotency_key` = `<mã báo giá>:<version>` do server sinh; `payload_digest` (SHA-256 không khóa của mã khách ERP + các dòng, A-41(x)); `key_forwarded`; `erp_order_ref`; `late_erp_order_ref` (ERP trả lời sau khi đã quá hạn); `team` (V11: team của khách, phạm vi đối soát); không có mã khách hay giá ở dạng đọc được |
 | draft_order_event | order | I | EP-07: mọi thay đổi trạng thái + `actor` (pseudonym của nhân viên đối soát) |
-| handoff | handoff | I | reason_code NOT NULL |
+| handoff | handoff | I | reason_code NOT NULL; EP-08a (Flyway V11): `status` OPEN/CLAIMED/RESOLVED, `team`, `claimed_by`, `resolved_by`, `followup_reason`; tối đa một handoff chưa resolve mỗi conversation (unique index một phần) |
 | audit_event, egress_record | audit | metadata | không cột body/giá trị |
 | feature_switch | platform | — | audit thay đổi |
 | mock_erp.* | erp | R (synthetic, sentinel) | schema tách; chỉ erp truy cập — **chưa tạo**: Mock giữ dữ liệu trong bộ nhớ (EP-07, A-41(i)) |

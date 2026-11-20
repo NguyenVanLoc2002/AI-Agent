@@ -1,6 +1,7 @@
 package com.secureerp.agent.conversation.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -22,7 +23,9 @@ import com.secureerp.agent.handoff.HandoffReason;
 import com.secureerp.agent.handoff.Handoffs;
 import com.secureerp.agent.identity.IdentityFixtures;
 import com.secureerp.agent.identity.SessionIdentity;
+import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
+import com.secureerp.agent.platform.ErrorCode;
 import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.quote.QuoteCards;
 import java.time.Clock;
@@ -77,6 +80,21 @@ class ChatServiceTest {
         when(store.customerTextsUpTo(eq(ID), anyLong(), anyInt())).thenReturn(List.of("Xin chào"));
     }
 
+    /** Owner decision 2026-11-19 (A-42(e)): a linked customer no team serves cannot start a conversation. */
+    @Test
+    void aCustomerWithoutATeamCannotStartAConversation() {
+        SessionIdentity unassigned = IdentityFixtures.unassignedCustomer("NoTeam", "NoTeamCustomer");
+
+        assertThatThrownBy(() -> chat.create(unassigned)).isInstanceOfSatisfying(ApplicationException.class,
+                refused -> assertThat(refused.code()).isEqualTo(ErrorCode.CUSTOMER_NOT_ASSIGNED));
+
+        verify(store, never()).create(any(), anyString(), anyString(), any(), anyInt(), any());
+    }
+
+    /**
+     * The mocked store knows no team for the conversation (as one created before teams existed), so the
+     * handoff takes the team serving the session customer (review round 2, 2026-11-19).
+     */
     @Test
     void anAgentFailureEndsAsAStoredHandoff() {
         when(agent.reply(any())).thenThrow(new IllegalStateException("boom 987654321"));
@@ -84,7 +102,7 @@ class ChatServiceTest {
         assertThat(turn.handedOff()).isTrue();
         assertThat(turn.reply()).isEqualTo(ChatTexts.HANDED_OFF);
         verify(store).markHandoffPending(identity.principal(), ID);
-        verify(handoffs).open(ID, HandoffReason.PROVIDER_ERROR);
+        verify(handoffs).open(ID, HandoffReason.PROVIDER_ERROR, IdentityFixtures.TEAM_1);
         verify(store).insertBot(eq(ID), any(), eq(ChatTexts.HANDED_OFF), eq(true));
     }
 
@@ -94,7 +112,7 @@ class ChatServiceTest {
         when(cards.render(anyString(), any(), any())).thenReturn(Optional.empty());
         ChatTurn turn = chat.post(identity, ID, UUID.randomUUID(), "báo giá");
         assertThat(turn.handedOff()).isTrue();
-        verify(handoffs).open(ID, HandoffReason.QUOTE_NOT_ISSUED);
+        verify(handoffs).open(ID, HandoffReason.QUOTE_NOT_ISSUED, IdentityFixtures.TEAM_1);
         verify(store, never()).insertBot(eq(ID), any(), eq("Báo giá đã được gửi."), anyBoolean());
     }
 
@@ -104,7 +122,7 @@ class ChatServiceTest {
         when(cards.render(anyString(), any(), any())).thenThrow(new IllegalStateException("db down"));
         ChatTurn turn = chat.post(identity, ID, UUID.randomUUID(), "báo giá");
         assertThat(turn.handedOff()).isTrue();
-        verify(handoffs).open(ID, HandoffReason.PROVIDER_ERROR);
+        verify(handoffs).open(ID, HandoffReason.PROVIDER_ERROR, IdentityFixtures.TEAM_1);
     }
 
     @Test

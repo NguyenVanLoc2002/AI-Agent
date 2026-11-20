@@ -9,8 +9,8 @@ import java.util.List;
  * only). Staff look the order up in the ERP by its external reference and record what they found;
  * nothing is ever sent to the ERP again from here. Every decision is stored with its actor.
  *
- * <p>Any SALES user may reconcile any request: team scoping needs the assignment model of EP-08
- * (D-08 OPEN).
+ * <p>EP-08a: a request belongs to the team serving the customer (D-08 PoC default). SALES see and
+ * reconcile only their own team's requests; another team's request is the same 404 as a missing one.
  */
 public interface OrderReconciliation {
 

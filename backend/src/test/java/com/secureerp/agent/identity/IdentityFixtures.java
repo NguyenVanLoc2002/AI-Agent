@@ -13,6 +13,9 @@ public final class IdentityFixtures {
     public static final Map<String, String> SYNTHETIC_ERP_LINKS =
             Map.of("SynthCustomerA", "SYNTH-CUST-A", "SynthCustomerB", "SYNTH-CUST-B", "SynthCustomerC", "SYNTH-CUST-C");
 
+    public static final Team TEAM_1 = new Team("team-1");
+    public static final Team TEAM_2 = new Team("team-2");
+
     private IdentityFixtures() {
     }
 
@@ -41,12 +44,24 @@ public final class IdentityFixtures {
 
     /** A customer session identity (web chat) for unit tests of session consumers (EP-04). */
     public static SessionIdentity sessionIdentity(String principalSeed, String customerSeed) {
-        return new SessionIdentity(principal(principalSeed), Role.CUST, Channel.WEB_CHAT, customer(customerSeed));
+        return new SessionIdentity(principal(principalSeed), Role.CUST, Channel.WEB_CHAT, customer(customerSeed),
+                TEAM_1);
+    }
+
+    /** A linked customer no team serves (EP-08a, A-42(e)). */
+    public static SessionIdentity unassignedCustomer(String principalSeed, String customerSeed) {
+        return new SessionIdentity(principal(principalSeed), Role.CUST, Channel.WEB_CHAT, customer(customerSeed), null);
     }
 
     /** A staff session identity (no customer) for unit and integration tests of staff APIs (EP-07). */
     public static SessionIdentity staffIdentity(String principalSeed, Role role) {
-        return new SessionIdentity(principal(principalSeed), role, Channel.WEB_CHAT, null);
+        return new SessionIdentity(principal(principalSeed), role, Channel.WEB_CHAT, null,
+                role == Role.SALES ? TEAM_1 : null);
+    }
+
+    /** A SALES session identity of the given team (EP-08). */
+    public static SessionIdentity salesIdentity(String principalSeed, Team team) {
+        return new SessionIdentity(principal(principalSeed), Role.SALES, Channel.WEB_CHAT, null, team);
     }
 
     static String pad(String seed) {

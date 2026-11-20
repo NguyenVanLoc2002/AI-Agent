@@ -2,6 +2,7 @@ package com.secureerp.agent.order.internal;
 
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
+import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.order.DraftOrderMirrorRefused;
 import com.secureerp.agent.order.DraftOrderState;
 import com.secureerp.agent.order.DraftOrderStateChanged;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -78,14 +80,15 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
     }
 
     @Override
-    public void register(DraftOrderSubmission submission) {
+    public void register(DraftOrderSubmission submission, Team team) {
         Objects.requireNonNull(submission, "submission");
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("register must run in the confirming transaction");
         }
         Instant now = clock.instant();
         store.insertPending(submission.quoteRef(), submission.quoteVersion(),
-                        key(submission.quoteRef(), submission.quoteVersion()), submission.digest(), now)
+                        key(submission.quoteRef(), submission.quoteVersion()), submission.digest(),
+                        team == null ? null : team.value(), now)
                 .ifPresent(id -> store.event(id, "REGISTERED", null, now));
     }
 
@@ -271,9 +274,9 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public List<UnknownDraftOrder> unknown(SessionIdentity staff) {
-        requireSales(staff);
+        Team team = requireSales(staff);
         expireUnfinished();
-        return store.unknown(MAX_LISTED).stream()
+        return store.unknown(team.value(), MAX_LISTED).stream()
                 .map(request -> new UnknownDraftOrder(request.id(), request.quoteRef(), request.quoteVersion(),
                         request.idempotencyKey(), request.completedAt(), request.lateErpOrderRef()))
                 .toList();
@@ -281,7 +284,7 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public DraftOrderState reconcile(SessionIdentity staff, long requestId, Finding finding, String erpOrderRef) {
-        requireSales(staff);
+        Team team = requireSales(staff);
         Objects.requireNonNull(finding, "finding");
         boolean created = finding == Finding.CREATED;
         if (created != (erpOrderRef != null)
@@ -292,19 +295,27 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
         Instant now = clock.instant();
         String actor = staff.principal().pseudonym();
         try {
-            return reconcile(requestId, target, erpOrderRef, actor, now);
+            return reconcile(requestId, team, target, erpOrderRef, actor, now);
         } catch (DraftOrderMirrorRefused quoteCannotFollow) {
             // Rolled back: the request is still unknown, and the mismatch needs a look before a decision.
             log.error("order.reconcile refused code=CONFLICT reason=MIRROR_REFUSED");
             throw new ApplicationException(ErrorCode.CONFLICT);
+        } catch (PessimisticLockingFailureException busy) {
+            // A listener (quote, handoff) waited too long for a lock: rolled back, safe to repeat.
+            log.warn("order.reconcile refused code=CONFLICT reason=LOCK_BUSY");
+            throw new ApplicationException(ErrorCode.CONFLICT);
         }
     }
 
-    private DraftOrderState reconcile(long requestId, DraftOrderState target, String erpOrderRef, String actor,
-            Instant now) {
+    private DraftOrderState reconcile(long requestId, Team team, DraftOrderState target, String erpOrderRef,
+            String actor, Instant now) {
         return transactions.execute(tx -> {
-            DraftOrderStore.Request request = store.findById(requestId)
-                    .orElseThrow(() -> new ApplicationException(ErrorCode.NOT_FOUND));
+            // Another team's request and a missing one are the same 404.
+            DraftOrderStore.Request request = store.findForTeam(requestId, team.value())
+                    .orElseThrow(() -> {
+                        log.warn("order.reconcile denied code=FORBIDDEN_RESOURCE");
+                        return new ApplicationException(ErrorCode.NOT_FOUND);
+                    });
             if (request.state() == target && Objects.equals(request.erpOrderRef(), erpOrderRef)) {
                 return target; // the same decision again
             }
@@ -323,12 +334,16 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
         });
     }
 
-    /** RBAC_MATRIX: only SALES handles ORDER_OUTCOME_UNKNOWN; an administrator is not a business reader. */
-    private static void requireSales(SessionIdentity staff) {
+    /**
+     * RBAC_MATRIX: only SALES, for their own team, handles ORDER_OUTCOME_UNKNOWN; an administrator is not a
+     * business reader.
+     */
+    private static Team requireSales(SessionIdentity staff) {
         Objects.requireNonNull(staff, "staff");
-        if (staff.role() != Role.SALES) {
+        if (staff.role() != Role.SALES || staff.team().isEmpty()) {
             log.warn("order.reconcile denied code=FORBIDDEN");
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
+        return staff.team().get();
     }
 }

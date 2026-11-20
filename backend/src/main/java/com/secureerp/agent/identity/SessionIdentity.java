@@ -15,12 +15,14 @@ public final class SessionIdentity {
     private final Role role;
     private final Channel channel;
     private final AuthenticatedCustomerRef customer;
+    private final Team team;
 
-    SessionIdentity(PrincipalId principal, Role role, Channel channel, AuthenticatedCustomerRef customer) {
+    SessionIdentity(PrincipalId principal, Role role, Channel channel, AuthenticatedCustomerRef customer, Team team) {
         this.principal = Objects.requireNonNull(principal, "principal");
         this.role = Objects.requireNonNull(role, "role");
         this.channel = Objects.requireNonNull(channel, "channel");
         this.customer = customer;
+        this.team = team;
     }
 
     public PrincipalId principal() {
@@ -38,6 +40,14 @@ public final class SessionIdentity {
     /** The linked customer; empty for staff and for a customer the ERP does not know (D-04). */
     public Optional<AuthenticatedCustomerRef> customer() {
         return Optional.ofNullable(customer);
+    }
+
+    /**
+     * EP-08 (D-08 PoC default): for SALES the team they belong to, for a customer the team that serves
+     * them; empty for every other role and when none is configured (then nobody is assigned: fail closed).
+     */
+    public Optional<Team> team() {
+        return Optional.ofNullable(team);
     }
 
     @Override

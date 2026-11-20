@@ -58,7 +58,7 @@ class IdentityUnitTest {
     @Test
     void sessionIdentityDoesNotPrintIdentifiers() {
         SessionIdentity identity = new SessionIdentity(IdentityFixtures.principal("PrintMe"), Role.CUST,
-                Channel.WEB_CHAT, IdentityFixtures.customer("PrintMe"));
+                Channel.WEB_CHAT, IdentityFixtures.customer("PrintMe"), IdentityFixtures.TEAM_1);
         assertThat(identity.toString()).doesNotContain("PrintMe").doesNotContain("usr_").doesNotContain("cref_");
     }
 

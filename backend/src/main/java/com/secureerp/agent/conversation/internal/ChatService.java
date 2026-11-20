@@ -12,6 +12,7 @@ import com.secureerp.agent.handoff.Handoffs;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
+import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
@@ -82,14 +83,24 @@ class ChatService implements Chat {
         this.clock = clock;
     }
 
-    /** RBAC: only a linked customer creates a conversation (decision 2026-11-19), bound to it (A-35). */
+    /**
+     * RBAC: only a linked customer served by a team creates a conversation (decisions 2026-11-19), bound to
+     * the customer (A-35) and to that team (D-08 PoC default).
+     */
     @Override
     public ConversationId create(SessionIdentity identity) {
         requireCustomerRole(identity);
         AuthenticatedCustomerRef customer =
                 identity.customer().orElseThrow(() -> new ApplicationException(ErrorCode.CUSTOMER_NOT_LINKED));
+        // Owner decision 2026-11-19 (A-42(e)): without a team nobody could take this customer's handoff, so
+        // the conversation is not created at all (no orphaned work, no bot locked for good).
+        Team team = identity.team().orElseThrow(() -> {
+            log.warn("conversation.create denied code=CUSTOMER_NOT_ASSIGNED");
+            return new ApplicationException(ErrorCode.CUSTOMER_NOT_ASSIGNED);
+        });
         ConversationId id = store.create(identity.principal(), customer.bindingDigest(), identity.channel().name(),
-                        properties.newConversationsPerPrincipalPerHour(), clock.instant().minus(WINDOW))
+                        team, properties.newConversationsPerPrincipalPerHour(),
+                        clock.instant().minus(WINDOW))
                 .orElseThrow(() -> new ApplicationException(ErrorCode.TOO_MANY_REQUESTS));
         log.info("conversation.created");
         return id;
@@ -121,7 +132,14 @@ class ChatService implements Chat {
                 } catch (RuntimeException unexpected) {
                     // Fail closed with a stored reply, so the turn is complete and a replay gets the same answer.
                     log.error("conversation.turn failed exception={}", unexpected.getClass().getName());
-                    yield handOff(identity, id, turnId, HandoffReason.PROVIDER_ERROR);
+                    try {
+                        yield handOff(identity, id, turnId, HandoffReason.PROVIDER_ERROR);
+                    } catch (RuntimeException notHandedOff) {
+                        // The handoff itself could not be recorded (e.g. its lock was busy): a safe error, not a
+                        // 500. The turn has no reply yet; replaying the event after the turn timeout completes it.
+                        log.error("conversation.turn handoff_failed exception={}", notHandedOff.getClass().getName());
+                        throw new ApplicationException(ErrorCode.SERVICE_UNAVAILABLE);
+                    }
                 }
             }
         };
@@ -131,6 +149,10 @@ class ChatService implements Chat {
             ConversationStore.Admission.Admitted admitted, String rawText, InboundSanitizer.Result sanitized) {
         if (admitted.status() == ConversationStore.Status.HANDOFF_PENDING) {
             return reply(id, turnId, ChatTexts.WAITING_FOR_STAFF, true, null);
+        }
+        if (admitted.status() == ConversationStore.Status.HUMAN_ACTIVE) {
+            // EP-08a: the message is stored for the staff member; the bot stays silent (no model call).
+            return reply(id, turnId, ChatTexts.WITH_STAFF, true, null);
         }
         if (sanitized instanceof InboundSanitizer.Blocked block) {
             log.warn("conversation.turn inbound_blocked code={}", block.policyCode());
@@ -224,11 +246,14 @@ class ChatService implements Chat {
         return new ChatTurn(completed.turnId(), completed.reply(), true, true, null);
     }
 
-    /** Lock and handoff record in one transaction (architecture review M3), then the stored reply. */
+    /** Handoff record, then the bot lock, in one transaction (architecture review M3), then the stored reply. */
     private ChatTurn handOff(SessionIdentity identity, ConversationId id, UUID turnId, HandoffReason reason) {
         transactions.executeWithoutResult(tx -> {
+            // The handoff first: it takes the conversation's handoff lock, so a concurrent resolve is over
+            // before the bot is locked here (review 2026-11-19).
+            // A conversation created before teams existed takes the team serving its customer now.
+            handoffs.open(id, reason, store.teamOf(id).or(identity::team).orElse(null));
             store.markHandoffPending(identity.principal(), id);
-            handoffs.open(id, reason);
         });
         return reply(id, turnId, ChatTexts.HANDED_OFF, true, null);
     }

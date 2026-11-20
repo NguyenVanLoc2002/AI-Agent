@@ -151,4 +151,5 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 | T-SEC02 (20 lần thử) | VERIFIED một phần (HTTP + PostgreSQL) | `CrossCustomerIT`: 20 lần thử của B với productRef, quote handle, quote ref thật của A; 0 giá/handle/ref của A trong phản hồi cho B; từ chối tool ghi ở `tool_invocation`. Từ chối mức HTTP chỉ ghi log mã (chưa có `audit_event`, EP-09) |
 | T-SEC03 | VERIFIED một phần (15/50) | `AdversarialChatIT` (15 fixture: injection, tool cấm, args lớn/sâu, giá/duyệt đơn/link trong output); bộ 50: ACC-01 |
 | A-35 (HTTP) | VERIFIED (HTTP) | `ChatFlowIT.aSessionCustomerOtherThanTheBoundOneIsRefused`, `aRevokedCustomerLinkEndsTheConversation` |
-| T-SEC01-STAFF, T-SEC06, T-SEC07 | NOT RUN | EP-08, EP-09 (chưa có tin nhân viên, kill switch, breaker) |
+| T-SEC01-STAFF | VERIFIED 2026-11-19 (EP-08a, tại Fake provider) | `StaffInboxIT.staffMessagesNeverReachTheModel` |
+| T-SEC06, T-SEC07 | NOT RUN | EP-09 (chưa có kill switch, breaker) |
