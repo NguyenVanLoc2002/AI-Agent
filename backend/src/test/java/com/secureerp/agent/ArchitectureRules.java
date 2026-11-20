@@ -118,7 +118,8 @@ public final class ArchitectureRules {
                 .should().dependOnClassesThat().resideInAnyPackage(
                         base + ".conversation..", base + ".agent..", base + ".gateway..", base + ".policy..",
                         base + ".tools..", base + ".catalog..", base + ".quote..", base + ".order..",
-                        base + ".handoff..", base + ".securityinspector..", base + ".erp..")
+                        base + ".handoff..", base + ".securityinspector..", base + ".erp..", base + ".identity..",
+                        base + ".operations..")
                 .as("ARCH-10 audit does not depend on business modules")
                 .allowEmptyShould(true));
 
@@ -233,6 +234,16 @@ public final class ArchitectureRules {
                 .that().resideOutsideOfPackages(base + ".quote..", base + ".conversation..")
                 .should().dependOnClassesThat().resideInAPackage(base + ".quote.staff..")
                 .as("ARCH-13 only quote and conversation use quote.staff (StaffQuotes, QuoteLocks)")
+                .allowEmptyShould(true));
+
+        // EP-09b round-2 review M1: the read ports of audit (pseudonyms, roles, trace IDs), the kill switch history
+        // and the tool call history are for the security inspector only (also the Modulith allowlists).
+        rules.put("ARCH-13e", noClasses()
+                .that().resideOutsideOfPackages(base + ".securityinspector..", base + ".audit..", base + ".platform..",
+                        base + ".tools..")
+                .should().dependOnClassesThat().resideInAnyPackage(base + ".audit.queries..",
+                        base + ".platform.history..", base + ".tools.history..")
+                .as("ARCH-13 only securityinspector reads audit :: queries, platform :: history, tools :: history")
                 .allowEmptyShould(true));
 
         // EP-06 architecture review L2: quote may use catalog :: spi for the Sku type only.

@@ -7,7 +7,7 @@
 - **Không** tham số `customerId`, `tenantId`, `userId`, `price`, `discount`, URL, SQL, filter tự do.
 - Đầu ra chỉ DTO `@EgressClassified(APPROVED_TECHNICAL)`; tool output được coi là untrusted và đi qua EgressGuard trước khi tới model.
 - Không reflection invocation; registry tĩnh (ARCH-11).
-- Lỗi trả mã đã sanitize; audit `TOOL_INVOKED/TOOL_REJECTED` với tên tool, decision, reason code (EP-03: bản ghi audit là bảng `tool_invocation`; **không** lưu tên field của args vì model đặt được tên field tùy ý, có thể chứa dữ liệu; SECREV đọc qua inspector API ở EP-09).
+- Lỗi trả mã đã sanitize; audit `TOOL_INVOKED/TOOL_REJECTED` với tên tool, decision, reason code (EP-03: bản ghi audit là bảng `tool_invocation`; **không** lưu tên field của args vì model đặt được tên field tùy ý, có thể chứa dữ liệu; SECREV đọc qua inspector API: EP-09b, `tools :: history`, không gồm principal/conversation; cột `request_id` (V15) để ghép theo request).
 - Giới hạn (D-10 APPROVED 2026-11-18, cấu hình `apas.tools.limits`): ≤3 tool call/lượt; ≤20 tool call/hội thoại/giờ **và** ≤40 tool call/principal/giờ trên mọi conversation; ≤5 conversation mới/principal/giờ; args ≤4 KB, độ sâu ≤3; mảng ≤20.
 
 ## 2. Allowlist theo vai trò
@@ -149,7 +149,7 @@ Nhân viên không dùng agent tool trong PoC; thao tác qua API có RBAC.
 | T-UC02-OE-FABRICATED | VERIFIED (unit + HTTP) | `OutputValidatorTest.aCodeIsAllowedOnlyWhenAToolReturnedItThisTurn`, `ChatFlowIT.aPriceOrInventedCodeInTheAnswerIsDroppedAndHandedOff` |
 | T-UC03-RENDER (HTTP) | VERIFIED (HTTP) | `ChatFlowIT.anIssuedQuoteIsRenderedForTheCustomerAndNeverReachesTheModel` |
 | T-SEC01-HISTORY | VERIFIED (HTTP, Fake provider, không qua proxy); **SEC-01b 2026-11-19: VERIFIED qua proxy capture kép** | cùng test: báo giá + 3 lượt sau, 0 sentinel/giá/card trong mọi body provider. SEC-01b: `EgressSuiteFlow200IT` (script 7 báo giá + 3 lượt, script 3 giá/SĐT/VIN đã che + 2 lượt) và `redactedValuesAreReplayedOnlyRedactedAndLeaveTheWindow` (ranh giới cửa sổ 6 tin) |
-| T-SEC02 (20 lần thử) | VERIFIED một phần (HTTP + PostgreSQL) | `CrossCustomerIT`: 20 lần thử của B với productRef, quote handle, quote ref thật của A; 0 giá/handle/ref của A trong phản hồi cho B; từ chối tool ghi ở `tool_invocation`. Từ chối mức HTTP chỉ ghi log mã (chưa có `audit_event`, EP-09) |
+| T-SEC02 (20 lần thử) | VERIFIED một phần (HTTP + PostgreSQL) | `CrossCustomerIT`: 20 lần thử của B với productRef, quote handle, quote ref thật của A; 0 giá/handle/ref của A trong phản hồi cho B; từ chối tool ghi ở `tool_invocation`. Từ chối ở service ghi `audit_event` `ACCESS_DENIED` (EP-09b); từ chối mức URL (401/403 của Spring Security) chưa có (EP-09d) |
 | T-SEC03 | VERIFIED một phần (15/50) | `AdversarialChatIT` (15 fixture: injection, tool cấm, args lớn/sâu, giá/duyệt đơn/link trong output); bộ 50: ACC-01 |
 | A-35 (HTTP) | VERIFIED (HTTP) | `ChatFlowIT.aSessionCustomerOtherThanTheBoundOneIsRefused`, `aRevokedCustomerLinkEndsTheConversation` |
 | T-SEC01-STAFF | VERIFIED 2026-11-19 (EP-08a, tại Fake provider) | `StaffInboxIT.staffMessagesNeverReachTheModel` |

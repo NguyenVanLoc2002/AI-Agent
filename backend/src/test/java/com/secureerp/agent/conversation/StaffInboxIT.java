@@ -427,7 +427,11 @@ class StaffInboxIT extends ChatEnvironment {
      */
     @Test
     void everyEndpointAnswersEveryRoleAsTheMatrixSays() {
-        record Call(String method, String path, String body, int customer, int sales) {
+        record Call(String method, String path, String body, int customer, int sales, int reviewer) {
+
+            Call(String method, String path, String body, int customer, int sales) {
+                this(method, path, body, customer, sales, 403);
+            }
         }
         String confirm = "{\"version\":1,\"confirmationToken\":\"qc_AAAAAAAAAAAAAAAAAAAAAA\"}";
         List<Call> matrix = List.of(
@@ -449,7 +453,11 @@ class StaffInboxIT extends ChatEnvironment {
                 new Call("GET", "/api/internal/conversations/" + FAKE_CONVERSATION + "/quote", null, 403, 404),
                 new Call("GET", "/api/internal/orders/awaiting-decision", null, 403, 200),
                 new Call("POST", "/api/internal/orders/999999/staff-decision", "{\"decision\":\"APPROVED\"}", 403,
-                        404));
+                        404),
+                // EP-09b (T-UC07-RBAC): the security inspector is SECREV only
+                new Call("GET", "/api/demo/security/traces/7b0e0c7e-2f3a-4f6f-9d0a-000000000001", null, 403, 403,
+                        404),
+                new Call("GET", "/api/demo/security/events", null, 403, 403, 200));
         DemoHttpClient anonymous = client();
         anonymous.csrf();
         for (Call call : matrix) {
@@ -462,7 +470,8 @@ class StaffInboxIT extends ChatEnvironment {
                 int expected = switch (user) {
                     case "cust-a" -> call.customer();
                     case "sales-1" -> call.sales();
-                    default -> 403; // OPERATOR and SECURITY_REVIEWER have no business endpoint here (BR-24)
+                    case "secrev-1" -> call.reviewer();
+                    default -> 403; // OPERATOR has no business endpoint here (BR-24)
                 };
                 HttpResponse<String> response = invoke(client, call.method(), call.path(), call.body());
                 assertThat(response.statusCode()).as("%s %s %s: %s", user, call.method(), call.path(), response.body())

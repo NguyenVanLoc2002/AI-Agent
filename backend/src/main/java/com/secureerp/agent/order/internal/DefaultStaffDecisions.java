@@ -1,5 +1,9 @@
 package com.secureerp.agent.order.internal;
 
+import com.secureerp.agent.audit.AuditActor;
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
+import com.secureerp.agent.audit.DeniedInTransaction;
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.order.DraftOrderMirrorRefused;
@@ -38,9 +42,11 @@ class DefaultStaffDecisions implements StaffDecisions {
     private final TransactionTemplate transactions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final AuditTrail audit;
 
     DefaultStaffDecisions(DraftOrderStore store, TransactionTemplate transactions, ApplicationEventPublisher events,
-            Clock clock) {
+            Clock clock, AuditTrail audit) {
+        this.audit = audit;
         this.store = store;
         this.transactions = transactions;
         this.events = events;
@@ -49,7 +55,7 @@ class DefaultStaffDecisions implements StaffDecisions {
 
     @Override
     public List<AwaitingDecision> awaiting(SessionIdentity staff) {
-        Team team = SalesStaff.teamOf(staff, "staff_decision");
+        Team team = SalesStaff.teamOf(staff, "staff_decision", audit);
         return store.awaitingDecision(team.value(), MAX_LISTED).stream()
                 .map(request -> new AwaitingDecision(request.id(), request.quoteRef(), request.quoteVersion(),
                         request.erpOrderRef(), request.completedAt()))
@@ -58,13 +64,18 @@ class DefaultStaffDecisions implements StaffDecisions {
 
     @Override
     public DraftOrderState decide(SessionIdentity staff, long requestId, Decision decision) {
-        Team team = SalesStaff.teamOf(staff, "staff_decision");
+        Team team = SalesStaff.teamOf(staff, "staff_decision", audit);
         Objects.requireNonNull(decision, "decision");
         DraftOrderState target = decision == Decision.APPROVED
                 ? DraftOrderState.STAFF_APPROVED : DraftOrderState.STAFF_REJECTED;
         String actor = staff.principal().pseudonym();
+        AuditActor auditActor = staff.auditActor();
         try {
-            return transactions.execute(tx -> decide(requestId, team, target, actor, clock.instant()));
+            return transactions.execute(tx -> decide(requestId, team, target, actor, auditActor, clock.instant()));
+        } catch (DeniedInTransaction denied) {
+            // Recorded after the transaction returned its connection (EP-09b reviews M-1).
+            audit.recordSeparately(denied.event());
+            throw new ApplicationException(ErrorCode.NOT_FOUND);
         } catch (DraftOrderMirrorRefused quoteCannotFollow) {
             // Rolled back: request and quote disagree; someone has to look before a decision is recorded.
             log.error("order.staff_decision refused code=CONFLICT reason=MIRROR_REFUSED");
@@ -75,11 +86,13 @@ class DefaultStaffDecisions implements StaffDecisions {
         }
     }
 
-    private DraftOrderState decide(long requestId, Team team, DraftOrderState target, String actor, Instant now) {
+    private DraftOrderState decide(long requestId, Team team, DraftOrderState target, String actor,
+            AuditActor auditActor, Instant now) {
         // Another team's request and a missing one are the same 404.
         DraftOrderStore.Request request = store.findForTeam(requestId, team.value()).orElseThrow(() -> {
             log.warn("order.staff_decision denied code=FORBIDDEN_RESOURCE");
-            return new ApplicationException(ErrorCode.NOT_FOUND);
+            return new DeniedInTransaction(AuditEvent.denied(AuditEvent.Resource.DRAFT_ORDER,
+                    AuditEvent.FORBIDDEN_RESOURCE, auditActor));
         });
         if (request.state() == target) {
             return target; // the same decision again
@@ -95,6 +108,9 @@ class DefaultStaffDecisions implements StaffDecisions {
             throw new ApplicationException(ErrorCode.CONFLICT);
         }
         store.event(requestId, target.name(), actor, now);
+        // EP-09b (A-43(n)): committed with the decision (decision 2A).
+        audit.record(new AuditEvent(AuditEvent.Action.STAFF_ORDER_DECIDED, AuditEvent.Resource.DRAFT_ORDER,
+                target.name(), auditActor));
         events.publishEvent(new DraftOrderStateChanged(request.quoteRef(), request.quoteVersion(), target));
         log.info("order.staff_decision state={}", target);
         return target;

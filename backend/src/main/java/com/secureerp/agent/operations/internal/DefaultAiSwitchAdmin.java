@@ -1,5 +1,7 @@
 package com.secureerp.agent.operations.internal;
 
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.operations.AiSwitchAdmin;
@@ -20,9 +22,11 @@ class DefaultAiSwitchAdmin implements AiSwitchAdmin {
     private static final Logger log = LoggerFactory.getLogger(DefaultAiSwitchAdmin.class);
 
     private final KillSwitch killSwitch;
+    private final AuditTrail audit;
 
-    DefaultAiSwitchAdmin(KillSwitch killSwitch) {
+    DefaultAiSwitchAdmin(KillSwitch killSwitch, AuditTrail audit) {
         this.killSwitch = killSwitch;
+        this.audit = audit;
     }
 
     @Override
@@ -46,10 +50,13 @@ class DefaultAiSwitchAdmin implements AiSwitchAdmin {
         }
     }
 
-    private static void requireOperator(SessionIdentity operator) {
+    private void requireOperator(SessionIdentity operator) {
         Objects.requireNonNull(operator, "operator");
         if (operator.role() != Role.OPS) {
             log.warn("operations.kill_switch denied code=FORBIDDEN");
+            // EP-09b: the denial goes to audit_event; the switch changes stay in feature_switch_event (4A).
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.KILL_SWITCH, AuditEvent.FORBIDDEN,
+                    operator.auditActor()));
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
     }

@@ -1,5 +1,8 @@
 package com.secureerp.agent.conversation.internal;
 
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
+import com.secureerp.agent.audit.DeniedInTransaction;
 import com.secureerp.agent.conversation.Chat;
 import com.secureerp.agent.conversation.StaffChat;
 import com.secureerp.agent.handoff.Handoffs;
@@ -33,13 +36,15 @@ class StaffChatService implements StaffChat {
     private final Handoffs handoffs;
     private final TransactionTemplate transactions;
     private final StaffQuotes quotes;
+    private final AuditTrail audit;
 
     StaffChatService(ConversationStore store, Handoffs handoffs, TransactionTemplate transactions,
-            StaffQuotes quotes) {
+            StaffQuotes quotes, AuditTrail audit) {
         this.store = store;
         this.handoffs = handoffs;
         this.transactions = transactions;
         this.quotes = quotes;
+        this.audit = audit;
     }
 
     @Override
@@ -60,8 +65,18 @@ class StaffChatService implements StaffChat {
         // handoff was resolved, or in the session of a member who claimed it next.
         boolean stored;
         try {
-            stored = Boolean.TRUE.equals(transactions.execute(tx ->
-                    handoffs.holdFor(conversation, staff.principal()) && store.insertStaff(conversation, text)));
+            // EP-09b (A-42(j)): the audit record commits with the message or not at all (decision 2A).
+            stored = Boolean.TRUE.equals(transactions.execute(tx -> {
+                requireStillHolding(staff, conversation);
+                if (!store.insertStaff(conversation, text)) {
+                    return false;
+                }
+                audit.record(new AuditEvent(AuditEvent.Action.STAFF_MESSAGE_POSTED, AuditEvent.Resource.CONVERSATION,
+                        "STORED", staff.auditActor()));
+                return true;
+            }));
+        } catch (DeniedInTransaction lostTheHandoff) {
+            throw denied(lostTheHandoff);
         } catch (PessimisticLockingFailureException busy) {
             // Another change of this conversation's handoff held the lock too long: nothing was written.
             log.warn("conversation.staff_message refused code=CONFLICT");
@@ -80,8 +95,12 @@ class StaffChatService implements StaffChat {
         // lock, so a resolve cannot land between the check and the read of the prices (A-15).
         Optional<StaffQuotes.StaffQuoteView> quote;
         try {
-            quote = transactions.execute(tx -> handoffs.holdFor(conversation, staff.principal())
-                    ? quotes.newestOf(conversation) : Optional.<StaffQuotes.StaffQuoteView>empty());
+            quote = transactions.execute(tx -> {
+                requireStillHolding(staff, conversation);
+                return quotes.newestOf(conversation);
+            });
+        } catch (DeniedInTransaction lostTheHandoff) {
+            throw denied(lostTheHandoff);
         } catch (PessimisticLockingFailureException busy) {
             log.warn("conversation.staff_quote refused code=CONFLICT");
             throw new ApplicationException(ErrorCode.CONFLICT);
@@ -90,19 +109,42 @@ class StaffChatService implements StaffChat {
             log.info("conversation.staff_quote outcome=NOT_FOUND");
             return new ApplicationException(ErrorCode.NOT_FOUND);
         });
-        // Architecture review L-1: a central audit_event for this read of customer prices is EP-09 (A-43).
+        // EP-09b (A-43(n)): a read is recorded in its own transaction (decision 2A).
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_QUOTE_READ, AuditEvent.Resource.QUOTE, "READ",
+                staff.auditActor()));
         log.info("conversation.staff_quote outcome=READ");
         return view;
+    }
+
+    /**
+     * The handoff was resolved or taken over between {@link #requireHolder} and the lock (round-2 review L-2): a
+     * denial like the first check, recorded after the transaction ({@link #denied}).
+     */
+    private void requireStillHolding(SessionIdentity staff, ConversationId conversation) {
+        if (!handoffs.holdFor(conversation, staff.principal())) {
+            log.warn("conversation.staff_access denied code=FORBIDDEN_RESOURCE");
+            throw new DeniedInTransaction(AuditEvent.denied(AuditEvent.Resource.CONVERSATION,
+                    AuditEvent.FORBIDDEN_RESOURCE, staff.auditActor()));
+        }
+    }
+
+    private ApplicationException denied(DeniedInTransaction denial) {
+        audit.recordSeparately(denial.event());
+        return new ApplicationException(ErrorCode.NOT_FOUND);
     }
 
     private void requireHolder(SessionIdentity staff, ConversationId conversation) {
         Objects.requireNonNull(staff, "staff");
         Objects.requireNonNull(conversation, "conversation");
         if (staff.role() != Role.SALES) {
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.CONVERSATION, AuditEvent.FORBIDDEN,
+                    staff.auditActor()));
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
         if (!handoffs.heldBy(conversation, staff.principal())) {
             log.warn("conversation.staff_access denied code=FORBIDDEN_RESOURCE");
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.CONVERSATION, AuditEvent.FORBIDDEN_RESOURCE,
+                    staff.auditActor()));
             throw new ApplicationException(ErrorCode.NOT_FOUND);
         }
     }

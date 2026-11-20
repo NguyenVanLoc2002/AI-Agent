@@ -12,15 +12,15 @@
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `Agent.reply(AgentTurn) -> AgentReply` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
 | policy | DLP inbound/outbound, phát hiện VIN để mask/chặn (không validate, không lưu; EP-05 chuyển validate VIN sang catalog), honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
-| tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
+| tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi), `ToolInvocationHistory` (`tools :: history`, EP-09b, chỉ cho securityinspector) | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô; validate + lưu VIN hiện tại của conversation (EP-05) | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum), `VehicleContext`, `CatalogSearch` | APPROVED_TECHNICAL; VIN đầy đủ: nhạy cảm theo ngữ cảnh, không ra khỏi catalog/erp |
 | quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService`; EP-08b: `quote :: staff` (`StaffQuotes`, `QuoteLocks`, chỉ conversation được dùng) | RESTRICTED, INTERNAL |
 | order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `DraftOrders` (`register`/`dispatch`/`stateOf`), `OrderReconciliation` (EP-07; tên dự kiến cũ: `OrderApi.submit`), `StaffDecisions` (EP-08b) | RESTRICTED, INTERNAL |
 | handoff | Queue, reason code, claim/resolve (EP-08); EP-04: chỉ bản ghi OPEN | `Handoffs.open(conversation, reason)` (EP-04, gọi trực tiếp; event `HandoffOpened/Resolved` ở EP-08) | INTERNAL |
-| audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
-| securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
-| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | INTERNAL (EP-09a: `feature_switch`, `feature_switch_event` với pseudonym của OPS) |
-| operations | Điều khiển của OPS: bật/tắt kill switch, đóng breaker (EP-09a, A-44(a)); không đọc dữ liệu nghiệp vụ (BR-24) | `AiSwitchAdmin`; allowlist identity, platform; không module nào phụ thuộc nó (`ModuleStructureTest`) | — |
+| audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record`, `audit_event` (EP-09b) | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditTrail` (EP-09b; tên dự kiến cũ `AuditSink`), `AuditQueries` (read, named interface `audit :: queries`, chỉ cho securityinspector; tên dự kiến cũ `AuditQueryApi`) | metadata |
+| securityinspector | Đọc audit/egress qua `audit :: queries`, tool call qua `tools :: history`, lịch sử kill switch qua `platform :: history` cho SECREV (EP-09b) | `SecurityInspector`; allowlist audit, `audit :: queries`, identity, platform, `platform :: history`, `tools :: history` | metadata |
+| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock`, `TraceIds`, `KillSwitchHistory` (`platform :: history`, EP-09b, chỉ cho securityinspector) | INTERNAL (EP-09a: `feature_switch`, `feature_switch_event` với pseudonym của OPS) |
+| operations | Điều khiển của OPS: bật/tắt kill switch, đóng breaker (EP-09a, A-44(a)); không đọc dữ liệu nghiệp vụ (BR-24) | `AiSwitchAdmin`; allowlist identity, platform, audit (EP-09b: chỉ ghi lần từ chối); không module nào phụ thuộc nó (`ModuleStructureTest`) | — |
 | erp | **Leaf adapter:** Mock ERP (PoC), ERP thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
 | bootstrap | Ứng dụng Spring Boot + wiring; module duy nhất được phụ thuộc mọi module | — | — |
 
@@ -33,9 +33,9 @@ conversation ─► agent ─► gateway ─► policy
       ├─► quote (render quote card)
       └─► quote :: staff (EP-08b: StaffQuotes cho SALES đang giữ handoff; QuoteLocks từ listener HandoffResolved; ARCH-13d)
 quote ─► order (DraftOrders; order ─(event DraftOrderStateChanged)─► quote, quote ─(event QuoteStaffRequired)─► conversation)
-gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
-mọi module ─► identity.api, platform.api, audit.api (publish)
-operations ─► identity (phiên), platform (KillSwitch)   gateway, agent, conversation ─► platform (KillSwitch.current, EP-09a)
+gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueries), tools :: history, platform (KillSwitchHistory)
+mọi module ─► identity.api, platform.api, audit (`AuditTrail`, lời gọi đồng bộ, EP-09b)
+operations ─► identity (phiên), platform (KillSwitch), audit (ghi lần từ chối, EP-09b)   gateway, agent, conversation ─► platform (KillSwitch.current, EP-09a)
 erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi (EP-06: erp dùng identity :: spi chỉ cho ErpCustomerLink)
 quote ─► identity (CustomerLinks), identity :: spi, catalog :: spi (chỉ Sku, ARCH-13c)
 bootstrap ─► mọi module (wiring)
@@ -67,7 +67,7 @@ bootstrap ─► mọi module (wiring)
 
 ## 4. Giao tiếp
 - Đồng bộ qua `api` (typed command/result); spi do module sở hữu định nghĩa và erp hiện thực.
-- Sự kiện (audit, handoff) qua Spring application events; quyết định egress **không** qua event mà qua lời gọi đồng bộ `audit.EgressAuditLog` (thiếu listener/bean không được phép làm mất bản ghi, review SEC-01a vòng 2); outbox cho thao tác ERP stateful (rule 20; ADR-009).
+- Sự kiện handoff qua Spring application events; audit **không** qua event: `audit.AuditTrail` (EP-09b) và `audit.EgressAuditLog` là lời gọi đồng bộ; quyết định egress **không** qua event mà qua lời gọi đồng bộ `audit.EgressAuditLog` (thiếu listener/bean không được phép làm mất bản ghi, review SEC-01a vòng 2); outbox cho thao tác ERP stateful (rule 20; ADR-009).
 - Mỗi module sở hữu bảng của mình; không đọc bảng chéo.
 
 ## 5. Bằng chứng cần có (NOT RUN)
@@ -75,7 +75,7 @@ bootstrap ─► mọi module (wiring)
 
 ## 6. Ghi chú triển khai POC-001 (2026-11-13)
 - `bootstrap` là root package `com.secureerp.agent`, vì Modulith yêu cầu lớp `@SpringBootApplication` nằm ở root.
-- §2 ghi "mọi module → identity.api…". Để tránh vòng identity ↔ audit, `audit` **không** phụ thuộc `identity`, chỉ phụ thuộc `platform`; actor truyền vào audit dưới dạng chuỗi pseudonymous. Đây là DESIGN PROPOSAL, chờ ký ADR-001.
+- §2 ghi "mọi module → identity.api…". Để tránh vòng identity ↔ audit, `audit` **không** phụ thuộc `identity`, chỉ phụ thuộc `platform`; actor truyền vào audit dưới dạng chuỗi pseudonymous. Đây là DESIGN PROPOSAL, chờ ký ADR-001. EP-09b: actor là record `audit.AuditActor` do identity dựng (`SessionIdentity.auditActor()`), vẫn chỉ gồm pseudonym và tên vai trò.
 - Đã cưỡng chế: allowlist module (Modulith `allowedDependencies`), ARCH-01/02/03/04/07/09/10/11/12/13. Hoãn sang SEC-01a: ARCH-05/06/08.
 
 ## 7. Ghi chú triển khai SEC-01a (2026-11-18)
@@ -140,3 +140,10 @@ bootstrap ─► mọi module (wiring)
 - Cạnh phụ thuộc: gateway → platform (`KillSwitch`), agent → platform (kiểm tra trước tool; `AgentReply.Reason.AI_DISABLED`), conversation → platform, operations → identity, platform (đều đã cho phép hoặc nằm trong allowlist mới). `GatewayResult.RefusalReason` thêm `AI_DISABLED`, `PROVIDER_AUTH_BREAKER`; `HandoffReason.AI_DISABLED`.
 - Endpoint (profile demo): `GET/POST /api/ops/kill-switch`; `identity.SecurityConfiguration`: `/api/ops/**` chỉ vai trò OPS (owner duyệt 3A).
 - Bảng (Flyway V13): `feature_switch`, `feature_switch_event` (module platform).
+
+## EP-09b (2026-11-20)
+- API mới: `audit.AuditTrail` (`record` tham gia transaction của thay đổi, `recordSeparately` transaction riêng, không ném), `audit.AuditEvent` / `AuditActor` / `DeniedInTransaction`, named interface **`audit :: queries`** (`AuditQueries`); `platform.TraceIds` (correlation ID của request, MDC), named interface **`platform :: history`** (`KillSwitchHistory`); named interface **`tools :: history`** (`ToolInvocationHistory`); `securityinspector.SecurityInspector` + `adapter.web.SecurityInspectorController`; `identity.SessionIdentity.auditActor()`.
+- Cạnh phụ thuộc mới: securityinspector → `audit :: queries`, `platform :: history`, `tools :: history` (chỉ inspector đọc ba port này: allowlist + ARCH-13e, review vòng 2 M1); operations → audit (ghi lần từ chối). handoff, conversation, order, quote, identity → audit đã có trong allowlist. Cả hai allowlist mới được ghim trong `ModuleStructureTest`.
+- Endpoint (profile demo): `GET /api/demo/security/traces/{traceId}`, `GET /api/demo/security/events`; `identity.SecurityConfiguration`: `/api/demo/security/**` chỉ SECREV (owner duyệt 5A).
+- Bảng (Flyway V14, module audit): `audit_event`, cột `request_id` của `egress_record`; (Flyway V15, module tools): cột `request_id` của `tool_invocation` (A-45(h); tách theo module sở hữu bảng, review EP-09b L1).
+- Ghi lần từ chối khi đang trong transaction: ném `audit.DeniedInTransaction`, người gọi ghi sau khi transaction kết thúc (review EP-09b M-1); `AuditTrail.record` là `MANDATORY`.

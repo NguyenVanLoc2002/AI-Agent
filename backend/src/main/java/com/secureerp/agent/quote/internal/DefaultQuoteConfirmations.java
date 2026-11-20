@@ -1,5 +1,8 @@
 package com.secureerp.agent.quote.internal;
 
+import com.secureerp.agent.audit.AuditActor;
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.identity.AuthenticatedCustomerRef;
 import com.secureerp.agent.identity.CustomerLinks;
@@ -76,10 +79,12 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
     private final ApplicationEventPublisher events;
     private final QuoteTokens tokens = new QuoteTokens();
     private final Clock clock;
+    private final AuditTrail audit;
 
     DefaultQuoteConfirmations(PricingPort pricing, AvailabilityPort availability, CreditEligibilityPort credit,
             CustomerLinks links, ConfirmationStore store, DraftOrders orders, QuoteProperties properties,
-            ConfirmationProperties limits, ApplicationEventPublisher events, Clock clock) {
+            ConfirmationProperties limits, ApplicationEventPublisher events, Clock clock, AuditTrail audit) {
+        this.audit = audit;
         this.pricing = pricing;
         this.availability = availability;
         this.credit = credit;
@@ -119,6 +124,8 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
             attempt = store.admitAttempt(digest, now.minus(ATTEMPT_WINDOW), limits.maxAttemptsPerHour(), now)
                     .orElseThrow(() -> {
                         log.warn("quote.confirm outcome=RATE_LIMITED");
+                        audit.recordSeparately(new AuditEvent(AuditEvent.Action.QUOTE_CONFIRMATION,
+                                AuditEvent.Resource.QUOTE, "RATE_LIMITED", identity.auditActor()));
                         return new ApplicationException(ErrorCode.TOO_MANY_REQUESTS);
                     });
         } catch (PessimisticLockingFailureException busy) {
@@ -129,19 +136,19 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
             log.warn("quote.confirm outcome=BUSY");
             throw new ApplicationException(ErrorCode.SERVICE_UNAVAILABLE);
         }
+        Attempt admitted = new Attempt(attempt, digest, customer, identity.team().orElse(null), identity.auditActor());
         try {
-            return confirm(new Attempt(attempt, digest, customer, identity.team().orElse(null)), quoteRef, version,
-                    confirmationToken, now);
+            return confirm(admitted, quoteRef, version, confirmationToken, now);
         } catch (PessimisticLockingFailureException busy) {
             // Another write of this customer or conversation held the lock too long: nothing changed here.
-            finish(attempt, null, ConfirmationStore.Attempt.CONFLICT, null);
+            finish(admitted, null, ConfirmationStore.Attempt.CONFLICT, null);
             log.warn("quote.confirm outcome=CONFLICT");
             throw new ApplicationException(ErrorCode.CONFLICT);
         }
     }
 
     /** One admitted attempt of the session customer; {@code team} is the team serving them (EP-08a, may be null). */
-    private record Attempt(long id, String digest, AuthenticatedCustomerRef customer, Team team) {
+    private record Attempt(long id, String digest, AuthenticatedCustomerRef customer, Team team, AuditActor actor) {
     }
 
     private Confirmation confirm(Attempt attempt, String quoteRef, int version, String confirmationToken,
@@ -168,7 +175,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
 
         return switch (recheck(erpCustomer.get(), row, lines)) {
             case Recheck.Unavailable unavailable -> {
-                finish(attempt.id(), row.id(), ConfirmationStore.Attempt.SOURCE_UNAVAILABLE, null);
+                finish(attempt, row.id(), ConfirmationStore.Attempt.SOURCE_UNAVAILABLE, null);
                 events.publishEvent(new QuoteStaffRequired(new ConversationId(row.conversationId()),
                         attempt.digest(), QuoteStaffRequired.Reason.SOURCE_UNAVAILABLE));
                 log.warn("quote.confirm outcome=SOURCE_UNAVAILABLE");
@@ -178,7 +185,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
                 if (!store.block(row, blocked.reason(), lines.size())) {
                     yield changedMeanwhile(attempt, row);
                 }
-                finish(attempt.id(), row.id(), ConfirmationStore.Attempt.BLOCKED, blocked.reason());
+                finish(attempt, row.id(), ConfirmationStore.Attempt.BLOCKED, blocked.reason());
                 log.info("quote.confirm outcome=CONFIRMATION_BLOCKED");
                 yield new Confirmation(row.publicRef(), row.version(), State.CONFIRMATION_BLOCKED);
             }
@@ -195,7 +202,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
                 if (!store.confirm(row, () -> orders.register(submission, attempt.team()))) {
                     yield changedMeanwhile(attempt, row);
                 }
-                finish(attempt.id(), row.id(), ConfirmationStore.Attempt.ACCEPTED, null);
+                finish(attempt, row.id(), ConfirmationStore.Attempt.ACCEPTED, null);
                 log.info("quote.confirm outcome=ACCEPTED lines={}", lines.size());
                 yield submit(row, submission);
             }
@@ -211,6 +218,8 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
                 ? store.latest(quoteRef, digest) : Optional.<ConfirmationStore.QuoteRow>empty())
                 .orElseThrow(() -> {
                     log.warn("quote.read denied code=FORBIDDEN_RESOURCE");
+                    audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.QUOTE, AuditEvent.FORBIDDEN_RESOURCE,
+                            identity.auditActor()));
                     return new ApplicationException(ErrorCode.NOT_FOUND);
                 });
         if (row.status() == QuoteStatus.ORDER_SUBMITTING || row.status() == QuoteStatus.ORDER_OUTCOME_UNKNOWN) {
@@ -270,9 +279,11 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
     }
 
     /** RBAC_MATRIX: only the linked customer confirms; identity comes from the session (BR-01). */
-    private static AuthenticatedCustomerRef customer(SessionIdentity identity) {
+    private AuthenticatedCustomerRef customer(SessionIdentity identity) {
         Objects.requireNonNull(identity, "identity");
         if (identity.role() != Role.CUST) {
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.QUOTE, AuditEvent.FORBIDDEN,
+                    identity.auditActor()));
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
         return identity.customer().orElseThrow(() -> new ApplicationException(ErrorCode.CUSTOMER_NOT_LINKED));
@@ -291,20 +302,23 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
 
     /**
      * Records how the attempt ended. Best effort: the attempt is already counted (STARTED), and an
-     * order that was accepted must still be sent when this bookkeeping write fails.
+     * order that was accepted must still be sent when this bookkeeping write fails. EP-09b (A-41(o)): the
+     * outcome code also goes to audit_event, in its own transaction (decision 2A); never the reason.
      */
-    private void finish(long attemptId, Long quoteId, ConfirmationStore.Attempt outcome, NotQuotedReason reason) {
+    private void finish(Attempt attempt, Long quoteId, ConfirmationStore.Attempt outcome, NotQuotedReason reason) {
         try {
-            store.finishAttempt(attemptId, quoteId, outcome, reason);
+            store.finishAttempt(attempt.id(), quoteId, outcome, reason);
         } catch (RuntimeException auditFailure) {
             log.warn("quote.confirm audit_failed exception={}", auditFailure.getClass().getSimpleName());
         }
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.QUOTE_CONFIRMATION, AuditEvent.Resource.QUOTE,
+                outcome.name(), attempt.actor()));
     }
 
     /** Records the attempt, then answers with the error code (the return type only satisfies callers). */
     private Confirmation refuse(Attempt attempt, ConfirmationStore.QuoteRow row, ConfirmationStore.Attempt outcome,
             ErrorCode code) {
-        finish(attempt.id(), row == null ? null : row.id(), outcome, null);
+        finish(attempt, row == null ? null : row.id(), outcome, null);
         log.info("quote.confirm outcome={}", outcome);
         throw new ApplicationException(code);
     }
@@ -331,7 +345,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
             case ORDER_FAILED, REJECTED -> replay(attempt, row, State.ORDER_FAILED);
             case DRAFT_ORDER_CREATED, STAFF_APPROVED -> replay(attempt, row, State.DRAFT_ORDER_CREATED);
             case CONFIRMED, ORDER_SUBMITTING, ORDER_OUTCOME_UNKNOWN -> {
-                finish(attempt.id(), row.id(), ConfirmationStore.Attempt.REPLAY, null);
+                finish(attempt, row.id(), ConfirmationStore.Attempt.REPLAY, null);
                 Optional<ErpCustomerLink> erpCustomer = links.erpLinkOf(attempt.customer());
                 if (erpCustomer.isEmpty()) {
                     throw new ApplicationException(ErrorCode.CUSTOMER_NOT_LINKED);
@@ -344,7 +358,7 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
     }
 
     private Confirmation replay(Attempt attempt, ConfirmationStore.QuoteRow row, State state) {
-        finish(attempt.id(), row.id(), ConfirmationStore.Attempt.REPLAY, null);
+        finish(attempt, row.id(), ConfirmationStore.Attempt.REPLAY, null);
         log.info("quote.confirm outcome=REPLAY state={}", state);
         return new Confirmation(row.publicRef(), row.version(), state);
     }

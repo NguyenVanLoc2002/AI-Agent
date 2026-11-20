@@ -1,5 +1,9 @@
 package com.secureerp.agent.order.internal;
 
+import com.secureerp.agent.audit.AuditActor;
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
+import com.secureerp.agent.audit.DeniedInTransaction;
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.order.DraftOrderMirrorRefused;
@@ -61,10 +65,12 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
     private final TransactionTemplate transactions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final AuditTrail audit;
 
     DefaultDraftOrders(DraftOrderStore store, DraftOrderPort erp, ErpCapabilities capabilities,
             OrderProperties properties, TransactionTemplate transactions, ApplicationEventPublisher events,
-            Clock clock) {
+            Clock clock, AuditTrail audit) {
+        this.audit = audit;
         this.store = store;
         this.erp = erp;
         this.capabilities = capabilities;
@@ -273,7 +279,7 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public List<UnknownDraftOrder> unknown(SessionIdentity staff) {
-        Team team = SalesStaff.teamOf(staff, "reconcile");
+        Team team = SalesStaff.teamOf(staff, "reconcile", audit);
         expireUnfinished();
         return store.unknown(team.value(), MAX_LISTED).stream()
                 .map(request -> new UnknownDraftOrder(request.id(), request.quoteRef(), request.quoteVersion(),
@@ -283,7 +289,7 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public DraftOrderState reconcile(SessionIdentity staff, long requestId, Finding finding, String erpOrderRef) {
-        Team team = SalesStaff.teamOf(staff, "reconcile");
+        Team team = SalesStaff.teamOf(staff, "reconcile", audit);
         Objects.requireNonNull(finding, "finding");
         boolean created = finding == Finding.CREATED;
         if (created != (erpOrderRef != null)
@@ -293,8 +299,13 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
         DraftOrderState target = created ? DraftOrderState.RECONCILED_CREATED : DraftOrderState.RECONCILED_ABSENT;
         Instant now = clock.instant();
         String actor = staff.principal().pseudonym();
+        AuditActor auditActor = staff.auditActor();
         try {
-            return reconcile(requestId, team, target, erpOrderRef, actor, now);
+            return reconcile(requestId, team, target, erpOrderRef, actor, auditActor, now);
+        } catch (DeniedInTransaction denied) {
+            // Recorded after the transaction returned its connection (EP-09b reviews M-1).
+            audit.recordSeparately(denied.event());
+            throw new ApplicationException(ErrorCode.NOT_FOUND);
         } catch (DraftOrderMirrorRefused quoteCannotFollow) {
             // Rolled back: the request is still unknown, and the mismatch needs a look before a decision.
             log.error("order.reconcile refused code=CONFLICT reason=MIRROR_REFUSED");
@@ -307,13 +318,14 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
     }
 
     private DraftOrderState reconcile(long requestId, Team team, DraftOrderState target, String erpOrderRef,
-            String actor, Instant now) {
+            String actor, AuditActor auditActor, Instant now) {
         return transactions.execute(tx -> {
             // Another team's request and a missing one are the same 404.
             DraftOrderStore.Request request = store.findForTeam(requestId, team.value())
                     .orElseThrow(() -> {
                         log.warn("order.reconcile denied code=FORBIDDEN_RESOURCE");
-                        return new ApplicationException(ErrorCode.NOT_FOUND);
+                        return new DeniedInTransaction(AuditEvent.denied(AuditEvent.Resource.DRAFT_ORDER,
+                                AuditEvent.FORBIDDEN_RESOURCE, auditActor));
                     });
             if (request.state() == target && Objects.equals(request.erpOrderRef(), erpOrderRef)) {
                 return target; // the same decision again
@@ -327,6 +339,9 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
                 throw new ApplicationException(ErrorCode.CONFLICT);
             }
             store.event(requestId, target.name(), actor, now);
+            // EP-09b (A-41(o)): committed with the reconciliation (decision 2A).
+            audit.record(new AuditEvent(AuditEvent.Action.ORDER_RECONCILED, AuditEvent.Resource.DRAFT_ORDER,
+                    target.name(), auditActor));
             events.publishEvent(new DraftOrderStateChanged(request.quoteRef(), request.quoteVersion(), target));
             log.info("order.reconcile state={}", target);
             return target;

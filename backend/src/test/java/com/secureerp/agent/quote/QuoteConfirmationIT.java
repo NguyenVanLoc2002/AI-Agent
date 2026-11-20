@@ -138,6 +138,10 @@ class QuoteConfirmationIT extends ChatEnvironment {
         assertThat(erp.draftCount()).isEqualTo(1);
         assertThat(requests()).isEqualTo(1);
         assertThat(attempts()).containsExactly("ACCEPTED", "REPLAY", "REPLAY", "REPLAY");
+        // EP-09b (A-41(o)): every outcome is also a central audit event with the customer's role, never the ref.
+        assertThat(jdbc.queryForList("select outcome || ':' || actor_role from audit_event "
+                + "where action = 'QUOTE_CONFIRMATION' order by id", String.class))
+                .containsExactly("ACCEPTED:CUST", "REPLAY:CUST", "REPLAY:CUST", "REPLAY:CUST");
 
         // The confirmed quote is no longer a card to confirm, and nothing of it went to the provider or a log.
         assertThat(client.get("/api/demo/quotes/" + quote.quoteRef()).body())
@@ -147,7 +151,8 @@ class QuoteConfirmationIT extends ChatEnvironment {
             assertThat(body).doesNotContain(quote.token()).doesNotContain(quote.quoteRef());
         }
         assertThat(output.getAll()).doesNotContain(quote.token()).doesNotContain(quote.quoteRef())
-                .doesNotContain(PRICE_A).doesNotContain(ERP_CUSTOMER_A);
+                .doesNotContain(PRICE_A).doesNotContain(ERP_CUSTOMER_A)
+                .doesNotContain("separate_write_inside_transaction"); // EP-09b round-2 review L-3
         assertThat(jdbc.queryForObject("select confirm_token_hash from quote", String.class))
                 .hasSize(64).doesNotContain(quote.token());
     }
@@ -565,6 +570,8 @@ class QuoteConfirmationIT extends ChatEnvironment {
         HttpResponse<String> limited = confirm(client, quote);
 
         assertThat(limited.statusCode()).as(limited.body()).isEqualTo(429);
+        assertThat(jdbc.queryForList("select outcome from audit_event where action = 'QUOTE_CONFIRMATION' "
+                + "order by id desc limit 2", String.class)).containsExactly("RATE_LIMITED", "NOT_FOUND");
         assertThat(statuses(quote.quoteRef())).containsExactly("ISSUED");
         assertThat(erp.createCalls()).isZero();
         // Another customer is not affected, and the window slides.

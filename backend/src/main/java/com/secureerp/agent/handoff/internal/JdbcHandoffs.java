@@ -1,5 +1,8 @@
 package com.secureerp.agent.handoff.internal;
 
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
+import com.secureerp.agent.audit.DeniedInTransaction;
 import com.secureerp.agent.handoff.ConversationNotFollowing;
 import com.secureerp.agent.handoff.HandoffClaimed;
 import com.secureerp.agent.handoff.HandoffInbox;
@@ -56,12 +59,15 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
     private final TransactionTemplate transactions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final AuditTrail audit;
 
-    JdbcHandoffs(JdbcTemplate jdbc, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock) {
+    JdbcHandoffs(JdbcTemplate jdbc, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock,
+            AuditTrail audit) {
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.events = events;
         this.clock = clock;
+        this.audit = audit;
     }
 
     @Override
@@ -142,8 +148,8 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
         Team team = team(staff);
         String me = staff.principal().pseudonym();
         return following(() -> transactions.execute(tx -> {
-            lock(find(handoffId, team).conversation());
-            Row row = find(handoffId, team);
+            lock(find(handoffId, team, staff).conversation());
+            Row row = find(handoffId, team, staff);
             if (row.status() == Status.CLAIMED && me.equals(row.claimedBy())) {
                 return item(row, me); // the same claim again
             }
@@ -154,6 +160,8 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
                 throw new ApplicationException(ErrorCode.CONFLICT);
             }
             events.publishEvent(new HandoffClaimed(new ConversationId(row.conversation())));
+            audit.record(new AuditEvent(AuditEvent.Action.HANDOFF_CLAIMED, AuditEvent.Resource.HANDOFF, "CLAIMED",
+                    staff.auditActor()));
             log.info("handoff.claim outcome=CLAIMED");
             return item(new Row(row.id(), row.conversation(), row.reason(), Status.CLAIMED, row.openedAt(), me,
                     row.followUp()), me);
@@ -165,8 +173,8 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
         Team team = team(staff);
         String me = staff.principal().pseudonym();
         return following(() -> transactions.execute(tx -> {
-            lock(find(handoffId, team).conversation());
-            Row row = find(handoffId, team);
+            lock(find(handoffId, team, staff).conversation());
+            Row row = find(handoffId, team, staff);
             if (row.status() == Status.RESOLVED && me.equals(row.claimedBy())) {
                 return item(row, me); // the same resolve again
             }
@@ -181,16 +189,24 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
             // A reason raised while this handoff was active gets its own handoff now; the bot stays locked.
             boolean followUp = row.followUp() != null && insertOpen(row.conversation(), row.followUp(), team.value()) == 1;
             events.publishEvent(new HandoffResolved(new ConversationId(row.conversation()), followUp));
+            audit.record(new AuditEvent(AuditEvent.Action.HANDOFF_RESOLVED, AuditEvent.Resource.HANDOFF,
+                    followUp ? "RESOLVED_FOLLOW_UP" : "RESOLVED", staff.auditActor()));
             log.info("handoff.resolve outcome=RESOLVED followUp={}", followUp);
             return item(new Row(row.id(), row.conversation(), row.reason(), Status.RESOLVED, row.openedAt(), me,
                     row.followUp()), me);
         }));
     }
 
-    /** A conversation that cannot follow rolls the change back; the caller gets a conflict, as for a lock timeout. */
-    private static Item following(Supplier<Item> change) {
+    /**
+     * A conversation that cannot follow rolls the change back; the caller gets a conflict, as for a lock timeout.
+     * A denial is recorded here, after the transaction returned its connection (EP-09b reviews M-1).
+     */
+    private Item following(Supplier<Item> change) {
         try {
             return change.get();
+        } catch (DeniedInTransaction denied) {
+            audit.recordSeparately(denied.event());
+            throw new ApplicationException(ErrorCode.NOT_FOUND);
         } catch (ConversationNotFollowing | PessimisticLockingFailureException refused) {
             log.error("handoff.change refused code=CONFLICT reason={}", refused.getClass().getSimpleName());
             throw new ApplicationException(ErrorCode.CONFLICT);
@@ -198,20 +214,24 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
     }
 
     /** A handoff of another team and a missing one are the same 404 (AC-06.1). */
-    private Row find(long handoffId, Team team) {
+    private Row find(long handoffId, Team team, SessionIdentity staff) {
         Optional<Row> row = jdbc.query("select " + COLUMNS + " from handoff where handoff_id = ? and team = ?",
                 (rs, n) -> toRow(rs), handoffId, team.value()).stream().findFirst();
         return row.orElseThrow(() -> {
             log.warn("handoff.access denied code=FORBIDDEN_RESOURCE");
-            return new ApplicationException(ErrorCode.NOT_FOUND);
+            // Recorded by following(), once the transaction is over.
+            return new DeniedInTransaction(AuditEvent.denied(AuditEvent.Resource.HANDOFF,
+                    AuditEvent.FORBIDDEN_RESOURCE, staff.auditActor()));
         });
     }
 
     /** RBAC_MATRIX: only SALES with a team; an administrator is not a business reader (BR-24). */
-    private static Team team(SessionIdentity staff) {
+    private Team team(SessionIdentity staff) {
         Objects.requireNonNull(staff, "staff");
         if (staff.role() != Role.SALES || staff.team().isEmpty()) {
             log.warn("handoff.access denied code=FORBIDDEN");
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.HANDOFF, AuditEvent.FORBIDDEN,
+                    staff.auditActor()));
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
         return staff.team().get();

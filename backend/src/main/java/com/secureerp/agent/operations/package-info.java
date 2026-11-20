@@ -4,7 +4,7 @@
  * {@code platform.KillSwitch}; this module only checks the operator and records the actor. An operator
  * reads no business data here (BR-24).
  */
-@ApplicationModule(displayName = "Operations", allowedDependencies = { "identity", "platform" })
+@ApplicationModule(displayName = "Operations", allowedDependencies = { "identity", "platform", "audit" })
 package com.secureerp.agent.operations;
 
 import org.springframework.modulith.ApplicationModule;

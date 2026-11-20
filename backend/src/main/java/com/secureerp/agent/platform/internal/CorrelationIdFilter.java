@@ -1,5 +1,6 @@
 package com.secureerp.agent.platform.internal;
 
+import com.secureerp.agent.platform.TraceIds;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,7 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Request-Id";
-    public static final String MDC_KEY = "traceId";
+    public static final String MDC_KEY = TraceIds.MDC_KEY;
     public static final String REQUEST_ATTRIBUTE = CorrelationIdFilter.class.getName() + ".traceId";
 
     @Override
