@@ -14,7 +14,10 @@ public sealed interface GatewayResult {
         }
     }
 
-    /** Nothing was sent. The caller must hand off to staff with this reason. */
+    /**
+     * Nothing (further) was sent: a switch turned off before a retry refuses after the first attempt went
+     * out. The caller must hand off to staff with this reason.
+     */
     record Refused(RefusalReason reason) implements GatewayResult {
 
         public Refused {
@@ -34,7 +37,11 @@ public sealed interface GatewayResult {
         /** The egress policy blocked the payload, or could not decide (fail-closed). */
         DLP_EGRESS,
         /** The egress decision could not be audited, so nothing was sent. */
-        AUDIT_UNAVAILABLE
+        AUDIT_UNAVAILABLE,
+        /** EP-09a: the kill switch is off, or its state could not be read (fail closed); nothing was sent. */
+        AI_DISABLED,
+        /** EP-09a: the provider-auth breaker is open after a 401/403 (SEC-07); nothing was sent. */
+        PROVIDER_AUTH_BREAKER
     }
 
     enum FailureReason {

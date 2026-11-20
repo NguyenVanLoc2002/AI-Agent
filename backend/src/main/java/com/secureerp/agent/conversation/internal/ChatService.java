@@ -16,6 +16,7 @@ import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
+import com.secureerp.agent.platform.KillSwitch;
 import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.quote.QuoteCard;
 import com.secureerp.agent.quote.QuoteCards;
@@ -23,6 +24,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -40,6 +42,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>atomic admission: dedup by client event, one turn in flight per conversation (409), limits per
  *       conversation and principal (429), conversation status read under the lock;</li>
  *   <li>a conversation waiting for staff gets a fixed reply, no model call;</li>
+ *   <li>kill switch (EP-09a, ADR-013): off or unreadable → hand off (AI_DISABLED, or PROVIDER_AUTH while the
+ *       provider-auth breaker is open), nothing else runs;</li>
  *   <li>VIN intake with the raw text (A-29): Invalid/Multiple → ask again, Unavailable → hand off; no
  *       model call in either case (AC-02.1);</li>
  *   <li>agent turn with the policy-safe history up to this message (ADR-011, last
@@ -68,10 +72,12 @@ class ChatService implements Chat {
     private final ConversationProperties properties;
     private final TransactionTemplate transactions;
     private final Clock clock;
+    private final KillSwitch killSwitch;
 
     ChatService(ConversationStore store, InboundSanitizer sanitizer, VehicleContext vehicles, Agent agent,
             QuoteCards quoteCards, Handoffs handoffs, ConversationProperties properties,
-            TransactionTemplate transactions, Clock clock) {
+            TransactionTemplate transactions, Clock clock, KillSwitch killSwitch) {
+        this.killSwitch = killSwitch;
         this.store = store;
         this.sanitizer = sanitizer;
         this.vehicles = vehicles;
@@ -153,6 +159,15 @@ class ChatService implements Chat {
         if (admitted.status() == ConversationStore.Status.HUMAN_ACTIVE) {
             // EP-08a: the message is stored for the staff member; the bot stays silent (no model call).
             return reply(id, turnId, ChatTexts.WITH_STAFF, true, null);
+        }
+        // DATA_FLOW step 2 (EP-09a, ADR-013): with the AI off nothing below runs for this turn (no VIN intake,
+        // no agent, no tool); the conversation goes to staff. The agent checks again before tools and the
+        // gateway before every provider call.
+        KillSwitch.State ai = aiState();
+        if (!ai.aiEnabled()) {
+            log.warn("conversation.turn ai_disabled reason={}", ai.disabledReason());
+            return handOff(identity, id, turnId, ai.disabledReason() == KillSwitch.Reason.PROVIDER_AUTH
+                    ? HandoffReason.PROVIDER_AUTH : HandoffReason.AI_DISABLED);
         }
         if (sanitized instanceof InboundSanitizer.Blocked block) {
             log.warn("conversation.turn inbound_blocked code={}", block.policyCode());
@@ -246,6 +261,15 @@ class ChatService implements Chat {
         return new ChatTurn(completed.turnId(), completed.reply(), true, true, null);
     }
 
+    /** Fail closed like the gateway: a switch that throws (against its contract) is off (reviews L2). */
+    private KillSwitch.State aiState() {
+        try {
+            return Objects.requireNonNull(killSwitch.current(), "state");
+        } catch (RuntimeException e) {
+            return KillSwitch.State.unreadable();
+        }
+    }
+
     /** Handoff record, then the bot lock, in one transaction (architecture review M3), then the stored reply. */
     private ChatTurn handOff(SessionIdentity identity, ConversationId id, UUID turnId, HandoffReason reason) {
         transactions.executeWithoutResult(tx -> {
@@ -268,6 +292,7 @@ class ChatService implements Chat {
             case DLP_EGRESS -> HandoffReason.DLP_EGRESS;
             case PROVIDER_ERROR -> HandoffReason.PROVIDER_ERROR;
             case PROVIDER_AUTH -> HandoffReason.PROVIDER_AUTH;
+            case AI_DISABLED -> HandoffReason.AI_DISABLED;
             case CATALOG_UNAVAILABLE -> HandoffReason.CATALOG_UNAVAILABLE;
             case TOOL_REJECTED_REPEATED -> HandoffReason.TOOL_REJECTED_REPEATED;
             case QUOTE_NOT_ISSUED -> HandoffReason.QUOTE_NOT_ISSUED;

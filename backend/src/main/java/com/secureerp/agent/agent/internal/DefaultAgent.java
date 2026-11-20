@@ -18,6 +18,7 @@ import com.secureerp.agent.gateway.api.ToolErrorResult;
 import com.secureerp.agent.gateway.api.ToolProposal;
 import com.secureerp.agent.gateway.api.ToolResultDto;
 import com.secureerp.agent.gateway.api.ToolSpec;
+import com.secureerp.agent.platform.KillSwitch;
 import com.secureerp.agent.tools.ToolCallContext;
 import com.secureerp.agent.tools.ToolManager;
 import com.secureerp.agent.tools.ToolOutcome;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -56,10 +58,30 @@ class DefaultAgent implements Agent {
 
     private final AiGateway gateway;
     private final ToolManager tools;
+    private final KillSwitch killSwitch;
 
-    DefaultAgent(AiGateway gateway, ToolManager tools) {
+    DefaultAgent(AiGateway gateway, ToolManager tools, KillSwitch killSwitch) {
         this.gateway = gateway;
         this.tools = tools;
+        this.killSwitch = killSwitch;
+    }
+
+    /**
+     * EP-09a reviews (security L1, backend L3): a switch turned off while the model answered stops the tools
+     * it proposed too (no quote is issued that nobody will see); fails closed like the gateway.
+     */
+    private Optional<Reason> switchedOff() {
+        KillSwitch.State state;
+        try {
+            state = Objects.requireNonNull(killSwitch.current(), "state");
+        } catch (RuntimeException e) {
+            state = KillSwitch.State.unreadable();
+        }
+        if (state.aiEnabled()) {
+            return Optional.empty();
+        }
+        return Optional.of(state.disabledReason() == KillSwitch.Reason.PROVIDER_AUTH
+                ? Reason.PROVIDER_AUTH : Reason.AI_DISABLED);
     }
 
     @Override
@@ -91,6 +113,10 @@ class DefaultAgent implements Agent {
                 log.info("agent.turn answered calls={} toolResults={} quote={}", call, results.size(),
                         issuedHandle != null);
                 return new AgentReply.Answer(response.text().strip(), issuedHandle);
+            }
+            Optional<Reason> off = switchedOff();
+            if (off.isPresent()) {
+                return handoff(off.get(), call);
             }
             for (ToolProposal proposal : response.toolProposals()) {
                 if (results.size() >= ModelRequest.MAX_TOOL_RESULTS) {
@@ -140,7 +166,11 @@ class DefaultAgent implements Agent {
     private static Optional<Reason> failure(GatewayResult result) {
         return switch (result) {
             case GatewayResult.Completed completed -> Optional.empty();
-            case GatewayResult.Refused refused -> Optional.of(Reason.DLP_EGRESS);
+            case GatewayResult.Refused refused -> Optional.of(switch (refused.reason()) {
+                case DLP_EGRESS, AUDIT_UNAVAILABLE -> Reason.DLP_EGRESS;
+                case AI_DISABLED -> Reason.AI_DISABLED;
+                case PROVIDER_AUTH_BREAKER -> Reason.PROVIDER_AUTH;
+            });
             case GatewayResult.Failed failed -> Optional.of(failed.reason() == GatewayResult.FailureReason.PROVIDER_AUTH
                     ? Reason.PROVIDER_AUTH : Reason.PROVIDER_ERROR);
         };

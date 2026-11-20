@@ -7,7 +7,7 @@
 | # | Bước | Module | Dữ liệu vào → ra | Kiểm soát | Lỗi → |
 |---|---|---|---|---|---|
 | 1 | `POST /api/demo/conversations/{id}/messages` | conversation | raw text (untrusted) | session + CSRF; principal → `AuthenticatedCustomerRef`; ownership; dedup `clientEventId`; kích thước/JSON hợp lệ | 400/401/404; trùng → trả kết quả cũ |
-| 2 | Kill switch (**chưa làm**: EP-09, ADR-013 PROPOSED; EP-04 không có bước này) | platform | — | `KillSwitch.isAiEnabled()`; không đọc được trạng thái → coi như OFF (fail-closed) | OFF → handoff `AI_DISABLED` |
+| 2 | Kill switch (EP-09a 2026-11-20, ADR-013 ACCEPTED; gateway kiểm tra lại trước mỗi lần gọi provider) | platform | — | `KillSwitch.current()` tại intake; agent kiểm tra lại trước tool, gateway trước khi serialize và trước mỗi lần gọi; không đọc được trạng thái → coi như OFF (fail-closed) | OFF → handoff `AI_DISABLED`; breaker mở (401/403) → `PROVIDER_AUTH` |
 | 3 | Inbound sanitize | policy | raw → `SafeMessage` (T) | VIN trích + validate server-side, lưu VIN đầy đủ trong state, chỉ WMI/mask đi tiếp; phát hiện tiền/SĐT/email/ID/honeytoken → redact hoặc reject | reject → handoff `DLP_INBOUND`; VIN sai → hỏi lại (không gọi model hay tool) |
 | 4 | Dựng request | agent | `SafeMessage`, history **summary** (T), `ToolSpec` | summary từ structured state; **loại trừ** lượt của nhân viên và quote card | — |
 | 5 | Egress preflight | gateway + policy | `ModelRequest` → bytes | serialize allowlist; scan bytes cuối; publish `EgressDecision` (field names, honeytoken ID/policy code, length) → audit | hit/unknown → **không gửi**, handoff `DLP_EGRESS` |
@@ -45,7 +45,7 @@
 ### 1a. Triển khai EP-04 (2026-11-19)
 - Thứ tự thật trong `ChatService`: owner (404) + khách gắn với conversation (A-35, 403) → sanitizer (A-21) → **tiếp nhận nguyên tử** (advisory lock theo conversation: dedup `clientEventId`, tối đa một lượt đang chạy → 409, giới hạn theo conversation + principal → 429, đọc `status`, insert tin khách đã sanitize) → conversation đang chờ nhân viên → câu cố định → VIN intake với text gốc (A-29; Invalid/Multiple → hỏi lại, Unavailable → handoff, không gọi model) → agent (≤3 lần gọi model, history đến đúng tin của lượt này) → render card phía server.
 - Mọi lượt đã tiếp nhận đều kết thúc bằng một câu trả lời đã lưu; lỗi bất ngờ → handoff `PROVIDER_ERROR`; lượt bỏ dở quá `turn-timeout` (2 phút) được hoàn tất thành handoff khi client gửi lại cùng event.
-- Bước 2 (kill switch) chưa có; bước 11: OutputValidator loại cả câu trả lời và handoff `OUTPUT_REJECTED` (quyết định 2026-11-19).
+- Bước 2 (kill switch): có từ EP-09a (2026-11-20), sau bước tiếp nhận lượt và trước sanitize-block/VIN/agent; breaker 401/403 → `PROVIDER_AUTH`. Bước 11: OutputValidator loại cả câu trả lời và handoff `OUTPUT_REJECTED` (quyết định 2026-11-19).
 
 ## 3. Luồng handoff (UC-05/06)
 Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation gọi `Handoffs.open` rồi đặt `HANDOFF_PENDING` (bot khóa) trong **một transaction** (EP-08a đổi thứ tự so với EP-04, xem §3a; không có event `HandoffOpened`) → SALES claim → `HUMAN_ACTIVE` (tin của SALES lưu với direction STAFF, không vào history model) → resolve → event `HandoffResolved` → `ACTIVE_BOT`. Notification nội bộ chỉ chứa reason code + conversation ID.
@@ -88,5 +88,5 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation
 | draft_order_event | order | I | EP-07: mọi thay đổi trạng thái + `actor` (pseudonym của nhân viên đối soát) |
 | handoff | handoff | I | reason_code NOT NULL; EP-08a (Flyway V11): `status` OPEN/CLAIMED/RESOLVED, `team`, `claimed_by`, `resolved_by`, `followup_reason`; tối đa một handoff chưa resolve mỗi conversation (unique index một phần) |
 | audit_event, egress_record | audit | metadata | không cột body/giá trị |
-| feature_switch | platform | — | audit thay đổi |
+| feature_switch, feature_switch_event | platform | INTERNAL (pseudonym của OPS trong event) | mọi thay đổi có actor (null = breaker); EP-09b chuyển sang audit_event; retention D-09 |
 | mock_erp.* | erp | R (synthetic, sentinel) | schema tách; chỉ erp truy cập — **chưa tạo**: Mock giữ dữ liệu trong bộ nhớ (EP-07, A-41(i)) |

@@ -23,6 +23,7 @@ import com.secureerp.agent.identity.Channel;
 import com.secureerp.agent.identity.IdentityFixtures;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.platform.ConversationId;
+import com.secureerp.agent.platform.TestKillSwitch;
 import com.secureerp.agent.tools.ToolCallContext;
 import com.secureerp.agent.tools.ToolManager;
 import com.secureerp.agent.tools.ToolOutcome;
@@ -69,7 +70,8 @@ class DefaultAgentTest {
         }
     };
 
-    private final DefaultAgent agent = new DefaultAgent(gateway, tools);
+    private final TestKillSwitch killSwitch = new TestKillSwitch();
+    private final DefaultAgent agent = new DefaultAgent(gateway, tools, killSwitch);
 
     private static AgentTurn turn(String... texts) {
         return new AgentTurn(IdentityFixtures.principal("AgentPrincipal"), Role.CUST, Channel.WEB_CHAT, CONVERSATION,
@@ -204,6 +206,33 @@ class DefaultAgentTest {
         assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.PROVIDER_AUTH));
         answers.add(new GatewayResult.Failed(GatewayResult.FailureReason.INVALID_PROVIDER_RESPONSE));
         assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.PROVIDER_ERROR));
+        // EP-09a: the kill switch and the provider-auth breaker.
+        answers.add(new GatewayResult.Refused(GatewayResult.RefusalReason.AI_DISABLED));
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.AI_DISABLED));
+        answers.add(new GatewayResult.Refused(GatewayResult.RefusalReason.PROVIDER_AUTH_BREAKER));
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.PROVIDER_AUTH));
+        assertThat(executed).isEmpty();
+    }
+
+    /**
+     * EP-09a reviews (security L1, backend L3, architecture M2): a switch turned off while the model answered
+     * stops the tools it proposed; no quote is issued that nobody would see.
+     */
+    @Test
+    void aSwitchTurnedOffBeforeTheToolsStopsThem() {
+        answers.add(tool("searchVerifiedProduct", "{\"oe\":\"04465-0K290\"}"));
+        killSwitch.set(false, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.AI_DISABLED));
+
+        answers.add(tool("searchVerifiedProduct", "{\"oe\":\"04465-0K290\"}"));
+        killSwitch.tripProviderAuth();
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.PROVIDER_AUTH));
+
+        answers.add(tool("searchVerifiedProduct", "{\"oe\":\"04465-0K290\"}"));
+        killSwitch.set(true, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        killSwitch.throwOnRead = true;
+        assertThat(agent.reply(turn("x"))).as("a throwing switch is off")
+                .isEqualTo(new AgentReply.Handoff(AgentReply.Reason.AI_DISABLED));
         assertThat(executed).isEmpty();
     }
 

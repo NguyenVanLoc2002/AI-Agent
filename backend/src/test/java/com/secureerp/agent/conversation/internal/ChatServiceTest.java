@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +27,7 @@ import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
+import com.secureerp.agent.platform.TestKillSwitch;
 import com.secureerp.agent.policy.InboundSanitizer;
 import com.secureerp.agent.quote.QuoteCards;
 import java.time.Clock;
@@ -58,6 +60,7 @@ class ChatServiceTest {
     private final Handoffs handoffs = mock(Handoffs.class);
     private final TransactionTemplate transactions = mock(TransactionTemplate.class);
     private final SessionIdentity identity = IdentityFixtures.sessionIdentity("ChatSvc", "ChatSvcCustomer");
+    private final TestKillSwitch killSwitch = new TestKillSwitch();
     private ChatService chat;
 
     @BeforeEach
@@ -65,7 +68,7 @@ class ChatServiceTest {
     void setUp() {
         chat = new ChatService(store, sanitizer, vehicles, agent, cards, handoffs,
                 new ConversationProperties(5, 30, 60, 8192, Duration.ofMinutes(2)), transactions,
-                Clock.fixed(Instant.parse("2026-11-19T08:00:00Z"), ZoneOffset.UTC));
+                Clock.fixed(Instant.parse("2026-11-19T08:00:00Z"), ZoneOffset.UTC), killSwitch);
         doAnswer(invocation -> {
             ((Consumer<TransactionStatus>) invocation.getArgument(0)).accept(null);
             return null;
@@ -89,6 +92,30 @@ class ChatServiceTest {
                 refused -> assertThat(refused.code()).isEqualTo(ErrorCode.CUSTOMER_NOT_ASSIGNED));
 
         verify(store, never()).create(any(), anyString(), anyString(), any(), anyInt(), any());
+    }
+
+    /**
+     * EP-09a (DATA_FLOW step 2; review round 2, architecture M-A): with the switch off, unreadable, throwing
+     * against its contract, or the breaker open, the turn goes to staff and the agent is never called.
+     */
+    @Test
+    void aSwitchedOffAiHandsOffAtIntakeWithoutTheAgent() {
+        killSwitch.set(false, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        assertThat(chat.post(identity, ID, UUID.randomUUID(), "Xin chào").handedOff()).isTrue();
+        killSwitch.set(true, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        killSwitch.unreadable(true);
+        chat.post(identity, ID, UUID.randomUUID(), "Xin chào");
+        killSwitch.unreadable(false);
+        killSwitch.throwOnRead = true;
+        chat.post(identity, ID, UUID.randomUUID(), "Xin chào");
+        killSwitch.throwOnRead = false;
+        killSwitch.tripProviderAuth();
+        chat.post(identity, ID, UUID.randomUUID(), "Xin chào");
+
+        verify(handoffs, times(3)).open(ID, HandoffReason.AI_DISABLED, IdentityFixtures.TEAM_1);
+        verify(handoffs).open(ID, HandoffReason.PROVIDER_AUTH, IdentityFixtures.TEAM_1);
+        verify(agent, never()).reply(any());
+        verify(vehicles, never()).register(any(), anyString());
     }
 
     /**

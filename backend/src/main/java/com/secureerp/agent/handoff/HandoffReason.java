@@ -23,5 +23,7 @@ public enum HandoffReason {
     /** EP-07 (DATA_FLOW §2 step 6): the ERP outcome of a draft order is unknown; staff reconcile. */
     ERP_UNKNOWN,
     /** EP-07 (DESIGN PROPOSAL): the ERP refused the draft order, or reconciliation found none. */
-    ORDER_NOT_CREATED
+    ORDER_NOT_CREATED,
+    /** EP-09a (ADR-013): the AI kill switch is off, or its state could not be read (fail closed). */
+    AI_DISABLED
 }

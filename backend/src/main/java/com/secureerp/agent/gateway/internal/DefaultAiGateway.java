@@ -10,6 +10,7 @@ import com.secureerp.agent.gateway.api.ModelRequest;
 import com.secureerp.agent.gateway.api.ModelResponse;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderReply;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderTransportException;
+import com.secureerp.agent.platform.KillSwitch;
 import com.secureerp.agent.policy.EgressPolicy;
 import com.secureerp.agent.policy.EgressVerdict;
 import com.secureerp.agent.policy.PolicyCode;
@@ -40,7 +41,9 @@ import org.springframework.stereotype.Service;
  * <p>Call it outside a database transaction: the audit write uses its own transaction and needs a
  * second pooled connection otherwise (second review L6).
  *
- * <p>Not in SEC-01a: kill switch and circuit breaker (ADR-013, EP-09); quotas (EP-03).
+ * <p>EP-09a (ADR-013, A-44): the kill switch is checked before anything is serialized and again before every
+ * provider attempt, the retry included (SEC-06); a 401/403 opens the provider-auth breaker, which only an
+ * operator closes (SEC-07). Quotas: EP-03.
  */
 @Service
 public class DefaultAiGateway implements AiGateway {
@@ -54,17 +57,41 @@ public class DefaultAiGateway implements AiGateway {
     private final ModelProviderPort provider;
     private final EgressAuditLog auditLog;
     private final Clock clock;
+    private final KillSwitch killSwitch;
 
-    public DefaultAiGateway(EgressPolicy policy, ModelProviderPort provider, EgressAuditLog auditLog, Clock clock) {
+    public DefaultAiGateway(EgressPolicy policy, ModelProviderPort provider, EgressAuditLog auditLog, Clock clock,
+            KillSwitch killSwitch) {
         this.policy = Objects.requireNonNull(policy, "policy");
         this.provider = Objects.requireNonNull(provider, "provider");
         this.auditLog = Objects.requireNonNull(auditLog, "auditLog");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.killSwitch = Objects.requireNonNull(killSwitch, "killSwitch");
+    }
+
+    /** The refusal when the AI is off right now, or empty; a failing switch is off (fail closed). */
+    private Optional<GatewayResult> switchedOff(ModelRequest request) {
+        KillSwitch.State state;
+        try {
+            state = Objects.requireNonNull(killSwitch.current(), "state");
+        } catch (RuntimeException e) {
+            state = KillSwitch.State.unreadable();
+        }
+        if (state.aiEnabled()) {
+            return Optional.empty();
+        }
+        log.warn("gateway.egress decision=SWITCHED_OFF reason={} traceId={}", state.disabledReason(),
+                request.traceId());
+        return Optional.of(new GatewayResult.Refused(state.disabledReason() == KillSwitch.Reason.PROVIDER_AUTH
+                ? RefusalReason.PROVIDER_AUTH_BREAKER : RefusalReason.AI_DISABLED));
     }
 
     @Override
     public GatewayResult complete(ModelRequest request) {
         Objects.requireNonNull(request, "request");
+        Optional<GatewayResult> off = switchedOff(request);
+        if (off.isPresent()) {
+            return off.get();
+        }
         byte[] body;
         EgressVerdict verdict;
         List<String> fieldNames = List.of();
@@ -116,6 +143,11 @@ public class DefaultAiGateway implements AiGateway {
 
     private GatewayResult send(ModelRequest request, byte[] body, EgressVerdict verdict, List<String> fieldNames) {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            // ADR-013: checked before every provider call, the retry included (nothing audited as sent).
+            Optional<GatewayResult> off = switchedOff(request);
+            if (off.isPresent()) {
+                return off.get();
+            }
             if (!audit(request, verdict, fieldNames, body.length, attempt)) {
                 return new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE);
             }
@@ -133,6 +165,13 @@ public class DefaultAiGateway implements AiGateway {
                 }
                 log.warn("gateway.provider status={} attempt={} traceId={}", status, attempt, request.traceId());
                 if (status == 401 || status == 403) {
+                    // SEC-07: the key is revoked or invalid; stop every further call until an operator acts.
+                    try {
+                        killSwitch.tripProviderAuth();
+                    } catch (RuntimeException e) {
+                        // The contract says it never throws; the answer stays PROVIDER_AUTH either way.
+                        log.error("gateway.provider breaker_trip_failed exception={}", e.getClass().getSimpleName());
+                    }
                     return new GatewayResult.Failed(FailureReason.PROVIDER_AUTH);
                 }
                 if (status < 500) {
