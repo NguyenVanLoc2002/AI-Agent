@@ -32,7 +32,13 @@ public record AuditEvent(Action action, Resource resource, String outcome, Audit
         DRAFT_ORDER,
         KILL_SWITCH,
         SECURITY_TRACE,
-        SECURITY_EVENTS
+        SECURITY_EVENTS,
+        /** EP-09d (V17): areas of a URL refused by Spring Security; never the URL itself. */
+        ENDPOINT_INTERNAL,
+        ENDPOINT_OPS,
+        ENDPOINT_SECURITY,
+        ENDPOINT_DEMO,
+        ENDPOINT_OTHER
     }
 
     /** Outcome codes used for denials. */
