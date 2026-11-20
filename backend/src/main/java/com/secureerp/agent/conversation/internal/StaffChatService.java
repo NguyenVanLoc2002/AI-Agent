@@ -17,8 +17,10 @@ import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -93,25 +95,33 @@ class StaffChatService implements StaffChat {
         requireHolder(staff, conversation);
         // EP-08b reviews (security L-6, backend L-3): checked again and read under the conversation's handoff
         // lock, so a resolve cannot land between the check and the read of the prices (A-15).
+        // AUDIT-STRICT-READ (A-45(y), owner 2026-11-20): the read of customer prices is recorded inside the read
+        // transaction, under the handoff lock; no record, no prices (fail closed, 503).
         Optional<StaffQuotes.StaffQuoteView> quote;
         try {
             quote = transactions.execute(tx -> {
                 requireStillHolding(staff, conversation);
-                return quotes.newestOf(conversation);
+                Optional<StaffQuotes.StaffQuoteView> found = quotes.newestOf(conversation);
+                if (found.isPresent()) {
+                    audit.record(new AuditEvent(AuditEvent.Action.STAFF_QUOTE_READ, AuditEvent.Resource.QUOTE,
+                            "READ", staff.auditActor()));
+                }
+                return found;
             });
         } catch (DeniedInTransaction lostTheHandoff) {
             throw denied(lostTheHandoff);
         } catch (PessimisticLockingFailureException busy) {
             log.warn("conversation.staff_quote refused code=CONFLICT");
             throw new ApplicationException(ErrorCode.CONFLICT);
+        } catch (DataAccessException | TransactionException notRecorded) {
+            log.error("conversation.staff_quote refused code=SERVICE_UNAVAILABLE exception={}",
+                    notRecorded.getClass().getSimpleName());
+            throw new ApplicationException(ErrorCode.SERVICE_UNAVAILABLE);
         }
         StaffQuotes.StaffQuoteView view = Objects.requireNonNull(quote).orElseThrow(() -> {
             log.info("conversation.staff_quote outcome=NOT_FOUND");
             return new ApplicationException(ErrorCode.NOT_FOUND);
         });
-        // EP-09b (A-43(n)): a read is recorded in its own transaction (decision 2A).
-        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_QUOTE_READ, AuditEvent.Resource.QUOTE, "READ",
-                staff.auditActor()));
         log.info("conversation.staff_quote outcome=READ");
         return view;
     }
