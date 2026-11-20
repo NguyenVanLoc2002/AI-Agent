@@ -94,10 +94,11 @@ class DraftOrderStore {
     private static final String UNFINISHED =
             "((status = 'SUBMITTED' and submitted_at <= ?) or (status = 'PENDING' and created_at <= ?))";
 
-    /** Ids of requests left unfinished since before {@code cutoff}, oldest first. */
-    List<Long> unfinishedBefore(Instant cutoff, int limit) {
-        return jdbc.queryForList("select id from draft_order_request where " + UNFINISHED + " order by id limit ?",
-                Long.class, Timestamp.from(cutoff), Timestamp.from(cutoff), limit);
+    /** Unfinished requests since before {@code cutoff} with an id above {@code afterId}, by id (keyset page). */
+    List<Long> unfinishedBefore(Instant cutoff, long afterId, int limit) {
+        return jdbc.queryForList("select id from draft_order_request where " + UNFINISHED
+                        + " and id > ? order by id limit ?",
+                Long.class, Timestamp.from(cutoff), Timestamp.from(cutoff), afterId, limit);
     }
 
     /**
