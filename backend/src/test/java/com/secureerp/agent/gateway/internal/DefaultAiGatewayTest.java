@@ -20,6 +20,8 @@ import com.secureerp.agent.gateway.api.SafeMessage;
 import com.secureerp.agent.gateway.api.TechnicalContext;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderReply;
 import com.secureerp.agent.gateway.internal.ModelProviderPort.ProviderTransportException;
+import com.secureerp.agent.platform.KillSwitch;
+import com.secureerp.agent.platform.TestKillSwitch;
 import com.secureerp.agent.policy.EgressPolicy;
 import com.secureerp.agent.policy.EgressVerdict;
 import com.secureerp.agent.policy.SentinelVariants;
@@ -41,6 +43,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -57,9 +60,10 @@ class DefaultAiGatewayTest {
     private final EgressAuditLog publisher = published::add;
     private final EgressPolicy policy = new DefaultEgressPolicy(new SensitiveDataDetector());
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-18T00:00:00Z"), ZoneOffset.UTC);
+    private final TestKillSwitch killSwitch = new TestKillSwitch();
 
     private DefaultAiGateway gateway() {
-        return new DefaultAiGateway(policy, provider, publisher, clock);
+        return new DefaultAiGateway(policy, provider, publisher, clock, killSwitch);
     }
 
     @Test
@@ -160,7 +164,7 @@ class DefaultAiGatewayTest {
     @Test
     void oracleDetectsLeakWhenPolicyIsDisabled() {
         DefaultAiGateway unguarded = new DefaultAiGateway(payload -> EgressVerdict.pass(),
-                provider, publisher, clock);
+                provider, publisher, clock, killSwitch);
         String variant = SentinelVariants.of(SentinelVariants.COST).get("V02-dots");
 
         unguarded.complete(EgressFixtures.request("gia von " + variant));
@@ -198,7 +202,7 @@ class DefaultAiGatewayTest {
         ModelProviderPort throwing = (body, budget) -> {
             throw new IllegalStateException("boom " + SentinelVariants.COST);
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(policy, throwing, publisher, clock);
+        DefaultAiGateway gateway = new DefaultAiGateway(policy, throwing, publisher, clock, killSwitch);
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_UNAVAILABLE));
@@ -230,7 +234,7 @@ class DefaultAiGatewayTest {
         EgressAuditLog failing = event -> {
             throw new IllegalStateException("db down");
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(policy, provider, failing, clock);
+        DefaultAiGateway gateway = new DefaultAiGateway(policy, provider, failing, clock, killSwitch);
         provider.replies.add(new ProviderReply(200, OK_RESPONSE));
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
@@ -243,7 +247,7 @@ class DefaultAiGatewayTest {
         EgressPolicy broken = payload -> {
             throw new IllegalStateException("scanner bug");
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(broken, provider, publisher, clock);
+        DefaultAiGateway gateway = new DefaultAiGateway(broken, provider, publisher, clock, killSwitch);
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Refused(RefusalReason.DLP_EGRESS));
@@ -277,7 +281,7 @@ class DefaultAiGatewayTest {
         provider.replies.add(new ProviderReply(503, new byte[0]));
         provider.replies.add(new ProviderReply(200, OK_RESPONSE));
 
-        assertThat(new DefaultAiGateway(policy, provider, failsOnSecond, clock).complete(EgressFixtures.request("xin chao")))
+        assertThat(new DefaultAiGateway(policy, provider, failsOnSecond, clock, killSwitch).complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE));
         assertThat(provider.sent).hasSize(1);
     }
@@ -291,7 +295,7 @@ class DefaultAiGatewayTest {
     /** Second review M1/L1: without an audit log the gateway cannot be built (no silent send). */
     @Test
     void gatewayCannotBeBuiltWithoutAnAuditLog() {
-        assertThatThrownBy(() -> new DefaultAiGateway(policy, provider, null, clock))
+        assertThatThrownBy(() -> new DefaultAiGateway(policy, provider, null, clock, killSwitch))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -302,12 +306,14 @@ class DefaultAiGatewayTest {
                 .withBean(EgressPolicy.class, () -> policy)
                 .withBean(ModelProviderPort.class, () -> provider)
                 .withBean(Clock.class, () -> clock)
+                .withBean(KillSwitch.class, () -> killSwitch)
                 .withBean(DefaultAiGateway.class)
                 .run(context -> assertThat(context).hasFailed());
         new ApplicationContextRunner()
                 .withBean(EgressPolicy.class, () -> policy)
                 .withBean(ModelProviderPort.class, () -> provider)
                 .withBean(Clock.class, () -> clock)
+                .withBean(KillSwitch.class, () -> killSwitch)
                 .withBean(EgressAuditLog.class, () -> publisher)
                 .withBean(DefaultAiGateway.class)
                 .run(context -> assertThat(context).hasNotFailed());
@@ -340,6 +346,79 @@ class DefaultAiGatewayTest {
 
         assertThat(gateway().complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_AUTH));
+        assertThat(provider.sent).hasSize(1);
+    }
+
+    /** T-SEC07 (EP-09a, decision 5A): a 401/403 opens the breaker; nothing is sent until an operator acts. */
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403})
+    void aRevokedKeyOpensTheBreakerAndStopsEveryLaterCall(int status) {
+        provider.replies.add(new ProviderReply(status, new byte[0]));
+        DefaultAiGateway gateway = gateway();
+
+        assertThat(gateway.complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_AUTH));
+        assertThat(killSwitch.trips).hasValue(1);
+        int audited = published.size();
+
+        assertThat(gateway.complete(EgressFixtures.request("xin chao lan nua")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.PROVIDER_AUTH_BREAKER));
+        assertThat(provider.sent).hasSize(1);
+        assertThat(published).as("nothing audited as sent").hasSize(audited);
+
+        killSwitch.set(true, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+        assertThat(gateway.complete(EgressFixtures.request("xin chao"))).isInstanceOf(GatewayResult.Completed.class);
+    }
+
+    /** T-SEC06 (ADR-013): switched off or unreadable → nothing serialized, audited or sent. */
+    @Test
+    void aSwitchedOffOrUnreadableKillSwitchSendsNothing() {
+        killSwitch.set(false, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        assertThat(gateway().complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.AI_DISABLED));
+
+        killSwitch.set(true, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        killSwitch.unreadable(true);
+        assertThat(gateway().complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.AI_DISABLED));
+
+        assertThat(provider.sent).isEmpty();
+        assertThat(published).isEmpty();
+    }
+
+    /** Review round 2 (architecture M-A): a switch that throws is off, and a breaker that cannot be stored
+     * does not change the 401 outcome. */
+    @Test
+    void aThrowingSwitchIsOffAndAFailingTripKeepsTheAuthOutcome() {
+        killSwitch.throwOnRead = true;
+        assertThat(gateway().complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.AI_DISABLED));
+        assertThat(provider.sent).isEmpty();
+        assertThat(published).isEmpty();
+
+        killSwitch.throwOnRead = false;
+        KillSwitch failingTrip = new TestKillSwitch() {
+            @Override
+            public void tripProviderAuth() {
+                throw new IllegalStateException("store down");
+            }
+        };
+        provider.replies.add(new ProviderReply(401, new byte[0]));
+        assertThat(new DefaultAiGateway(policy, provider, publisher, clock, failingTrip)
+                .complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_AUTH));
+    }
+
+    /** ADR-013: checked before every provider call: a switch turned off after a 5xx stops the retry. */
+    @Test
+    void aSwitchTurnedOffBetweenAttemptsStopsTheRetry() {
+        provider.replies.add(new ProviderReply(503, new byte[0]));
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+        killSwitch.offAfterReads = 2; // the entry check and the first attempt see it on
+
+        assertThat(gateway().complete(EgressFixtures.request("xin chao")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.AI_DISABLED));
         assertThat(provider.sent).hasSize(1);
     }
 

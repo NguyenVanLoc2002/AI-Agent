@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.DemoHttpClient;
 import com.secureerp.agent.identity.spi.ChannelIdentity;
+import com.secureerp.agent.platform.KillSwitch;
 import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -231,6 +232,10 @@ class ChatFlowIT extends ChatEnvironment {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"handedOff\":true").doesNotContain("401");
         assertThat(handoffReason(revoked)).isEqualTo("PROVIDER_AUTH");
+        // EP-09a (ADR-013, decision 5A): the 401 opened the provider-auth breaker; only an operator closes it
+        // (covered in KillSwitchIT). Closed here so the next case tests a provider outage on its own.
+        assertThat(killSwitch.current().disabledReason()).isEqualTo(KillSwitch.Reason.PROVIDER_AUTH);
+        killSwitch.set(true, TEST_OPERATOR);
 
         String down = createConversation(client);
         providerStatus(500);

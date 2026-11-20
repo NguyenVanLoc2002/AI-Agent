@@ -12,6 +12,7 @@ import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.secureerp.agent.DemoHttpClient;
 import com.secureerp.agent.DemoWebEnvironment;
+import com.secureerp.agent.platform.KillSwitch;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -62,7 +64,17 @@ public abstract class ChatEnvironment extends DemoWebEnvironment {
                 "quote_request", "quote_lock_lift", "quote", "conversation_vin", "egress_record")) {
             jdbc.update("delete from " + table);
         }
+        // EP-09a: the kill switch lives in the database and in a cache of the shared context; a test that
+        // switched it off or tripped the breaker must not leak into the next one.
+        killSwitch.set(true, TEST_OPERATOR);
+        jdbc.update("delete from feature_switch_event");
     }
+
+    /** A pseudonym used only to reset the kill switch between tests. */
+    protected static final String TEST_OPERATOR = "usr_TestResetOperatorAAAAA";
+
+    @Autowired
+    protected KillSwitch killSwitch;
 
     /**
      * The Fake provider answers in this order (one response per model call), then the default text.
@@ -84,6 +96,24 @@ public abstract class ChatEnvironment extends DemoWebEnvironment {
                     .willReturn(okJson(responses[i]).withTransformers("response-template"))
                     .willSetStateTo(next));
             state = next;
+        }
+    }
+
+    /**
+     * Like {@link #script}, then the provider answers {@code status} to the next call (EP-09a: a key revoked
+     * in the middle of a turn), and {@code firstDelayMs} delays the first answer (a turn in flight).
+     */
+    protected static void scriptThenStatus(int status, int firstDelayMs, String... responses) {
+        script(responses);
+        String state = responses.length == 0 ? Scenario.STARTED : "step-" + responses.length;
+        PROVIDER.stubFor(post(urlEqualTo(COMPLETE_PATH)).atPriority(1).inScenario("turns")
+                .whenScenarioStateIs(state).willReturn(aResponse().withStatus(status)));
+        if (firstDelayMs > 0 && responses.length > 0) {
+            PROVIDER.stubFor(post(urlEqualTo(COMPLETE_PATH)).atPriority(1).inScenario("turns")
+                    .whenScenarioStateIs(Scenario.STARTED)
+                    .willReturn(okJson(responses[0]).withTransformers("response-template")
+                            .withFixedDelay(firstDelayMs))
+                    .willSetStateTo("step-1"));
         }
     }
 

@@ -26,7 +26,7 @@ Trạng thái: PROPOSED = chờ phê duyệt; ACCEPTED/REJECTED/SUPERSEDED chỉ
 | [010](ADR-010-identity-session.md) | Identity/session demo & RBAC | ACCEPTED 2026-11-18 | D-08, UX-12 (phần còn lại) |
 | [011](ADR-011-history-summary.md) | History policy-safe summary | ACCEPTED 2026-11-19 | — |
 | [012](ADR-012-logging-audit.md) | Logging/audit/observability | ACCEPTED 2026-11-18 | D-09 (mở) |
-| [013](ADR-013-kill-switch-provider-failure.md) | Kill switch & provider failure | PROPOSED | — |
+| [013](ADR-013-kill-switch-provider-failure.md) | Kill switch & provider failure | ACCEPTED (2026-11-20) | EP-09a |
 | [014](ADR-014-money-vnd.md) | Money/VND | ACCEPTED 2026-11-18 | D-04, D-13 (VAT, unit) |
 | [015](ADR-015-endpoint-exposure.md) | Phơi bày endpoint demo/inspector/ops | ACCEPTED 2026-11-19 | — |
 | [016](ADR-016-egress-capture.md) | Egress capture & network route | ACCEPTED 2026-11-18 | — |

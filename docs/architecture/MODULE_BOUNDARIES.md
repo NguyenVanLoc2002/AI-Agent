@@ -1,7 +1,7 @@
 # Module boundaries & dependency rules
 
 > DESIGN PROPOSAL (ADR-001, ADR-005) — 2026-11-13, sửa sau architecture review cùng ngày. Enforcement đề xuất: Spring Modulith `ApplicationModules.verify()` + ArchUnit trong `test` (build fail khi vi phạm). Chưa VERIFIED.
-> Module gốc theo CLAUDE.md (SOURCE FACT): identity, conversation, agent, gateway, tools, catalog, erp, quote, order, audit. Module bổ sung (DESIGN PROPOSAL): policy, handoff, securityinspector, platform, bootstrap.
+> Module gốc theo CLAUDE.md (SOURCE FACT): identity, conversation, agent, gateway, tools, catalog, erp, quote, order, audit. Module bổ sung (DESIGN PROPOSAL): policy, handoff, securityinspector, platform, operations (EP-09a), bootstrap.
 > `web` **không** phải module: controller nằm trong `adapter.web` của module sở hữu endpoint.
 
 ## 1. Trách nhiệm
@@ -19,7 +19,8 @@
 | handoff | Queue, reason code, claim/resolve (EP-08); EP-04: chỉ bản ghi OPEN | `Handoffs.open(conversation, reason)` (EP-04, gọi trực tiếp; event `HandoffOpened/Resolved` ở EP-08) | INTERNAL |
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
-| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | — |
+| platform | KillSwitch, Clock, correlation ID, error mapping, marker `@EgressClassified`/`DataClassification` | `KillSwitch`, `Clock` | INTERNAL (EP-09a: `feature_switch`, `feature_switch_event` với pseudonym của OPS) |
+| operations | Điều khiển của OPS: bật/tắt kill switch, đóng breaker (EP-09a, A-44(a)); không đọc dữ liệu nghiệp vụ (BR-24) | `AiSwitchAdmin`; allowlist identity, platform; không module nào phụ thuộc nó (`ModuleStructureTest`) | — |
 | erp | **Leaf adapter:** Mock ERP (PoC), ERP thật (MVP, gated) hiện thực các spi | — | RESTRICTED (strip tại biên) |
 | bootstrap | Ứng dụng Spring Boot + wiring; module duy nhất được phụ thuộc mọi module | — | — |
 
@@ -34,6 +35,7 @@ conversation ─► agent ─► gateway ─► policy
 quote ─► order (DraftOrders; order ─(event DraftOrderStateChanged)─► quote, quote ─(event QuoteStaffRequired)─► conversation)
 gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
 mọi module ─► identity.api, platform.api, audit.api (publish)
+operations ─► identity (phiên), platform (KillSwitch)   gateway, agent, conversation ─► platform (KillSwitch.current, EP-09a)
 erp ─► (implements) identity.spi, catalog.spi, quote.spi, order.spi (EP-06: erp dùng identity :: spi chỉ cho ErpCustomerLink)
 quote ─► identity (CustomerLinks), identity :: spi, catalog :: spi (chỉ Sku, ARCH-13c)
 bootstrap ─► mọi module (wiring)
@@ -132,3 +134,9 @@ bootstrap ─► mọi module (wiring)
 - Cạnh phụ thuộc: conversation → `quote :: staff` (mới, named interface); conversation → quote đã có. quote không phụ thuộc handoff, nên `StaffQuotes` tin bên gọi đã kiểm người đang giữ handoff (`StaffChatService`), và `QuoteLocks` được conversation gọi từ listener `HandoffResolved` trong transaction resolve. Quyết định duyệt đơn đổi trạng thái quote qua `DraftOrderStateChanged` (cùng cơ chế với đối soát).
 - Endpoint (profile demo): `order.adapter.web.StaffDecisionController` (`GET /api/internal/orders/awaiting-decision`, `POST /api/internal/orders/{id}/staff-decision`), `GET /api/internal/conversations/{id}/quote`.
 - Bảng (Flyway V12): `draft_order_request` thêm hai trạng thái; bảng `quote_lock_lift` (module quote).
+
+## EP-09a (2026-11-20)
+- API mới: `platform.KillSwitch` (`current`, `set`, `tripProviderAuth`; như dự kiến ở §1), hiện thực `platform.internal.JdbcKillSwitch`; module **mới** `operations` (`AiSwitchAdmin`, `adapter.web.AiSwitchController`, allowlist: identity, platform; DESIGN PROPOSAL A-44(a): platform không biết người gọi, gateway không được phụ thuộc identity, nên endpoint của OPS nằm ở module riêng). `ModuleStructureTest.DOCUMENTED_MODULES` thêm `operations`.
+- Cạnh phụ thuộc: gateway → platform (`KillSwitch`), agent → platform (kiểm tra trước tool; `AgentReply.Reason.AI_DISABLED`), conversation → platform, operations → identity, platform (đều đã cho phép hoặc nằm trong allowlist mới). `GatewayResult.RefusalReason` thêm `AI_DISABLED`, `PROVIDER_AUTH_BREAKER`; `HandoffReason.AI_DISABLED`.
+- Endpoint (profile demo): `GET/POST /api/ops/kill-switch`; `identity.SecurityConfiguration`: `/api/ops/**` chỉ vai trò OPS (owner duyệt 3A).
+- Bảng (Flyway V13): `feature_switch`, `feature_switch_event` (module platform).

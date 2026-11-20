@@ -19,7 +19,7 @@ G0 schema + phân loại dữ liệu → G1 Mock ERP + egress policy + SEC-01 �
 | 9 | EP-04 Chat API + agent loop + OutputValidator + session (**triển khai 2026-11-19** trên `feat/EP-04-chat-agent`; ADR-011/015 ACCEPTED, A-38; xem TOOL_CONTRACTS §9) | EP-04 | G2 | 5, 7 | DATA_FLOW §1 | flow E2E backend | T-SEC02-*, T-SEC03-*, T-GW-OUTPUT, T-AUTH-01, T-HTTP-01, T-UC01-DEDUP | |
 | 10 | **SEC-01b** Egress suite end-to-end (**triển khai 2026-11-19** trên `feat/SEC-01b-egress-e2e`; chỉ thêm test; `EgressSuiteFlow200IT`; sliding window chưa làm, A-40) | EP-02 | G1→G2 | 9 | issue 4 harness | chạy lại qua flow thật | T-SEC01-SUITE200, -HISTORY | lúc này mới được ghi SEC-01 = VERIFIED (phạm vi: Fake provider + proxy local) |
 | 11 | EP-08 Handoff + staff inbox + RBAC (**EP-08a triển khai 2026-11-19** trên `feat/EP-08-handoff-inbox`: inbox, claim/resolve, tin nhân viên, team; A-42; xem DATA_FLOW §3a. EP-08b còn lại: quyết định duyệt đơn, SALES xem báo giá, `requestHandoff`, gỡ khóa A-34 — **EP-08b triển khai 2026-11-20** trên `feat/EP-08b-staff-decision`, A-43, DATA_FLOW §3b) | EP-08 | G2 | 9 | RBAC_MATRIX | queue, claim/resolve, staff message, bot lock qua event | T-UC05-*, T-UC06-*, T-RBAC-MATRIX, T-RBAC-AFTER-RESOLVE, T-SEC01-STAFF | |
-| 12 | EP-09 Audit, log policy, kill switch, key revocation, inspector API | EP-09 | G3 | 9 | ADR-012/013 | | T-SEC05*, T-SEC06, T-SEC07, T-UC07-RBAC | |
+| 12 | EP-09 Audit, log policy, kill switch, key revocation, inspector API (A-44: ba lát; **EP-09a kill switch + breaker triển khai 2026-11-20** trên `feat/EP-09a-kill-switch`; còn EP-09b audit_event + inspector, EP-09c SEC-05 log scan + sweeper + sliding window) | EP-09 | G3 | 9 | ADR-012/013 | | T-SEC05*, T-SEC06, T-SEC07, T-UC07-RBAC | |
 | 13 | EP-10 Frontend React/TS | EP-10 | G3 | 9–12 + wireflow duyệt | UI@af2d09f | 5 view | E2E, a11y, forbidden/expired/stale | ux-workflow-reviewer |
 | 14 | ACC-01 Acceptance SEC-01..07 + evidence | — | G3 | tất cả | skill `acceptance-sec` | báo cáo VERIFIED/NOT RUN/BLOCKED | toàn bộ SEC | qa-gatekeeper |
 | 15 | EP-11 Adapter ERP thật (tên mục tiêu `RealErpConnector`, gated) | EP-11 | G4 | D-01..D-03 | API docs đã duyệt | adapter + cấu hình capability | T-ERP-01..06 + contract | |
@@ -43,7 +43,7 @@ FR: SOURCE FACT BRD §09. UC/BR: `docs/requirements/`. Trạng thái test: **NOT
 | FR-009 | Đơn nháp idempotent | UC-04 | BR-17..19 | order | T-SEC04-PARALLEL, -DUPCALLBACK, -UNKNOWN, T-ERP-04/05 | SEC-04 | 8 |
 | FR-010 | Handoff | UC-05, UC-06 | BR-22, BR-23, BR-36 | handoff | T-UC05-LOCK, T-UC06-XTEAM, T-SEC01-STAFF | — | 11 |
 | FR-011 | Audit | tất cả | BR-23 | audit | T-SEC05, T-SEC05-INSPECTOR | SEC-05 | 12 |
-| FR-012 | Kill switch | UC-08 | BR-26, BR-27 | platform, gateway | T-SEC06, T-SEC07 | SEC-06, SEC-07 | 12 |
+| FR-012 | Kill switch | UC-08 | BR-26, BR-27 | platform, gateway, agent, conversation, operations | T-SEC06, T-SEC07 (VERIFIED 2026-11-20, Fake provider, một instance: `KillSwitchIT`, `JdbcKillSwitchIT`, `DefaultAiGatewayTest`, `DefaultAgentTest`) | SEC-06, SEC-07 | 12 |
 | FR-013 | RBAC | UC-06, UC-07 | BR-24, BR-25 | identity, RBAC | T-RBAC-MATRIX, T-RBAC-AFTER-RESOLVE, T-UC06-OPS, T-UC07-RBAC | SEC-02 | 11, 12 |
 | FR-014 | Mock ERP | — | — | erp Mock ERP | T-ERP-01..06 | SEC-01, SEC-04 | 4, 8 |
 | FR-015 | Kiểm thử security | — | — | toàn bộ | SEC-01..07 | tất cả | 14 |

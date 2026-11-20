@@ -39,6 +39,8 @@ public sealed interface AgentReply {
         DLP_EGRESS,
         PROVIDER_ERROR,
         PROVIDER_AUTH,
+        /** EP-09a: the kill switch is off (or unreadable): nothing went to the provider. */
+        AI_DISABLED,
         CATALOG_UNAVAILABLE,
         TOOL_REJECTED_REPEATED,
         QUOTE_NOT_ISSUED,

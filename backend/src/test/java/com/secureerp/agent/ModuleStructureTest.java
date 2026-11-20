@@ -22,7 +22,7 @@ class ModuleStructureTest {
     /** docs/architecture/MODULE_BOUNDARIES.md §1 (bootstrap = root package). */
     static final List<String> DOCUMENTED_MODULES = List.of(
             "identity", "conversation", "agent", "gateway", "policy", "tools", "catalog", "quote", "order",
-            "handoff", "audit", "securityinspector", "platform", "erp");
+            "handoff", "audit", "securityinspector", "platform", "erp", "operations");
 
     private static final ApplicationModules MODULES = ApplicationModules.of(SecureErpAgentApplication.class);
 
@@ -45,6 +45,12 @@ class ModuleStructureTest {
     void auditAndPlatformStayAtTheBottomOfTheGraph() throws ClassNotFoundException {
         assertThat(allowed("platform")).isEmpty();
         assertThat(allowed("audit")).containsExactly("platform");
+        // EP-09a reviews (architecture L7): an operator reads no business data (BR-24); operations stays a leaf.
+        assertThat(allowed("operations")).containsExactlyInAnyOrder("identity", "platform");
+        for (String module : DOCUMENTED_MODULES) {
+            assertThat(allowed(module)).as("%s depends on operations", module)
+                    .noneMatch(dependency -> dependency.startsWith("operations"));
+        }
     }
 
     @Test
