@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: EP-09c background sweeper + SEC-05 artefact scan, 2026-11-20
+## Current: AUDIT-STRICT-READ staff quote read fails closed, 2026-11-20
+- Branch `feat/AUDIT-STRICT-READ-staff-quote` from `feat/EP-09c-sweeper-logscan` `348ecb2`. Committed after a review round (owner 2026-11-20: "1 B, 2 A"), no AI trailer; not pushed. Owner decision A-45(y) (approved 2026-11-20); order 2A. IMPLEMENTATION_PLAN §2a AUDIT-STRICT-READ.
+- Change: `conversation.internal.StaffChatService.quote` records `STAFF_QUOTE_READ` with `AuditTrail.record` inside the read transaction under the handoff lock (was: `recordSeparately` after the read); `DataAccessException` / `TransactionException` → 503 `SERVICE_UNAVAILABLE`, no price. The ACCEPTED confirmation outcome stays best effort (A-45(y)). No migration, no configuration.
+- Tests added: `StaffInboxIT.aStaffQuoteReadWithoutItsAuditRecordShowsNoPrice` (audit table renamed → 503, no price, no row; a deferred constraint trigger refusing at COMMIT → 503, no price, no row; logs without price or SQL text; then 200 with exactly one SALES row); `theHolderSeesTheConversationsQuoteWithoutAConfirmationToken` now counts exactly one record and no separate write inside a transaction.
+- Tests (VERIFIED 2026-11-20 10:03–10:06 UTC, Java 21.0.12, Docker 28.3.0, after the review fixes): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1005, failsafe 222 (was 221), sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). `git diff --check` exit 0. Mutation: `record` → `recordSeparately` → `StaffInboxIT` exit 1 (source restored, `cmp`).
+- Reviews (advisory, one round): security-auditor 0H/0M/4L, backend-reviewer 0H/0M/5L; fixes and residuals in A-45(y).
+- NOT RUN: a second review round, a race test and a 409 lock test for the quote read, formatter, CVE scan.
+- Rollback: drop the branch; after merge revert (no migration).
+- Next: (1) owner pushes the stacked branches in order; (2) AUDIT-FLOOD (A-45(z), owner 2A), then EP-09d, A-43(s).
+
+## Previous: EP-09c background sweeper + SEC-05 artefact scan, 2026-11-20
 - Branch `feat/EP-09c-sweeper-logscan` from `feat/EP-09b-audit-inspector` `65d0d4d` (EP-09a/09b not yet merged; rebase onto `main` after the merges). Committed with owner approval (2026-11-20, "Review sau đó thực hiện theo đề xuất": second review round, then 1A one commit without AI trailer); **not pushed**. Owner decisions 2026-11-20 ("Đồng ý theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-46; closes A-41(l); A-40(a) sliding window not built (accepted residual, 4A). SEC-05, TH-14.
 - Change:
   - `order`: `DraftOrderSweeper` (`SchedulingConfigurer`, fixed delay from the validated `apas.order.sweeper.interval`, default 30 s, own trace ID per run; `apas.order.sweeper.enabled`, default true), `DefaultDraftOrders.sweep(pages)` (keyset pages of 100: 10 in the background, 1 for the SALES unknown list; a customer read expires only the request it reads; every expiry in its own `REQUIRES_NEW` transaction), `DraftOrderStore.unfinishedBefore(cutoff, afterId, limit)`, `OrderProperties.Sweeper` (interval between 100 ms and the submit timeout). `platform.PlatformConfiguration`: `@EnableScheduling` for every module. `application.yml`: `apas.order.sweeper`.

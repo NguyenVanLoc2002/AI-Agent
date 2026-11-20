@@ -47,7 +47,8 @@ class DefaultStaffQuotes implements StaffQuotes {
             StaffQuoteView view = new StaffQuoteView(row.publicRef(), row.version(), status, lines,
                     DefaultQuoteCards.exact(row.total(), row.moneyScale(), row.currency()), row.validUntil(),
                     List.of(QuoteCard.NOTE_VAT, QuoteCard.NOTE_FITMENT));
-            log.info("quote.staff_read outcome=RENDERED");
+            // Loaded, not shown yet: the caller records the read and commits first (AUDIT-STRICT-READ reviews L-2/L-4).
+            log.info("quote.staff_read outcome=LOADED");
             return Optional.of(view);
         } catch (ArithmeticException | IllegalArgumentException invalid) {
             // A stored snapshot that no longer fits the money rules shows nothing (as the customer's read).
