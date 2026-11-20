@@ -1,5 +1,6 @@
 package com.secureerp.agent.identity;
 
+import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.identity.spi.ChannelIdentity;
 import com.secureerp.agent.platform.ErrorCode;
 import com.secureerp.agent.platform.ProblemResponses;
@@ -59,7 +60,9 @@ class SecurityConfiguration {
 
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, SessionIdentities identities, IdentityProperties properties,
-            Clock clock) throws Exception {
+            Clock clock, AuditTrail audit) throws Exception {
+        // EP-09d (owner approval 2026-11-20, A-47): URL-level refusals are audited; the answers do not change.
+        UrlDenialAudit denials = new UrlDenialAudit(audit, identities);
         SessionLimitsFilter limits =
                 new SessionLimitsFilter(clock, properties.idleTimeout(), properties.absoluteTimeout());
         http.authorizeHttpRequests(requests -> requests
@@ -99,10 +102,14 @@ class SecurityConfiguration {
                 .requestCache(cache -> cache.disable())
                 .httpBasic(basic -> basic.disable())
                 .exceptionHandling(errors -> errors
-                        .authenticationEntryPoint((request, response, exception) ->
-                                ProblemResponses.write(request, response, ErrorCode.UNAUTHENTICATED))
-                        .accessDeniedHandler((request, response, exception) ->
-                                ProblemResponses.write(request, response, ErrorCode.FORBIDDEN)))
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            denials.unauthenticated(request);
+                            ProblemResponses.write(request, response, ErrorCode.UNAUTHENTICATED);
+                        })
+                        .accessDeniedHandler((request, response, exception) -> {
+                            denials.forbidden(request, exception);
+                            ProblemResponses.write(request, response, ErrorCode.FORBIDDEN);
+                        }))
                 .addFilterAfter(limits, SecurityContextHolderFilter.class);
         return http.build();
     }
