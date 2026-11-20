@@ -52,7 +52,6 @@ class DefaultAgent implements Agent {
 
     static final int MAX_MODEL_CALLS = 3;
     static final String SYSTEM_PROMPT_ID = "apas.chat.v1";
-    static final String HANDOFF_TOOL = "requestHandoff";
     private static final String SUMMARY_HEADER = "Tin nhắn trước của khách (đã lọc):";
 
     private final AiGateway gateway;
@@ -105,7 +104,7 @@ class DefaultAgent implements Agent {
                     issuedHandle = quote.quoteHandle();
                 }
                 if (outcome.handoffRequired()) {
-                    return handoff(toolHandoffReason(proposal, outcome.result()), call);
+                    return handoff(toolHandoffReason(outcome), call);
                 }
             }
         }
@@ -147,16 +146,24 @@ class DefaultAgent implements Agent {
         };
     }
 
-    private static Reason toolHandoffReason(ToolProposal proposal, ToolResultDto result) {
+    private static Reason toolHandoffReason(ToolOutcome outcome) {
+        ToolResultDto result = outcome.result();
+        if (outcome.requestedHandoff() != null) {
+            // EP-08b: an accepted requestHandoff keeps the reason the model gave (TOOL_CONTRACTS §3.4).
+            return switch (outcome.requestedHandoff()) {
+                case CUSTOMER_REQUEST -> Reason.CUSTOMER_REQUEST;
+                case UNSURE -> Reason.UNSURE;
+                case OUT_OF_SCOPE -> Reason.OUT_OF_SCOPE;
+            };
+        }
         if (result instanceof QuoteRequestResult) {
             return Reason.QUOTE_NOT_ISSUED;
         }
         if (result instanceof ToolErrorResult error && error.code() == ToolErrorResult.Code.CATALOG_UNAVAILABLE) {
             return Reason.CATALOG_UNAVAILABLE;
         }
-        if (HANDOFF_TOOL.equals(proposal.name())) {
-            return Reason.CUSTOMER_REQUEST;
-        }
+        // EP-08b reviews (security L-3, architecture L-4): an accepted requestHandoff carries its reason
+        // above; a rejected one that hands off (quota, forbidden, repeated) is a rejection, not a request.
         return Reason.TOOL_REJECTED_REPEATED;
     }
 

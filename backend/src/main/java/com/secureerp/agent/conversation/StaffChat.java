@@ -2,6 +2,7 @@ package com.secureerp.agent.conversation;
 
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.platform.ConversationId;
+import com.secureerp.agent.quote.staff.StaffQuotes;
 import java.util.List;
 
 /**
@@ -18,4 +19,10 @@ public interface StaffChat {
     List<Chat.ChatMessage> messages(SessionIdentity staff, ConversationId conversation);
 
     void post(SessionIdentity staff, ConversationId conversation, String text);
+
+    /**
+     * The newest quote of the conversation with its prices (EP-08b; RBAC_MATRIX "Xem quote (có giá)").
+     * Read only: no confirmation token. 404 as for {@link #messages}, and also when it has no quote.
+     */
+    StaffQuotes.StaffQuoteView quote(SessionIdentity staff, ConversationId conversation);
 }

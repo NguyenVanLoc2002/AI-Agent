@@ -6,6 +6,7 @@ import com.secureerp.agent.catalog.spi.CatalogUnavailableException;
 import com.secureerp.agent.catalog.spi.ExactProductQuery;
 import com.secureerp.agent.catalog.spi.Sku;
 import com.secureerp.agent.gateway.api.AvailabilityBucket;
+import com.secureerp.agent.gateway.api.HandoffResult;
 import com.secureerp.agent.gateway.api.ProductRef;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
 import com.secureerp.agent.gateway.api.Provenance;
@@ -59,8 +60,8 @@ import org.springframework.stereotype.Service;
  * Every failure is a {@link ToolErrorResult} code; logs carry tool name, code and decision only.
  *
  * <p>{@code vinRef} search uses the conversation's server-side VIN (EP-05); {@code requestQuote} calls
- * the quote service (EP-06). Not built yet: {@code requestHandoff} (handoff module, EP-08), validated
- * in full and then {@code TOOL_UNAVAILABLE} with {@code handoffRequired}.
+ * the quote service (EP-06). {@code requestHandoff} (EP-08b) answers {@code {"accepted":true}} with
+ * {@code handoffRequired} and the requested reason; conversation opens the handoff.
  */
 @Service
 class DefaultToolManager implements ToolManager {
@@ -129,13 +130,15 @@ class DefaultToolManager implements ToolManager {
             return new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.QUOTA_EXCEEDED), true);
         }
         try {
-            ToolResultDto result = run(context, tool, access, port, proposal, now);
+            Executed executed = run(context, tool, access, port, proposal, now);
+            ToolResultDto result = executed.result();
             invocations.complete(admitted.getAsLong(), ToolInvocationStore.Decision.INVOKED, null);
             log.info("tools.call decision=INVOKED tool={} turn={}", toolName, context.turnId());
-            // TOOL_CONTRACTS §3.3: NOT_QUOTED always comes with a staff handoff.
-            boolean handoff = result instanceof QuoteRequestResult quote
+            // TOOL_CONTRACTS §3.3: NOT_QUOTED always comes with a staff handoff; §3.4: an accepted
+            // handoff request locks the bot (EP-08b).
+            boolean handoff = executed.requested() != null || result instanceof QuoteRequestResult quote
                     && quote.status() == QuoteRequestResult.Status.NOT_QUOTED;
-            return new ToolOutcome(result, handoff);
+            return new ToolOutcome(result, handoff, executed.requested());
         } catch (ToolRejection rejection) {
             return reject(context, admitted.getAsLong(), toolName, rejection, now);
         } catch (RuntimeException unexpected) {
@@ -165,7 +168,11 @@ class DefaultToolManager implements ToolManager {
         return new ToolOutcome(new ToolErrorResult(code), handoff);
     }
 
-    private ToolResultDto run(ToolCallContext context, Optional<ToolName> tool, Access access,
+    /** What a call produced; {@code requested} is set only for an accepted handoff request. */
+    private record Executed(ToolResultDto result, ToolOutcome.RequestedHandoff requested) {
+    }
+
+    private Executed run(ToolCallContext context, Optional<ToolName> tool, Access access,
             ConversationAccessPort port, ToolProposal proposal, Instant now) {
         ToolName name = tool.orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNKNOWN));
         if (!name.allows(context.role(), context.channel())) {
@@ -175,6 +182,24 @@ class DefaultToolManager implements ToolManager {
             throw ToolRejection.of(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
         }
         ToolArguments arguments = ArgumentParser.parse(name, proposal.argumentsJson(), limits);
+        if (arguments instanceof HandoffRequest handoff) {
+            // EP-08b (TOOL_CONTRACTS §3.4): the model only proposes; conversation opens the handoff for the
+            // session's conversation, and the reason stays internal (the model sees {"accepted":true}).
+            return new Executed(new HandoffResult(true), requested(handoff.reason()));
+        }
+        return new Executed(perform(context, port, arguments, now), null);
+    }
+
+    private static ToolOutcome.RequestedHandoff requested(HandoffRequest.Reason reason) {
+        return switch (reason) {
+            case CUSTOMER_REQUEST -> ToolOutcome.RequestedHandoff.CUSTOMER_REQUEST;
+            case UNSURE -> ToolOutcome.RequestedHandoff.UNSURE;
+            case OUT_OF_SCOPE -> ToolOutcome.RequestedHandoff.OUT_OF_SCOPE;
+        };
+    }
+
+    private ToolResultDto perform(ToolCallContext context, ConversationAccessPort port, ToolArguments arguments,
+            Instant now) {
         return switch (arguments) {
             case SearchByOe byOe -> {
                 ExactProductQuery query = query(() -> new ExactProductQuery.ByOe(byOe.oe()));
@@ -190,7 +215,7 @@ class DefaultToolManager implements ToolManager {
             case SearchByVinRef byVin -> search(context, () -> catalog.searchByConversationVin(context.conversation())
                     .orElseThrow(() -> ToolRejection.of(ToolErrorResult.Code.TOOL_UNAVAILABLE)), now);
             case QuoteLines quote -> requestQuote(context, port, quote, now);
-            case HandoffRequest handoff -> throw new ToolRejection(ToolErrorResult.Code.TOOL_UNAVAILABLE, true);
+            case HandoffRequest handoff -> throw new IllegalStateException("handled before");
         };
     }
 

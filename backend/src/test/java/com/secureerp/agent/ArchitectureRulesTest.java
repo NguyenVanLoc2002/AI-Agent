@@ -103,6 +103,7 @@ class ArchitectureRulesTest {
                 Arguments.of("ARCH-13a", f + "tools.internal.RendersQuoteCard", f + "conversation.internal.ShowsQuoteCard"),
                 Arguments.of("ARCH-13b", f + "tools.internal.PricesInTools", f + "quote.internal.TotalsInQuote"),
                 Arguments.of("ARCH-13c", f + "quote.internal.QuoteSearchesCatalog", f + "quote.internal.QuoteUsesSku"),
+                Arguments.of("ARCH-13d", f + "tools.internal.ReadsStaffQuote", f + "conversation.internal.ShowsStaffQuote"),
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerRefController.chat",
                         f + "conversation.adapter.web.SafeChatController"),
                 Arguments.of("ARCH-08b", f + "conversation.adapter.web.CustomerIdController.quote",

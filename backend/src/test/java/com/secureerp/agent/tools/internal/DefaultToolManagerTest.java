@@ -16,6 +16,7 @@ import com.secureerp.agent.erp.internal.MockErpConnector;
 import com.secureerp.agent.erp.internal.MockErpFaultMode;
 import com.secureerp.agent.gateway.EgressFixtures;
 import com.secureerp.agent.gateway.EgressScan;
+import com.secureerp.agent.gateway.api.HandoffResult;
 import com.secureerp.agent.gateway.api.ModelRequest;
 import com.secureerp.agent.gateway.api.ProductRef;
 import com.secureerp.agent.gateway.api.ProductSearchResult;
@@ -44,6 +45,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -442,11 +444,52 @@ class DefaultToolManagerTest {
                 .isEqualTo(ToolErrorResult.Code.FORBIDDEN_RESOURCE);
     }
 
-    @Test
-    void handoffRequestIsValidatedAndAlwaysHandsOff() {
-        ToolOutcome outcome = manager().execute(CONTEXT, new ToolProposal("requestHandoff", "{\"reason\":\"UNSURE\"}"));
-        assertThat(code(outcome)).isEqualTo(ToolErrorResult.Code.TOOL_UNAVAILABLE);
+    /**
+     * EP-08b (TOOL_CONTRACTS §3.4, owner decision 6A, 2026-11-20): was TOOL_UNAVAILABLE before the executor
+     * existed. The model sees only {@code accepted}; the reason goes to the agent, never into the result.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"CUSTOMER_REQUEST", "UNSURE", "OUT_OF_SCOPE"})
+    void handoffRequestIsAcceptedWithItsReasonAndAlwaysHandsOff(String reason) {
+        ToolOutcome outcome = manager().execute(CONTEXT,
+                new ToolProposal("requestHandoff", "{\"reason\":\"" + reason + "\"}"));
+
+        assertThat(outcome.result()).isEqualTo(new HandoffResult(true));
         assertThat(outcome.handoffRequired()).isTrue();
+        assertThat(outcome.requestedHandoff()).isEqualTo(ToolOutcome.RequestedHandoff.valueOf(reason));
+    }
+
+    @Test
+    void handoffRequestOutsideTheSchemaIsRejectedWithoutAReason() {
+        for (String arguments : List.of("{\"reason\":\"APPROVE_ORDER\"}", "{}",
+                "{\"reason\":\"UNSURE\",\"customerId\":\"x\"}", "{\"reason\":\"unsure\"}")) {
+            ToolOutcome outcome = manager().execute(CONTEXT, new ToolProposal("requestHandoff", arguments));
+            assertThat(code(outcome)).as(arguments).isEqualTo(ToolErrorResult.Code.TOOL_SCHEMA);
+            assertThat(outcome.requestedHandoff()).as(arguments).isNull();
+        }
+    }
+
+    @Test
+    void aRequestedHandoffWithoutAHandoffIsNotAValidOutcome() {
+        assertThatThrownBy(() -> new ToolOutcome(new HandoffResult(true), false, ToolOutcome.RequestedHandoff.UNSURE))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.TOOL_SCHEMA), true,
+                ToolOutcome.RequestedHandoff.UNSURE)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** Architecture review EP-08b L-5: the advertised schema enum and the internal reasons stay in step. */
+    @Test
+    void theAdvertisedHandoffReasonsAreExactlyTheAcceptedOnes() {
+        String schema = ToolName.REQUEST_HANDOFF.spec().jsonSchema();
+        int start = schema.indexOf("\"enum\":[") + 8;
+        String advertised = schema.substring(start, schema.indexOf("]", start));
+        assertThat(advertised.replace("\"", "").split(",")).containsExactlyInAnyOrder(
+                Arrays.stream(ToolOutcome.RequestedHandoff.values()).map(Enum::name).toArray(String[]::new));
+        for (ToolOutcome.RequestedHandoff reason : ToolOutcome.RequestedHandoff.values()) {
+            assertThat(manager().execute(CONTEXT, new ToolProposal("requestHandoff",
+                    "{\"reason\":\"" + reason.name() + "\"}")).requestedHandoff()).isEqualTo(reason);
+        }
+        assertThat(ToolArguments.HandoffRequest.Reason.values()).hasSameSizeAs(ToolOutcome.RequestedHandoff.values());
     }
 
     @Test

@@ -8,8 +8,10 @@ import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
+import com.secureerp.agent.quote.staff.StaffQuotes;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -30,11 +32,14 @@ class StaffChatService implements StaffChat {
     private final ConversationStore store;
     private final Handoffs handoffs;
     private final TransactionTemplate transactions;
+    private final StaffQuotes quotes;
 
-    StaffChatService(ConversationStore store, Handoffs handoffs, TransactionTemplate transactions) {
+    StaffChatService(ConversationStore store, Handoffs handoffs, TransactionTemplate transactions,
+            StaffQuotes quotes) {
         this.store = store;
         this.handoffs = handoffs;
         this.transactions = transactions;
+        this.quotes = quotes;
     }
 
     @Override
@@ -66,6 +71,28 @@ class StaffChatService implements StaffChat {
             throw new ApplicationException(ErrorCode.NOT_FOUND);
         }
         log.info("conversation.staff_message stored");
+    }
+
+    @Override
+    public StaffQuotes.StaffQuoteView quote(SessionIdentity staff, ConversationId conversation) {
+        requireHolder(staff, conversation);
+        // EP-08b reviews (security L-6, backend L-3): checked again and read under the conversation's handoff
+        // lock, so a resolve cannot land between the check and the read of the prices (A-15).
+        Optional<StaffQuotes.StaffQuoteView> quote;
+        try {
+            quote = transactions.execute(tx -> handoffs.holdFor(conversation, staff.principal())
+                    ? quotes.newestOf(conversation) : Optional.<StaffQuotes.StaffQuoteView>empty());
+        } catch (PessimisticLockingFailureException busy) {
+            log.warn("conversation.staff_quote refused code=CONFLICT");
+            throw new ApplicationException(ErrorCode.CONFLICT);
+        }
+        StaffQuotes.StaffQuoteView view = Objects.requireNonNull(quote).orElseThrow(() -> {
+            log.info("conversation.staff_quote outcome=NOT_FOUND");
+            return new ApplicationException(ErrorCode.NOT_FOUND);
+        });
+        // Architecture review L-1: a central audit_event for this read of customer prices is EP-09 (A-43).
+        log.info("conversation.staff_quote outcome=READ");
+        return view;
     }
 
     private void requireHolder(SessionIdentity staff, ConversationId conversation) {

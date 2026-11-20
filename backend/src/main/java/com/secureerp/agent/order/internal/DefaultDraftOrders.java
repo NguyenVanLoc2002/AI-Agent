@@ -1,6 +1,5 @@
 package com.secureerp.agent.order.internal;
 
-import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.identity.Team;
 import com.secureerp.agent.order.DraftOrderMirrorRefused;
@@ -274,7 +273,7 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public List<UnknownDraftOrder> unknown(SessionIdentity staff) {
-        Team team = requireSales(staff);
+        Team team = SalesStaff.teamOf(staff, "reconcile");
         expireUnfinished();
         return store.unknown(team.value(), MAX_LISTED).stream()
                 .map(request -> new UnknownDraftOrder(request.id(), request.quoteRef(), request.quoteVersion(),
@@ -284,7 +283,7 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
 
     @Override
     public DraftOrderState reconcile(SessionIdentity staff, long requestId, Finding finding, String erpOrderRef) {
-        Team team = requireSales(staff);
+        Team team = SalesStaff.teamOf(staff, "reconcile");
         Objects.requireNonNull(finding, "finding");
         boolean created = finding == Finding.CREATED;
         if (created != (erpOrderRef != null)
@@ -332,18 +331,5 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
             log.info("order.reconcile state={}", target);
             return target;
         });
-    }
-
-    /**
-     * RBAC_MATRIX: only SALES, for their own team, handles ORDER_OUTCOME_UNKNOWN; an administrator is not a
-     * business reader.
-     */
-    private static Team requireSales(SessionIdentity staff) {
-        Objects.requireNonNull(staff, "staff");
-        if (staff.role() != Role.SALES || staff.team().isEmpty()) {
-            log.warn("order.reconcile denied code=FORBIDDEN");
-            throw new ApplicationException(ErrorCode.FORBIDDEN);
-        }
-        return staff.team().get();
     }
 }

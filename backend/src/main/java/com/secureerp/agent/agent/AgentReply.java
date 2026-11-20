@@ -43,6 +43,10 @@ public sealed interface AgentReply {
         TOOL_REJECTED_REPEATED,
         QUOTE_NOT_ISSUED,
         CUSTOMER_REQUEST,
+        /** EP-08b: the model asked for staff because it is unsure ({@code requestHandoff}). */
+        UNSURE,
+        /** EP-08b: the model asked for staff because the request is out of scope ({@code requestHandoff}). */
+        OUT_OF_SCOPE,
         /** The model's final text failed the OutputValidator (decision 2026-11-19: drop it and hand off). */
         OUTPUT_REJECTED,
         /** No final answer within the model-call limit of one turn (decision 2026-11-19: 3 calls). */

@@ -226,6 +226,15 @@ public final class ArchitectureRules {
                 .as("ARCH-13 only platform, quote, order, erp and the conversation render use Money")
                 .allowEmptyShould(true));
 
+        // EP-08b architecture review round 2 (L6): the staff-only quote APIs (prices of a held conversation,
+        // the A-34 lock lift) stay with conversation, which checks the handoff holder. Also enforced by the
+        // Modulith allowlists; this rule fails if an allowlist is ever widened.
+        rules.put("ARCH-13d", noClasses()
+                .that().resideOutsideOfPackages(base + ".quote..", base + ".conversation..")
+                .should().dependOnClassesThat().resideInAPackage(base + ".quote.staff..")
+                .as("ARCH-13 only quote and conversation use quote.staff (StaffQuotes, QuoteLocks)")
+                .allowEmptyShould(true));
+
         // EP-06 architecture review L2: quote may use catalog :: spi for the Sku type only.
         rules.put("ARCH-13c", noClasses()
                 .that().resideInAPackage(base + ".quote..")

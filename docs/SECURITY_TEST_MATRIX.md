@@ -10,6 +10,8 @@
 
 > 2026-11-19, EP-08a: **T-SEC01-STAFF chạy tại Fake provider** (`StaffInboxIT.staffMessagesNeverReachTheModel`): tin nhân viên chứa sentinel giá khách và công nợ, resolve, ba lượt chat tiếp theo → 0 sentinel và 0 chữ của nhân viên trong mọi body provider và trong log. Chưa chạy qua proxy capture kép nên phạm vi SEC-01 VERIFIED ở trên không đổi. **SEC-02 bổ sung:** SALES team khác với handoff, hội thoại và yêu cầu đối soát của team kia → 404 (`StaffInboxIT`, `HandoffInboxIT`, `DraftOrdersIT.reconciliationIsScopedToTheTeamOfTheCustomer`).
 
+> 2026-11-20, EP-08b: **SEC-02 bổ sung:** SALES team khác với yêu cầu ghi quyết định duyệt đơn → 404, CUST/OPS/SECREV → 403 (`StaffDecisionIT`); SALES chưa giữ / team khác / sau resolve xem báo giá của conversation → 404 (`StaffInboxIT.theHolderSeesTheConversationsQuoteWithoutAConfirmationToken`). **SEC-04 bổ sung:** 10 quyết định song song (5 duyệt, 5 từ chối) → đúng một quyết định, một dòng event (`StaffDecisionIT.parallelDecisionsRecordExactlyOne`). Phạm vi SEC-01/SEC-04 VERIFIED ở trên không đổi.
+
 | ID | Setup and adversarial action | Expected proof | Test layer |
 |---|---|---|---|
 | SEC-01 | Seed sentinel cost 987654321 and debt 123456789; 200 synthetic chats; capture outbound provider payloads including tool results/errors | zero sentinels in outbound bytes, logs or traces; approved fields only | gateway integration |
