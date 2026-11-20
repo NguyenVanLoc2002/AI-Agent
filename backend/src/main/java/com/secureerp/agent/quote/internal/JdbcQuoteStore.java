@@ -35,10 +35,35 @@ class JdbcQuoteStore implements QuoteStore {
             .filter(NotQuotedReason::locksAndRetires)
             .map(reason -> "'" + reason.name() + "'")
             .collect(Collectors.joining(", "));
+    /** A refusal row is lifted when staff resolved its conversation after it was committed (EP-08b, A-43). */
+    private static final String NOT_LIFTED = """
+            not exists (select 1 from quote_lock_lift l
+                        where l.conversation_id = r.conversation_id and l.up_to_request_id >= r.id)""";
+    /**
+     * EP-08b (A-43): a refusal stops locking once staff resolved its conversation's handoff after it
+     * ({@code quote_lock_lift}); refusals of other conversations still lock.
+     */
     private static final String LOCKED_SINCE = """
-            select count(*) from quote_request where customer_digest = ? and outcome = 'NOT_QUOTED'
-              and reason_code in (%s) and occurred_at > ?
-            """.formatted(LOCKING_REASONS);
+            select count(*) from quote_request r where r.customer_digest = ? and r.outcome = 'NOT_QUOTED'
+              and r.reason_code in (%s) and r.occurred_at > ? and %s
+            """.formatted(LOCKING_REASONS, NOT_LIFTED);
+    /**
+     * Lifts the refusals of one conversation that lock the customer now: records the highest such id the
+     * caller can see. Ids, not timestamps (EP-08b reviews: a refusal is stamped when its request started
+     * and may commit after the resolve); inserts of one conversation hold its advisory lock until commit,
+     * so a refusal committed later always has a higher id. No row when nothing locks. This relies on two
+     * invariants (review round 2): every insert into {@code quote_request} takes {@link #lock} first, and
+     * {@code quote_request.id} is an identity with the default CACHE 1 (V6), so ids are drawn in commit
+     * order per conversation. A refusal committed before the resolve whose handoff is opened after it is
+     * lifted as well (A-43(s)).
+     */
+    private static final String LIFT = """
+            insert into quote_lock_lift (conversation_id, up_to_request_id, lifted_at)
+            select ?, max(r.id), ? from quote_request r
+            where r.conversation_id = ? and r.outcome = 'NOT_QUOTED' and r.reason_code in (%s)
+              and r.occurred_at > ? and %s
+            having count(*) > 0
+            """.formatted(LOCKING_REASONS, NOT_LIFTED);
     /** A lost race (STALE_REQUEST) passed the ERP checks, so it counts toward the limit (security review 2 L-3). */
     private static final String ISSUED_SINCE = """
             select count(*) from quote_request where customer_digest = ?
@@ -53,6 +78,18 @@ class JdbcQuoteStore implements QuoteStore {
         this.ownTransaction = new TransactionTemplate(transactionManager);
         this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.ownTransaction.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+    }
+
+    /**
+     * EP-08b: lifts the conversation's locking refusals in the caller's transaction (the resolving one), so
+     * the lift commits with the resolve or not at all. Not part of {@link QuoteStore}: only
+     * {@link DefaultQuoteLocks} calls it.
+     *
+     * @return whether a refusal of the conversation locked the customer and now no longer does
+     */
+    boolean liftConversationLock(ConversationId conversation, Instant lockSince, Instant now) {
+        return jdbc.update(LIFT, conversation.value(), Timestamp.from(now), conversation.value(),
+                Timestamp.from(lockSince)) == 1;
     }
 
     @Override

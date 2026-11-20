@@ -55,7 +55,14 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation
 - Inbox: `GET /api/internal/handoffs` (team mình, chưa resolve) → `POST …/{id}/claim` (OPEN → CLAIMED, event `HandoffClaimed` → conversation `HUMAN_ACTIVE`) → SALES đọc/ghi `/api/internal/conversations/{id}/messages` chỉ khi đang giữ handoff → `POST …/{id}/resolve` (CLAIMED → RESOLVED, event `HandoffResolved` → `ACTIVE_BOT`). Event xử lý đồng bộ trong chính transaction; conversation không theo được thì thay đổi của handoff bị rollback (409).
 - Lý do mới với nhân viên (khác lý do đang mở, hoặc bất kỳ lý do nào phát sinh sau khi đã claim, ví dụ xác nhận báo giá bị chặn) được ghi làm follow-up, chỉ lý do đầu tiên; resolve khi đó mở handoff mới với lý do này và conversation về `HANDOFF_PENDING` thay vì `ACTIVE_BOT`.
 - Khách nhắn khi bot khóa: 200 kèm câu cố định (`HANDOFF_PENDING`: đang chờ; `HUMAN_ACTIVE`: nhân viên đã nhận tin), không gọi model. Tin nhân viên lưu direction STAFF, khách đọc được, **không** vào history model (history chỉ lấy tin CUSTOMER).
-- Tạo conversation: khách phải có team (403 `CUSTOMER_NOT_ASSIGNED` nếu không; owner 2026-11-19). Còn mở: A-42 (e, phần dữ liệu cũ)–(r); EP-08b: quyết định duyệt đơn, SALES xem báo giá, executor `requestHandoff`, gỡ khóa A-34 khi resolve.
+- Tạo conversation: khách phải có team (403 `CUSTOMER_NOT_ASSIGNED` nếu không; owner 2026-11-19). Còn mở: A-42 (e, phần dữ liệu cũ)–(r); EP-08b: quyết định duyệt đơn, SALES xem báo giá, executor `requestHandoff`, gỡ khóa A-34 khi resolve (đã làm, §3b).
+
+### 3b. Triển khai EP-08b (2026-11-20, A-43)
+- Quyết định duyệt đơn: SALES team của khách xem `GET /api/internal/orders/awaiting-decision` (đơn nháp CREATED / RECONCILED_CREATED chưa có quyết định; không khách, không giá) và ghi `POST /api/internal/orders/{id}/staff-decision {decision}`. Một transaction: cập nhật có điều kiện `draft_order_request` → `STAFF_APPROVED` / `STAFF_REJECTED`, dòng `draft_order_event` (actor), quote theo sang `STAFF_APPROVED` / `REJECTED`; quote không theo được → rollback, 409. Khách chỉ thấy trạng thái đổi ở `GET /api/demo/quotes/{ref}`; không gửi gì cho ERP.
+- SALES xem báo giá: `GET /api/internal/conversations/{id}/quote`, chỉ khi đang giữ handoff; báo giá mới nhất của conversation có giá; không cấp confirmation token, không ghi gì.
+- `requestHandoff`: lý do của model thành reason của handoff; lượt kết thúc, không gọi model lần hai.
+- Gỡ khóa A-34: resolve không có follow-up → `quote_lock_lift` cho conversation đó nếu nó đang có lần từ chối gây khóa, ghi id `quote_request` lớn nhất mà resolve thấy; các lần từ chối của conversation đó đến id này không còn khóa khách. So theo id, không theo thời gian (review EP-08b): một lần từ chối mang thời điểm bắt đầu yêu cầu và có thể commit sau resolve. Từ chối ở conversation khác, và từ chối commit sau, vẫn khóa.
+- Quyết định duyệt đơn khi quote còn ở `ORDER_SUBMITTING` / `ORDER_OUTCOME_UNKNOWN` (lần phản chiếu trước bị lỗi): quote được đưa về `DRAFT_ORDER_CREATED` rồi sang quyết định, trong cùng transaction; không có quote → 409.
 
 ## 4. Egress sinks
 | Sink | PoC | Kiểm soát | Bằng chứng |

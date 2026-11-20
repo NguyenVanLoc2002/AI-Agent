@@ -66,6 +66,9 @@ class QuoteStatusTest {
         assertThat(QuoteStatus.mirrorOf(DraftOrderState.REJECTED)).isEqualTo(QuoteStatus.ORDER_FAILED);
         assertThat(QuoteStatus.mirrorOf(DraftOrderState.RECONCILED_ABSENT)).isEqualTo(QuoteStatus.ORDER_FAILED);
         assertThat(QuoteStatus.mirrorOf(DraftOrderState.OUTCOME_UNKNOWN)).isEqualTo(QuoteStatus.ORDER_OUTCOME_UNKNOWN);
+        // EP-08b: the staff decision; STAFF_REJECTED is stored as REJECTED on the quote (name from V6).
+        assertThat(QuoteStatus.mirrorOf(DraftOrderState.STAFF_APPROVED)).isEqualTo(QuoteStatus.STAFF_APPROVED);
+        assertThat(QuoteStatus.mirrorOf(DraftOrderState.STAFF_REJECTED)).isEqualTo(QuoteStatus.REJECTED);
     }
 
     /** An unknown outcome is never sent again: the request has no way back to PENDING or SUBMITTED. */
@@ -76,7 +79,11 @@ class QuoteStatusTest {
                 DraftOrderState.SUBMITTED, EnumSet.of(DraftOrderState.CREATED, DraftOrderState.REJECTED,
                         DraftOrderState.OUTCOME_UNKNOWN),
                 DraftOrderState.OUTCOME_UNKNOWN, EnumSet.of(DraftOrderState.RECONCILED_CREATED,
-                        DraftOrderState.RECONCILED_ABSENT));
+                        DraftOrderState.RECONCILED_ABSENT),
+                // EP-08b: only a created draft takes the staff decision; the decision is final.
+                DraftOrderState.CREATED, EnumSet.of(DraftOrderState.STAFF_APPROVED, DraftOrderState.STAFF_REJECTED),
+                DraftOrderState.RECONCILED_CREATED, EnumSet.of(DraftOrderState.STAFF_APPROVED,
+                        DraftOrderState.STAFF_REJECTED));
         for (DraftOrderState from : DraftOrderState.values()) {
             for (DraftOrderState to : DraftOrderState.values()) {
                 assertThat(from.canBecome(to)).as("%s -> %s", from, to).isEqualTo(

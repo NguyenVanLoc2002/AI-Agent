@@ -118,6 +118,12 @@ class ConfirmationStore {
                 .stream().findFirst();
     }
 
+    /** The newest quote row (any reference, highest version) of a conversation; EP-08b staff view. */
+    Optional<QuoteRow> newestInConversation(String conversationId) {
+        return jdbc.query("select " + COLUMNS + " from quote where conversation_id = ? order by id desc limit 1",
+                (rs, row) -> toRow(rs), conversationId).stream().findFirst();
+    }
+
     List<LineRow> lines(long quoteId) {
         return jdbc.query("""
                 select sku, quantity, unit_price, line_total, price_source, price_revision

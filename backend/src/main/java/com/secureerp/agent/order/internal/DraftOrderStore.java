@@ -134,6 +134,26 @@ class DraftOrderStore {
                 + "and team = ? order by created_at, id limit ?", (rs, row) -> toRequest(rs), team, limit);
     }
 
+    /** EP-08b: the team's created drafts without a staff decision, oldest first. */
+    List<Request> awaitingDecision(String team, int limit) {
+        return jdbc.query("select " + COLUMNS + " from draft_order_request where status in ('CREATED', "
+                + "'RECONCILED_CREATED') and team = ? order by completed_at, id limit ?", (rs, row) -> toRequest(rs),
+                team, limit);
+    }
+
+    /**
+     * EP-08b: guarded staff decision. Keeps the ERP draft number and the completion time of the created
+     * draft (the decision's time and actor are a {@code draft_order_event} row). False when the request is
+     * no longer in {@code from}.
+     */
+    boolean decide(long id, DraftOrderState from, DraftOrderState to) {
+        if (!from.canBecome(to)) {
+            throw new IllegalStateException("draft order transition not allowed: " + from + " -> " + to);
+        }
+        return jdbc.update("update draft_order_request set status = ?, row_version = row_version + 1 "
+                + "where id = ? and status = ?", to.name(), id, from.name()) == 1;
+    }
+
     void event(long requestId, String event, String actor, Instant now) {
         jdbc.update("insert into draft_order_event (request_id, event, actor, occurred_at) values (?, ?, ?, ?)",
                 requestId, event, actor, Timestamp.from(now));

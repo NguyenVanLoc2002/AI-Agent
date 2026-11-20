@@ -272,6 +272,8 @@ class ChatService implements Chat {
             case TOOL_REJECTED_REPEATED -> HandoffReason.TOOL_REJECTED_REPEATED;
             case QUOTE_NOT_ISSUED -> HandoffReason.QUOTE_NOT_ISSUED;
             case CUSTOMER_REQUEST -> HandoffReason.CUSTOMER_REQUEST;
+            case UNSURE -> HandoffReason.UNSURE;
+            case OUT_OF_SCOPE -> HandoffReason.OUT_OF_SCOPE;
             case OUTPUT_REJECTED -> HandoffReason.OUTPUT_REJECTED;
             case AGENT_LIMIT -> HandoffReason.AGENT_LIMIT;
         };

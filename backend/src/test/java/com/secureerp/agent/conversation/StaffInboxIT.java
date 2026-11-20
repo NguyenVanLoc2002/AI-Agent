@@ -28,6 +28,7 @@ class StaffInboxIT extends ChatEnvironment {
 
     private static final Pattern HANDOFF_ID = Pattern.compile("\"handoffId\":(\\d+)");
     private static final String FAKE_CONVERSATION = "cv_NoSuchConversationAAAA";
+    private static final String QUOTE_OE = "04465-0K290";
 
     @Autowired
     MockErpConnector mockErp;
@@ -210,6 +211,196 @@ class StaffInboxIT extends ChatEnvironment {
         int providerCalls = providerBodies().size();
         assertThat(send(customer, conversation, "Sao rồi?").body()).contains("đang chờ nhân viên");
         assertThat(providerBodies()).hasSize(providerCalls);
+        // EP-08b: a resolve that opens a follow-up does not lift the A-34 lock; resolving the follow-up does.
+        assertThat(lifts(conversation)).isZero();
+        String followUp = handoffId(sales.get("/api/internal/handoffs").body());
+        sales.postEmpty("/api/internal/handoffs/" + followUp + "/claim");
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + followUp + "/resolve").statusCode()).isEqualTo(200);
+        assertThat(status(conversation)).isEqualTo("ACTIVE_BOT");
+        assertThat(lifts(conversation)).isEqualTo(1);
+    }
+
+    private int lifts(String conversation) {
+        return jdbc.queryForObject("select count(*) from quote_lock_lift where conversation_id = ?", Integer.class,
+                conversation);
+    }
+
+    /** Asks the Fake provider for a quote of {@code quantity} in this conversation; returns the chat answer. */
+    private String requestQuote(DemoHttpClient customer, String conversation, int quantity) {
+        script(toolCall("searchVerifiedProduct", "{\"oe\":\"" + QUOTE_OE + "\"}"), quoteFirstCandidate(quantity),
+                text("Báo giá đã được gửi bên dưới."));
+        String body = send(customer, conversation, "Báo giá " + quantity + " bộ má phanh " + QUOTE_OE).body();
+        script();
+        return body;
+    }
+
+    private String claimOnlyHandoff(DemoHttpClient sales) {
+        String id = handoffId(sales.get("/api/internal/handoffs").body());
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + id + "/claim").statusCode()).isEqualTo(200);
+        return id;
+    }
+
+    /**
+     * EP-08b (RBAC_MATRIX "Xem quote (có giá)", decision 4A): the staff member holding the conversation sees
+     * its newest quote with prices and no confirmation token; nobody else, and not after resolve (A-15).
+     * Reading it arms no token, so the customer's card still confirms.
+     */
+    @Test
+    void theHolderSeesTheConversationsQuoteWithoutAConfirmationToken(CapturedOutput output) {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = createConversation(customer);
+        String quoted = requestQuote(customer, conversation, 2);
+        Matcher ref = Pattern.compile("\"quoteRef\":\"([^\"]+)\"").matcher(quoted);
+        assertThat(ref.find()).as(quoted).isTrue();
+        String tokenHash = jdbc.queryForObject("select confirm_token_hash from quote", String.class);
+        providerStatus(500);
+        assertThat(send(customer, conversation, "Cho tôi gặp nhân viên").body()).contains("\"handedOff\":true");
+        script();
+        String quote = "/api/internal/conversations/" + conversation + "/quote";
+        DemoHttpClient sales = loggedIn("sales-1");
+        DemoHttpClient otherTeam = loggedIn("sales-2");
+        assertThat(sales.get(quote).statusCode()).as("not claimed yet").isEqualTo(404);
+
+        String id = claimOnlyHandoff(sales);
+        HttpResponse<String> view = sales.get(quote);
+
+        assertThat(view.statusCode()).as(view.body()).isEqualTo(200);
+        assertThat(view.body()).contains("\"quoteRef\":\"" + ref.group(1) + "\"").contains("\"status\":\"ISSUED\"")
+                .contains("\"sku\":\"SKU-BRK-PAD-A\"").contains("\"unitPrice\":\"555444333\"")
+                .contains("\"currency\":\"VND\"").contains("Giá chưa gồm VAT")
+                .doesNotContain("confirmationToken").doesNotContain("qc_").doesNotContain("SYNTH-CUST")
+                .doesNotContain("cref_").doesNotContain("reason");
+        assertThat(jdbc.queryForObject("select confirm_token_hash from quote", String.class))
+                .as("no token armed by the staff read").isEqualTo(tokenHash);
+        assertThat(otherTeam.get(quote).statusCode()).isEqualTo(404);
+        for (String notSales : List.of("cust-a", "ops-1", "secrev-1")) {
+            assertThat(loggedIn(notSales).get(quote).statusCode()).as(notSales).isEqualTo(403);
+        }
+
+        sales.postEmpty("/api/internal/handoffs/" + id + "/resolve");
+        assertThat(sales.get(quote).statusCode()).as("T-RBAC-AFTER-RESOLVE").isEqualTo(404);
+        assertThat(output.getAll()).doesNotContain("555444333");
+    }
+
+    /** A held conversation without any quote is the same 404. */
+    @Test
+    void aHeldConversationWithoutAQuoteShowsNone() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = handedOff(customer);
+        DemoHttpClient sales = loggedIn("sales-1");
+        claimOnlyHandoff(sales);
+
+        HttpResponse<String> view = sales.get("/api/internal/conversations/" + conversation + "/quote");
+
+        assertThat(view.statusCode()).isEqualTo(404);
+        assertThat(view.body()).contains("\"code\":\"NOT_FOUND\"");
+    }
+
+    /**
+     * EP-08b (TOOL_CONTRACTS §3.4, decision 6A): requestHandoff is executed. The reason the model gave is
+     * the handoff reason, the turn ends without a second model call and the customer gets the fixed text.
+     */
+    @Test
+    void requestHandoffKeepsTheModelsReasonAndEndsTheTurn() {
+        for (String reason : List.of("CUSTOMER_REQUEST", "UNSURE", "OUT_OF_SCOPE")) {
+            DemoHttpClient customer = loggedIn("cust-a");
+            String conversation = createConversation(customer);
+            int before = providerBodies().size();
+            script(toolCall("requestHandoff", "{\"reason\":\"" + reason + "\"}"), text("không được dùng"));
+
+            HttpResponse<String> answer = send(customer, conversation, "Tôi muốn hỏi về bảo hành xe");
+
+            assertThat(answer.statusCode()).isEqualTo(200);
+            assertThat(answer.body()).as(reason).contains("\"handedOff\":true").doesNotContain("không được dùng");
+            assertThat(providerBodies()).as("one model call").hasSize(before + 1);
+            assertThat(handoffReason(conversation)).isEqualTo(reason);
+            assertThat(status(conversation)).isEqualTo("HANDOFF_PENDING");
+            assertThat(jdbc.queryForObject("select decision from tool_invocation where conversation_id = ? "
+                    + "and tool_name = 'requestHandoff'", String.class, conversation)).isEqualTo("INVOKED");
+            script();
+        }
+    }
+
+    /** A reason outside the enum is a schema error, not a handoff with a free-text reason. */
+    @Test
+    void requestHandoffWithAnUnknownReasonIsRejected() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = createConversation(customer);
+        script(toolCall("requestHandoff", "{\"reason\":\"APPROVE_ORDER\"}"), text("Tôi có thể giúp gì thêm?"));
+
+        send(customer, conversation, "xin chào");
+
+        assertThat(jdbc.queryForObject("select reason_code from tool_invocation where conversation_id = ? "
+                + "and tool_name = 'requestHandoff'", String.class, conversation)).isEqualTo("TOOL_SCHEMA");
+        assertThat(handoffs(conversation)).isZero();
+    }
+
+    /**
+     * EP-08b (A-34 lift, decision 7A): after a business refusal the customer gets no automatic quote, in any
+     * conversation, until staff resolve the conversation of the refusal; then quotes are issued again.
+     * A refusal of another conversation still locks.
+     */
+    @Test
+    void resolvingTheRefusedConversationLiftsTheQuoteLock() {
+        MockErpSimulation erp = mockErp.simulation();
+        erp.reset();
+        DemoHttpClient customer = loggedIn("cust-a");
+        String refused = createConversation(customer);
+        try {
+            erp.stock("SKU-BRK-PAD-A", 1);
+            assertThat(requestQuote(customer, refused, 2)).contains("\"handedOff\":true");
+        } finally {
+            erp.reset();
+        }
+        assertThat(handoffReason(refused)).isEqualTo("QUOTE_NOT_ISSUED");
+        // Locked for the customer: another conversation gets no quote either (no ERP call).
+        String other = createConversation(customer);
+        assertThat(requestQuote(customer, other, 2)).contains("\"handedOff\":true").doesNotContain("quoteRef");
+        assertThat(jdbc.queryForObject("select reason_code from quote_request where conversation_id = ?",
+                String.class, other)).isEqualTo("HANDED_OFF");
+
+        // A business refusal in the other conversation too, before any resolve (written directly: the gate
+        // stops a real one before the ERP), timed on the application clock like the real one.
+        jdbc.update("insert into quote_request (conversation_id, outcome, reason_code, line_count, customer_digest, "
+                + "occurred_at) select ?, 'NOT_QUOTED', 'CREDIT_NOT_ELIGIBLE', 1, customer_digest, "
+                + "occurred_at - interval '1 millisecond' from quote_request where conversation_id = ? limit 1", other, refused);
+        DemoHttpClient sales = loggedIn("sales-1");
+
+        resolve(sales, refused);
+
+        assertThat(lifts(refused)).isEqualTo(1);
+        assertThat(lifts(other)).isZero();
+        // The other conversation's refusal still locks the customer, here as well.
+        assertThat(requestQuote(customer, refused, 2)).contains("\"handedOff\":true").doesNotContain("quoteRef");
+        assertThat(lastQuoteReason(refused)).isEqualTo("HANDED_OFF");
+
+        resolve(sales, refused);
+        resolve(sales, other);
+
+        assertThat(lifts(other)).isEqualTo(1);
+        assertThat(requestQuote(customer, refused, 2)).contains("\"quoteRef\":\"").contains("\"handedOff\":false");
+
+        // Reviews EP-08b (backend M1, security L-1): a refusal stamped before the lift but committed after it
+        // (its request started before the resolve) is not covered by the lift and still locks.
+        jdbc.update("insert into quote_request (conversation_id, outcome, reason_code, line_count, customer_digest, "
+                + "occurred_at) select conversation_id, 'NOT_QUOTED', 'INSUFFICIENT_STOCK', 1, customer_digest, "
+                + "(select min(lifted_at) from quote_lock_lift) - interval '1 millisecond' "
+                + "from quote_request where conversation_id = ? limit 1", refused);
+        assertThat(requestQuote(customer, other, 2)).contains("\"handedOff\":true").doesNotContain("quoteRef");
+    }
+
+    /** Claims and resolves the open handoff of this conversation. */
+    private void resolve(DemoHttpClient sales, String conversation) {
+        String handoff = String.valueOf(jdbc.queryForObject(
+                "select handoff_id from handoff where conversation_id = ? and status = 'OPEN'", Long.class,
+                conversation));
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + handoff + "/claim").statusCode()).isEqualTo(200);
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + handoff + "/resolve").statusCode()).isEqualTo(200);
+    }
+
+    private String lastQuoteReason(String conversation) {
+        return jdbc.queryForObject("select reason_code from quote_request where conversation_id = ? "
+                + "order by id desc limit 1", String.class, conversation);
     }
 
     /**
@@ -253,7 +444,12 @@ class StaffInboxIT extends ChatEnvironment {
                 new Call("POST", "/api/internal/conversations/" + FAKE_CONVERSATION + "/messages", staffMessage("x"),
                         403, 404),
                 new Call("GET", "/api/internal/orders/unknown", null, 403, 200),
-                new Call("POST", "/api/internal/orders/999999/reconcile", "{\"outcome\":\"ABSENT\"}", 403, 404));
+                new Call("POST", "/api/internal/orders/999999/reconcile", "{\"outcome\":\"ABSENT\"}", 403, 404),
+                // EP-08b
+                new Call("GET", "/api/internal/conversations/" + FAKE_CONVERSATION + "/quote", null, 403, 404),
+                new Call("GET", "/api/internal/orders/awaiting-decision", null, 403, 200),
+                new Call("POST", "/api/internal/orders/999999/staff-decision", "{\"decision\":\"APPROVED\"}", 403,
+                        404));
         DemoHttpClient anonymous = client();
         anonymous.csrf();
         for (Call call : matrix) {

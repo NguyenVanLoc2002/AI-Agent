@@ -387,9 +387,9 @@ class DefaultQuoteConfirmations implements QuoteConfirmations {
         }
         log.info("quote.confirm order_state={}", mirrored);
         return new Confirmation(row.publicRef(), row.version(), switch (mirrored) {
-            case DRAFT_ORDER_CREATED -> State.DRAFT_ORDER_CREATED;
+            case DRAFT_ORDER_CREATED, STAFF_APPROVED -> State.DRAFT_ORDER_CREATED;
             case ORDER_OUTCOME_UNKNOWN -> State.ORDER_OUTCOME_UNKNOWN;
-            case ORDER_FAILED -> State.ORDER_FAILED;
+            case ORDER_FAILED, REJECTED -> State.ORDER_FAILED;
             default -> State.ORDER_SUBMITTING;
         });
     }

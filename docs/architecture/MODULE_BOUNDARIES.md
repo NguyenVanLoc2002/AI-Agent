@@ -8,14 +8,14 @@
 | Module | Trách nhiệm | Sở hữu port / API | Lớp dữ liệu được chạm |
 |---|---|---|---|
 | identity | Principal, vai trò, phiên đăng nhập (EP-04), liên kết kênh → `AuthenticatedCustomerRef` | `CurrentIdentity` (phiên → `SessionIdentity`), `LinkedCustomers`, `CustomerLinkPort` + `ChannelIdentity` (spi) | RESTRICTED (identity) — không xuất giá trị thô |
-| conversation | Endpoint chat (profile demo), dedup, một lượt đang chạy/conversation, trạng thái hội thoại (`status` ACTIVE_BOT/HANDOFF_PENDING + `row_version`), ghép response + render quote card | `Chat` (API cho `adapter.web`), hiện thực `tools.spi.ConversationAccessPort`; `ChannelPort` (Zalo, EP-12) | INTERNAL, sanitized text |
+| conversation | Endpoint chat (profile demo), dedup, một lượt đang chạy/conversation, trạng thái hội thoại (`status` ACTIVE_BOT/HANDOFF_PENDING/HUMAN_ACTIVE + `row_version`), ghép response + render quote card | `Chat` (API cho `adapter.web`), hiện thực `tools.spi.ConversationAccessPort`; `ChannelPort` (Zalo, EP-12) | INTERNAL, sanitized text |
 | agent | Vòng lặp agent: dựng `ModelRequest`, history summary, gọi ToolManager, OutputValidator | `Agent.reply(AgentTurn) -> AgentReply` | APPROVED_TECHNICAL |
 | gateway | Duy nhất gọi provider: serialize, EgressGuard, transport, timeout/breaker | `ModelProviderPort`, `EgressTransport` | APPROVED_TECHNICAL |
 | policy | DLP inbound/outbound, phát hiện VIN để mask/chặn (không validate, không lưu; EP-05 chuyển validate VIN sang catalog), honeytoken registry, normalizer (marker phân loại nằm ở platform, xem §7) | `EgressPolicy`, `InboundSanitizer` | đọc để **chặn**; không lưu giá trị |
 | tools | Registry, schema, authz per call, quota, mapping kết quả sang DTO an toàn | `ToolManager` (api), `ConversationAccessPort` (spi) | APPROVED_TECHNICAL |
 | catalog | Tra cứu sản phẩm, provenance, bucket tồn thô; validate + lưu VIN hiện tại của conversation (EP-05) | `VerifiedProductPort` (spi), `AvailabilityBucketPort` (spi, chỉ enum), `VehicleContext`, `CatalogSearch` | APPROVED_TECHNICAL; VIN đầy đủ: nhạy cảm theo ngữ cảnh, không ra khỏi catalog/erp |
-| quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService` | RESTRICTED, INTERNAL |
-| order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `DraftOrders` (`register`/`dispatch`/`stateOf`), `OrderReconciliation` (EP-07; tên dự kiến cũ: `OrderApi.submit`) | RESTRICTED, INTERNAL |
+| quote | Giá, tồn, eligibility, quote/version, handle, render, **endpoint confirm** | `quote.spi`: `PricingPort`, `AvailabilityPort`, `CreditEligibilityPort`; `QuoteApi`, `QuoteHandleService`; EP-08b: `quote :: staff` (`StaffQuotes`, `QuoteLocks`, chỉ conversation được dùng) | RESTRICTED, INTERNAL |
+| order | Idempotency, draft order, UNKNOWN, đối soát | `order.spi.DraftOrderPort`; `DraftOrders` (`register`/`dispatch`/`stateOf`), `OrderReconciliation` (EP-07; tên dự kiến cũ: `OrderApi.submit`), `StaffDecisions` (EP-08b) | RESTRICTED, INTERNAL |
 | handoff | Queue, reason code, claim/resolve (EP-08); EP-04: chỉ bản ghi OPEN | `Handoffs.open(conversation, reason)` (EP-04, gọi trực tiếp; event `HandoffOpened/Resolved` ở EP-08) | INTERNAL |
 | audit | Sink sự kiện field-names-only **và** chủ sở hữu bảng `egress_record` | `EgressAuditLog` (port đồng bộ cho gateway, SEC-01a), `AuditSink`, `AuditQueryApi` (read) | metadata |
 | securityinspector | Đọc audit/egress qua `AuditQueryApi` cho SECREV | — | metadata |
@@ -29,7 +29,8 @@ conversation ─► agent ─► gateway ─► policy
       │           └────► tools ─► catalog
       │                    └────► quote (EP-06: QuoteService.request với SKU + khách của phiên)
       ├─► handoff (HandoffApi.open)          handoff ──(event HandoffOpened/Resolved)──► conversation (listener)
-      └─► quote (render quote card)
+      ├─► quote (render quote card)
+      └─► quote :: staff (EP-08b: StaffQuotes cho SALES đang giữ handoff; QuoteLocks từ listener HandoffResolved; ARCH-13d)
 quote ─► order (DraftOrders; order ─(event DraftOrderStateChanged)─► quote, quote ─(event QuoteStaffRequired)─► conversation)
 gateway ─► audit (EgressAuditLog.record, gọi đồng bộ)   securityinspector ─► audit (AuditQueryApi)
 mọi module ─► identity.api, platform.api, audit.api (publish)
@@ -125,3 +126,9 @@ bootstrap ─► mọi module (wiring)
 - Bảng (Flyway V11): handoff thêm trạng thái CLAIMED/RESOLVED, `team`, người claim/resolve, `followup_reason`; conversation thêm `HUMAN_ACTIVE`, `team`; `draft_order_request.team`. Khóa advisory mới: handoff `30_012` (theo conversation).
 - `handoff.ConversationNotFollowing` do listener của conversation ném (cùng kiểu với `order.DraftOrderMirrorRefused`). `Handoffs.open` đặt `lock_timeout` 5 s trong transaction của bên gọi (A-42(r)).
 - Còn mở: A-42 (e, phần dữ liệu cũ)–(r), trong đó (g): identity đang giữ cả việc định tuyến khách → team.
+
+## EP-08b (2026-11-20)
+- API mới: `order.StaffDecisions` (danh sách chờ quyết định, ghi quyết định; SALES team của khách), `DraftOrderState.STAFF_APPROVED/STAFF_REJECTED`; named interface `quote :: staff` với `StaffQuotes` (xem báo giá mới nhất của conversation, chỉ đọc, không cấp token) và `QuoteLocks` (gỡ khóa A-34 theo conversation), chỉ `conversation` có trong allowlist (review kiến trúc M1: `tools` có `quote` gốc nhưng không với tới được; bằng chứng: lớp cài thử trong tools → `ModuleStructureTest` fail); `conversation.StaffChat.quote`; `tools.ToolOutcome.RequestedHandoff`; `agent.AgentReply.Reason.UNSURE/OUT_OF_SCOPE`.
+- Cạnh phụ thuộc: conversation → `quote :: staff` (mới, named interface); conversation → quote đã có. quote không phụ thuộc handoff, nên `StaffQuotes` tin bên gọi đã kiểm người đang giữ handoff (`StaffChatService`), và `QuoteLocks` được conversation gọi từ listener `HandoffResolved` trong transaction resolve. Quyết định duyệt đơn đổi trạng thái quote qua `DraftOrderStateChanged` (cùng cơ chế với đối soát).
+- Endpoint (profile demo): `order.adapter.web.StaffDecisionController` (`GET /api/internal/orders/awaiting-decision`, `POST /api/internal/orders/{id}/staff-decision`), `GET /api/internal/conversations/{id}/quote`.
+- Bảng (Flyway V12): `draft_order_request` thêm hai trạng thái; bảng `quote_lock_lift` (module quote).

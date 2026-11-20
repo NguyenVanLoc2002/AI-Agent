@@ -155,9 +155,16 @@ class DefaultAgentTest {
 
     @Test
     void toolHandoffsMapToReasons() {
-        toolBehaviour = proposal -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.TOOL_UNAVAILABLE), true);
+        // EP-08b: an accepted requestHandoff keeps the reason the model gave.
+        toolBehaviour = proposal ->
+                new ToolOutcome(new HandoffResult(true), true, ToolOutcome.RequestedHandoff.OUT_OF_SCOPE);
+        answers.add(tool("requestHandoff", "{\"reason\":\"OUT_OF_SCOPE\"}"));
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUT_OF_SCOPE));
+
+        // EP-08b reviews: a rejected requestHandoff that hands off is a rejection, not a customer request.
+        toolBehaviour = proposal -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.QUOTA_EXCEEDED), true);
         answers.add(tool("requestHandoff", "{\"reason\":\"CUSTOMER_REQUEST\"}"));
-        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.CUSTOMER_REQUEST));
+        assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.TOOL_REJECTED_REPEATED));
 
         answers.add(tool("approveOrder", "{}"));
         toolBehaviour = proposal -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.FORBIDDEN_RESOURCE), true);

@@ -7,8 +7,8 @@
  * render (ARCH-13a). Allowed module dependencies are enforced by {@code ModuleStructureTest};
  * finer-grained rules (ARCH-xx) by {@code ArchitectureRulesTest}.
  */
-@ApplicationModule(displayName = "Conversation", allowedDependencies = { "agent", "handoff", "quote", "identity",
-        "policy", "catalog :: intake", "tools :: spi", "platform", "audit" })
+@ApplicationModule(displayName = "Conversation", allowedDependencies = { "agent", "handoff", "quote", "quote :: staff",
+        "identity", "policy", "catalog :: intake", "tools :: spi", "platform", "audit" })
 package com.secureerp.agent.conversation;
 
 import org.springframework.modulith.ApplicationModule;

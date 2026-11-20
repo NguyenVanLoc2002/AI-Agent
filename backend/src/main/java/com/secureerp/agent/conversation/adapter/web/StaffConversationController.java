@@ -7,6 +7,8 @@ import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.platform.ApplicationException;
 import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
+import com.secureerp.agent.platform.Money;
+import com.secureerp.agent.quote.staff.StaffQuotes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -51,6 +53,21 @@ class StaffConversationController {
         chat.post(session(), conversation(conversationId), request.text());
     }
 
+    /** EP-08b: the newest quote of a held conversation, with prices; no confirmation token. */
+    @GetMapping("/{conversationId}/quote")
+    StaffQuoteView quote(@PathVariable String conversationId) {
+        StaffQuotes.StaffQuoteView quote = chat.quote(session(), conversation(conversationId));
+        return new StaffQuoteView(quote.quoteRef(), quote.version(), quote.status(),
+                quote.lines().stream().map(line -> new LineView(line.skuCode(), line.quantity(),
+                        amount(line.unitPrice()), amount(line.lineTotal()))).toList(),
+                amount(quote.total()), quote.total().currency().getCurrencyCode(), quote.validUntil().toString(),
+                quote.notes());
+    }
+
+    private static String amount(Money money) {
+        return money.amount().toPlainString();
+    }
+
     private SessionIdentity session() {
         return identity.current().orElseThrow(() -> new ApplicationException(ErrorCode.UNAUTHENTICATED));
     }
@@ -62,6 +79,14 @@ class StaffConversationController {
         } catch (IllegalArgumentException e) {
             throw new ApplicationException(ErrorCode.NOT_FOUND);
         }
+    }
+
+    /** Amounts as exact strings, like the customer's card; never a confirmation token. */
+    record StaffQuoteView(String quoteRef, int version, String status, List<LineView> lines, String total,
+            String currency, String validUntil, List<String> notes) {
+    }
+
+    record LineView(String sku, int quantity, String unitPrice, String lineTotal) {
     }
 
     record StaffMessageRequest(@NotBlank @Size(max = 2000) String text) {
