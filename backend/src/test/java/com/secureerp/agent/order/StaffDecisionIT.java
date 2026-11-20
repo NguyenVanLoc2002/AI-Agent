@@ -182,6 +182,51 @@ class StaffDecisionIT extends ChatEnvironment {
         // Reconciliation is over once decided.
         assertThat(sales.postJson("/api/internal/orders/" + order.requestId() + "/reconcile",
                 "{\"outcome\":\"ABSENT\"}").statusCode()).isEqualTo(409);
+        // EP-09b (A-41(o), A-43(n)): each change is one audit event committed with it; the refused ones are not.
+        assertThat(jdbc.queryForList("select action || ':' || outcome || ':' || actor_role from audit_event "
+                + "where action in ('ORDER_RECONCILED', 'STAFF_ORDER_DECIDED') order by id", String.class))
+                .containsExactly("ORDER_RECONCILED:RECONCILED_CREATED:SALES", "STAFF_ORDER_DECIDED:STAFF_APPROVED:SALES");
+    }
+
+    /**
+     * EP-09b reviews (M-1, M3): a decision and a reconciliation are rolled back without their audit record; a
+     * request of another team is a denial recorded after the transaction, with no second connection inside it.
+     */
+    @Test
+    void aDecisionOrReconciliationIsNotStoredWithoutItsAuditRecord(CapturedOutput output) {
+        DemoHttpClient customer = loggedIn("cust-a");
+        Confirmed created = confirmedQuote(customer);
+        DemoHttpClient sales = loggedIn("sales-1");
+        assertThat(loggedIn("sales-2").postJson(decision(created.requestId()), APPROVE).statusCode()).isEqualTo(404);
+        jdbc.execute("alter table audit_event rename to audit_event_moved");
+        try {
+            assertThat(sales.postJson(decision(created.requestId()), APPROVE).statusCode())
+                    .isGreaterThanOrEqualTo(500);
+        } finally {
+            jdbc.execute("alter table audit_event_moved rename to audit_event");
+        }
+        assertThat(requestStatus(created.requestId())).isEqualTo("CREATED");
+        assertThat(decisionEvents()).isZero();
+
+        erp.failOrders(MockErpOrderFault.TIMEOUT_AFTER_COMMIT);
+        Confirmed unknown = confirmedQuote(customer);
+        erp.failOrders(MockErpOrderFault.NONE);
+        String reconcile = "/api/internal/orders/" + unknown.requestId() + "/reconcile";
+        assertThat(loggedIn("sales-2").postJson(reconcile, "{\"outcome\":\"ABSENT\"}").statusCode())
+                .isEqualTo(404);
+        jdbc.execute("alter table audit_event rename to audit_event_moved");
+        try {
+            assertThat(sales.postJson(reconcile, "{\"outcome\":\"ABSENT\"}").statusCode())
+                    .isGreaterThanOrEqualTo(500);
+        } finally {
+            jdbc.execute("alter table audit_event_moved rename to audit_event");
+        }
+        assertThat(requestStatus(unknown.requestId())).isEqualTo("OUTCOME_UNKNOWN");
+        assertThat(jdbc.queryForList("select action || ':' || resource_type || ':' || outcome from audit_event "
+                + "where action = 'ACCESS_DENIED' order by id", String.class))
+                .containsExactly("ACCESS_DENIED:DRAFT_ORDER:FORBIDDEN_RESOURCE",
+                        "ACCESS_DENIED:DRAFT_ORDER:FORBIDDEN_RESOURCE");
+        assertThat(output.getAll()).doesNotContain("separate_write_inside_transaction");
     }
 
     /** Ten staff sessions decide at once, five each way: exactly one decision is recorded. */
@@ -222,6 +267,8 @@ class StaffDecisionIT extends ChatEnvironment {
             assertThat(requestStatus(order.requestId())).isEqualTo(winner);
         }
         assertThat(decisionEvents()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from audit_event where action = 'STAFF_ORDER_DECIDED'",
+                Integer.class)).as("one audit event for the one decision").isEqualTo(1);
         assertThat(quoteStatus(order.quoteRef())).isIn("STAFF_APPROVED", "REJECTED");
     }
 

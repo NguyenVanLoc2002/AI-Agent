@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.secureerp.agent.TestcontainersConfiguration;
+import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.erp.internal.MockErpConnector;
 import com.secureerp.agent.erp.internal.MockErpOrderFault;
 import com.secureerp.agent.erp.internal.MockErpSimulation;
@@ -92,6 +93,9 @@ class DraftOrdersIT {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    AuditTrail audit;
+
     private final MutableClock clock = new MutableClock(START);
     private MockErpSimulation erp;
     private DefaultDraftOrders orders;
@@ -108,12 +112,12 @@ class DraftOrdersIT {
     }
 
     private DefaultDraftOrders service(ErpCapabilities capabilities) {
-        return new DefaultDraftOrders(store, port, capabilities, properties, transactions, events, clock);
+        return new DefaultDraftOrders(store, port, capabilities, properties, transactions, events, clock, audit);
     }
 
     private DefaultDraftOrders service(ErpCapabilities capabilities, DraftOrderPort erpPort,
             ApplicationEventPublisher publisher) {
-        return new DefaultDraftOrders(store, erpPort, capabilities, properties, transactions, publisher, clock);
+        return new DefaultDraftOrders(store, erpPort, capabilities, properties, transactions, publisher, clock, audit);
     }
 
     private void register(DefaultDraftOrders service, String quoteRef, int version) {

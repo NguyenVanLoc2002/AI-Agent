@@ -46,7 +46,18 @@ class ModuleStructureTest {
         assertThat(allowed("platform")).isEmpty();
         assertThat(allowed("audit")).containsExactly("platform");
         // EP-09a reviews (architecture L7): an operator reads no business data (BR-24); operations stays a leaf.
-        assertThat(allowed("operations")).containsExactlyInAnyOrder("identity", "platform");
+        // EP-09b (A-45, decision 3a): audit is added to record denied calls; it is a write-only sink.
+        assertThat(allowed("operations")).containsExactlyInAnyOrder("identity", "platform", "audit");
+        // EP-09b (A-45): the inspector reads tool calls through the narrow named interface only.
+        assertThat(allowed("securityinspector")).containsExactlyInAnyOrder("audit", "audit :: queries", "identity",
+                "platform", "platform :: history", "tools :: history");
+        // Round-2 review M1: the read ports of audit, platform and tools are for the inspector only.
+        for (String module : DOCUMENTED_MODULES) {
+            if (!module.equals("securityinspector")) {
+                assertThat(allowed(module)).as("%s reads the inspector ports", module)
+                        .doesNotContain("audit :: queries", "platform :: history", "tools :: history");
+            }
+        }
         for (String module : DOCUMENTED_MODULES) {
             assertThat(allowed(module)).as("%s depends on operations", module)
                     .noneMatch(dependency -> dependency.startsWith("operations"));

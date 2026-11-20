@@ -87,6 +87,6 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation
 | draft_order_request | order | I | EP-07 (Flyway V10): UNIQUE(quote_ref, quote_version); `idempotency_key` = `<mã báo giá>:<version>` do server sinh; `payload_digest` (SHA-256 không khóa của mã khách ERP + các dòng, A-41(x)); `key_forwarded`; `erp_order_ref`; `late_erp_order_ref` (ERP trả lời sau khi đã quá hạn); `team` (V11: team của khách, phạm vi đối soát); không có mã khách hay giá ở dạng đọc được |
 | draft_order_event | order | I | EP-07: mọi thay đổi trạng thái + `actor` (pseudonym của nhân viên đối soát) |
 | handoff | handoff | I | reason_code NOT NULL; EP-08a (Flyway V11): `status` OPEN/CLAIMED/RESOLVED, `team`, `claimed_by`, `resolved_by`, `followup_reason`; tối đa một handoff chưa resolve mỗi conversation (unique index một phần) |
-| audit_event, egress_record | audit | metadata | không cột body/giá trị |
-| feature_switch, feature_switch_event | platform | INTERNAL (pseudonym của OPS trong event) | mọi thay đổi có actor (null = breaker); EP-09b chuyển sang audit_event; retention D-09 |
+| audit_event, egress_record | audit | metadata | không cột body/giá trị; EP-09b: `audit_event` (V14) chỉ mã hành động/loại tài nguyên/kết quả, pseudonym + vai trò, trace ID; `request_id` (correlation ID, không gửi ra provider) trên `egress_record` (V14) và `tool_invocation` (V15); retention D-09 |
+| feature_switch, feature_switch_event | platform | INTERNAL (pseudonym của OPS trong event) | mọi thay đổi có actor (null = breaker); EP-09b (A-45 4A): giữ ở bảng này, inspector đọc qua `KillSwitchHistory`; retention D-09 |
 | mock_erp.* | erp | R (synthetic, sentinel) | schema tách; chỉ erp truy cập — **chưa tạo**: Mock giữ dữ liệu trong bộ nhớ (EP-07, A-41(i)) |

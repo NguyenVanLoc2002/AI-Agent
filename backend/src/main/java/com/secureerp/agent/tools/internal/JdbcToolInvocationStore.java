@@ -1,5 +1,6 @@
 package com.secureerp.agent.tools.internal;
 
+import com.secureerp.agent.platform.TraceIds;
 import com.secureerp.agent.tools.ToolCallContext;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -99,11 +100,11 @@ class JdbcToolInvocationStore implements ToolInvocationStore {
             String reasonCode, Instant now) {
         return jdbc.queryForObject("""
                 insert into tool_invocation
-                    (principal_key, conversation_id, turn_id, tool_name, decision, reason_code, occurred_at)
-                values (?, ?, ?, ?, ?, ?, ?)
+                    (principal_key, conversation_id, turn_id, tool_name, decision, reason_code, occurred_at, request_id)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
                 returning id
                 """, Long.class, context.principal().pseudonym(), conversation, context.turnId(), toolName,
-                decision.name(), reasonCode, Timestamp.from(now));
+                decision.name(), reasonCode, Timestamp.from(now), TraceIds.current().orElse(null));
     }
 
     private int count(String sql, Object... args) {

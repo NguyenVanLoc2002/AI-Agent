@@ -3,6 +3,8 @@ package com.secureerp.agent.operations.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.RecordingAuditTrail;
 import com.secureerp.agent.identity.IdentityFixtures;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
@@ -22,7 +24,8 @@ import org.springframework.transaction.TransactionSystemException;
 class DefaultAiSwitchAdminTest {
 
     private final TestKillSwitch killSwitch = new TestKillSwitch();
-    private final DefaultAiSwitchAdmin admin = new DefaultAiSwitchAdmin(killSwitch);
+    private final RecordingAuditTrail audit = new RecordingAuditTrail();
+    private final DefaultAiSwitchAdmin admin = new DefaultAiSwitchAdmin(killSwitch, audit);
 
     @ParameterizedTest
     @EnumSource(value = Role.class, names = "OPS", mode = EnumSource.Mode.EXCLUDE)
@@ -34,6 +37,14 @@ class DefaultAiSwitchAdminTest {
                 e -> assertThat(e.code()).isEqualTo(ErrorCode.FORBIDDEN));
         assertThatThrownBy(() -> admin.state(other)).isInstanceOf(ApplicationException.class);
         assertThat(killSwitch.isAiEnabled()).isTrue();
+        // EP-09b: each denial is an audit event with the role, in its own transaction (decision 2A).
+        assertThat(audit.separate()).hasSize(2).allSatisfy(event -> {
+            assertThat(event.action()).isEqualTo(AuditEvent.Action.ACCESS_DENIED);
+            assertThat(event.resource()).isEqualTo(AuditEvent.Resource.KILL_SWITCH);
+            assertThat(event.outcome()).isEqualTo(AuditEvent.FORBIDDEN);
+            assertThat(event.actor().role()).isEqualTo(role.name());
+        });
+        assertThat(audit.joined()).isEmpty();
     }
 
     /**
@@ -56,7 +67,7 @@ class DefaultAiSwitchAdminTest {
         };
         SessionIdentity operator = IdentityFixtures.staffIdentity("Operator", Role.OPS);
 
-        assertThatThrownBy(() -> new DefaultAiSwitchAdmin(broken).set(operator, false))
+        assertThatThrownBy(() -> new DefaultAiSwitchAdmin(broken, audit).set(operator, false))
                 .isInstanceOfSatisfying(ApplicationException.class,
                         e -> assertThat(e.code()).isEqualTo(ErrorCode.SERVICE_UNAVAILABLE));
     }

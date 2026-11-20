@@ -51,7 +51,8 @@ class ApplicationBootstrapIT {
     void flywayBaselineApplied() {
         List<String> applied = jdbc.queryForList(
                 "select version from flyway_schema_history where success order by installed_rank", String.class);
-        assertThat(applied).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+        assertThat(applied).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
+                "15");
     }
 
     @Test
@@ -68,7 +69,8 @@ class ApplicationBootstrapIT {
                 "quote_confirmation", // V10 (EP-07): module quote
                 "draft_order_request", "draft_order_event", // V10 (EP-07): module order
                 "quote_lock_lift", // V12 (EP-08b): module quote
-                "feature_switch", "feature_switch_event"); // V13 (EP-09a): module platform
+                "feature_switch", "feature_switch_event", // V13 (EP-09a): module platform
+                "audit_event"); // V14 (EP-09b): module audit
     }
 
     @Test

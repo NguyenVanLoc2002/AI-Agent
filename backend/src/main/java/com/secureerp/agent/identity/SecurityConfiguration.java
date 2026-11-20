@@ -73,6 +73,9 @@ class SecurityConfiguration {
                         // EP-09a (owner approval 2026-11-20, A-44 decision 3A): the kill switch is OPS only
                         // at the URL level as well; the service checks the role again.
                         .requestMatchers("/api/ops/**").hasRole(Role.OPS.name())
+                        // EP-09b (owner approval 2026-11-20, A-45 decision 5A): the security inspector is SECREV
+                        // only at the URL level as well; the service checks the role again.
+                        .requestMatchers("/api/demo/security/**").hasRole(Role.SECREV.name())
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage(LOGIN_URL)

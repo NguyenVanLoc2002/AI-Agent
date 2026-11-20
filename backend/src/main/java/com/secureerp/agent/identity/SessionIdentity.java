@@ -1,5 +1,6 @@
 package com.secureerp.agent.identity;
 
+import com.secureerp.agent.audit.AuditActor;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -48,6 +49,11 @@ public final class SessionIdentity {
      */
     public Optional<Team> team() {
         return Optional.ofNullable(team);
+    }
+
+    /** The pseudonym and role for {@code audit_event} (EP-09b); never a name or a customer key. */
+    public AuditActor auditActor() {
+        return new AuditActor(principal.pseudonym(), role.name());
     }
 
     @Override

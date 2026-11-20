@@ -2,6 +2,7 @@ package com.secureerp.agent.audit.internal;
 
 import com.secureerp.agent.audit.EgressAuditLog;
 import com.secureerp.agent.audit.EgressDecisionEvent;
+import com.secureerp.agent.platform.TraceIds;
 import java.sql.Timestamp;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>fail-propagating</b>: an insert failure throws to the gateway, which sends nothing.</li>
  * </ul>
  * {@code GatewayEgressIT} proves the last two against PostgreSQL.
+ *
+ * <p>EP-09b (A-45(h)): {@code request_id} is the HTTP request's correlation ID ({@code platform.TraceIds}), so the
+ * security inspector can group the model calls of one chat turn. It never leaves the application: the
+ * per-call {@code trace_id} is the one the provider sees.
  */
 @Component
 class EgressRecordWriter implements EgressAuditLog {
@@ -42,11 +47,11 @@ class EgressRecordWriter implements EgressAuditLog {
         ownTransaction.executeWithoutResult(status -> jdbc.update("""
                 insert into egress_record
                     (trace_id, decision, attempt, policy_code, honeytoken_id, blocked_field_path, field_names,
-                     byte_length, occurred_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     byte_length, occurred_at, request_id)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 event.traceId(), event.decision().name(), event.attempt(), event.policyCode(), event.honeytokenId(),
                 event.blockedFieldPath(), String.join(",", event.fieldNames()), event.byteLength(),
-                Timestamp.from(event.occurredAt())));
+                Timestamp.from(event.occurredAt()), TraceIds.current().orElse(null)));
     }
 }

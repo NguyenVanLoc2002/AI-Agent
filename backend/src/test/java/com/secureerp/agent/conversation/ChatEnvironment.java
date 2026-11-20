@@ -61,7 +61,7 @@ public abstract class ChatEnvironment extends DemoWebEnvironment {
         script();
         for (String table : List.of("message", "handoff", "conversation", "tool_invocation", "product_ref",
                 "draft_order_event", "draft_order_request", "quote_confirmation", "quote_handle", "quote_line",
-                "quote_request", "quote_lock_lift", "quote", "conversation_vin", "egress_record")) {
+                "quote_request", "quote_lock_lift", "quote", "conversation_vin", "egress_record", "audit_event")) {
             jdbc.update("delete from " + table);
         }
         // EP-09a: the kill switch lives in the database and in a cache of the shared context; a test that

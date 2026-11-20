@@ -1,5 +1,7 @@
 package com.secureerp.agent.order.internal;
 
+import com.secureerp.agent.audit.AuditEvent;
+import com.secureerp.agent.audit.AuditTrail;
 import com.secureerp.agent.identity.Role;
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.identity.Team;
@@ -20,10 +22,12 @@ final class SalesStaff {
     private SalesStaff() {
     }
 
-    static Team teamOf(SessionIdentity staff, String action) {
+    static Team teamOf(SessionIdentity staff, String action, AuditTrail audit) {
         Objects.requireNonNull(staff, "staff");
         if (staff.role() != Role.SALES || staff.team().isEmpty()) {
             log.warn("order.{} denied code=FORBIDDEN", action);
+            audit.recordSeparately(AuditEvent.denied(AuditEvent.Resource.DRAFT_ORDER, AuditEvent.FORBIDDEN,
+                    staff.auditActor()));
             throw new ApplicationException(ErrorCode.FORBIDDEN);
         }
         return staff.team().get();
