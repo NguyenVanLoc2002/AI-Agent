@@ -11,12 +11,18 @@ import java.util.List;
 public interface KillSwitchHistory {
 
     /**
+     * @param id     the row key, used for keyset paging only
      * @param reason {@code null} when the change switched the AI on
      * @param actor  the operator's pseudonym; {@code null} for the system (the provider-auth breaker)
      */
-    record Change(boolean aiEnabled, KillSwitch.Reason reason, String actor, Instant occurredAt) {
+    record Change(long id, boolean aiEnabled, KillSwitch.Reason reason, String actor, Instant occurredAt) {
     }
 
-    /** Changes with {@code from <= occurredAt <= to}, newest first. */
-    List<Change> changes(Instant from, Instant to, int limit);
+    /**
+     * Changes with {@code from <= occurredAt <= to}, newest first ({@code occurredAt}, then {@code id}).
+     *
+     * @param beforeAt {@code null} for the first page; else only changes with {@code occurredAt < beforeAt}, or
+     *                 {@code occurredAt == beforeAt} and {@code id < beforeId} (AUDIT-FLOOD keyset paging)
+     */
+    List<Change> changes(Instant from, Instant to, Instant beforeAt, long beforeId, int limit);
 }

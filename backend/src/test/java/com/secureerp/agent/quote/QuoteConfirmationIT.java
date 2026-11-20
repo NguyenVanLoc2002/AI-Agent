@@ -139,9 +139,10 @@ class QuoteConfirmationIT extends ChatEnvironment {
         assertThat(requests()).isEqualTo(1);
         assertThat(attempts()).containsExactly("ACCEPTED", "REPLAY", "REPLAY", "REPLAY");
         // EP-09b (A-41(o)): every outcome is also a central audit event with the customer's role, never the ref.
-        assertThat(jdbc.queryForList("select outcome || ':' || actor_role from audit_event "
+        // AUDIT-FLOOD: the three replays of the same minute are one row counted three times.
+        assertThat(jdbc.queryForList("select outcome || ':' || actor_role || ':' || occurrences from audit_event "
                 + "where action = 'QUOTE_CONFIRMATION' order by id", String.class))
-                .containsExactly("ACCEPTED:CUST", "REPLAY:CUST", "REPLAY:CUST", "REPLAY:CUST");
+                .containsExactly("ACCEPTED:CUST:1", "REPLAY:CUST:3");
 
         // The confirmed quote is no longer a card to confirm, and nothing of it went to the provider or a log.
         assertThat(client.get("/api/demo/quotes/" + quote.quoteRef()).body())

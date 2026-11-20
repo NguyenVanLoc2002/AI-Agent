@@ -3,8 +3,10 @@ package com.secureerp.agent.conversation;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.secureerp.agent.DemoHttpClient;
+import com.secureerp.agent.securityinspector.SecurityInspector;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -176,10 +178,10 @@ class SecurityInspectorIT extends ChatEnvironment {
         assertThat(events("STAFF_MESSAGE_POSTED")).isEqualTo(1);
         assertThat(events("HANDOFF_RESOLVED")).isEqualTo(1);
         assertThat(events("STAFF_QUOTE_READ")).as("a read that found nothing is not a read").isZero();
-        assertThat(jdbc.queryForList("select resource_type || ':' || outcome || ':' || actor_role from audit_event "
-                + "where action = 'ACCESS_DENIED' order by id", String.class))
-                .containsExactly("HANDOFF:FORBIDDEN_RESOURCE:SALES", "HANDOFF:FORBIDDEN_RESOURCE:SALES",
-                        "QUOTE:FORBIDDEN_RESOURCE:CUST");
+        // AUDIT-FLOOD: the two denials of sales-2 in the same minute are one row counted twice.
+        assertThat(jdbc.queryForList("select resource_type || ':' || outcome || ':' || actor_role || ':' || occurrences "
+                + "from audit_event where action = 'ACCESS_DENIED' order by id", String.class))
+                .containsExactly("HANDOFF:FORBIDDEN_RESOURCE:SALES:2", "QUOTE:FORBIDDEN_RESOURCE:CUST:1");
         String salesPseudonym = jdbc.queryForObject("select actor from audit_event where action = 'HANDOFF_CLAIMED'",
                 String.class);
         String customerPseudonym = jdbc.queryForObject("select actor from audit_event where actor_role = 'CUST'",
@@ -200,6 +202,100 @@ class SecurityInspectorIT extends ChatEnvironment {
         assertThat(output.getAll()).doesNotContain("separate_write_inside_transaction");
         assertThat(trace.body()).contains("\"action\":\"HANDOFF_CLAIMED\"").contains("\"outcome\":\"CLAIMED\"")
                 .doesNotContain("HANDOFF_RESOLVED");
+    }
+
+    /**
+     * AUDIT-FLOOD (A-45(z)): three hundred probes of one customer in one minute are one row counted 300 times, so the
+     * staff event after them is still on the first page; the cursor walks the rest; a trace longer than the cap
+     * says it was cut.
+     */
+    @Test
+    void aFloodOfDenialsDoesNotBuryAStaffEventAndPagesWalkTheRest() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = handedOff(customer);
+        for (int i = 0; i < 300; i++) {
+            assertThat(customer.get("/api/demo/quotes/BG-ZZZZZZZZ").statusCode()).isEqualTo(404);
+        }
+        DemoHttpClient sales = loggedIn("sales-1");
+        String handoff = handoffId(sales.get("/api/internal/handoffs").body());
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + handoff + "/claim").statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("select count(*) from audit_event", Integer.class)).isEqualTo(2);
+        DemoHttpClient reviewer = loggedIn("secrev-1");
+
+        HttpResponse<String> first = reviewer.get(EVENTS + "?limit=1");
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        assertThat(first.body()).contains("\"action\":\"HANDOFF_CLAIMED\"").doesNotContain("ACCESS_DENIED");
+        Matcher next = Pattern.compile("\"next\":\"([0-9.AK]+)\"").matcher(first.body());
+        assertThat(next.find()).as(first.body()).isTrue();
+        HttpResponse<String> second = reviewer.get(EVENTS + "?limit=1&before=" + next.group(1));
+        assertThat(second.body()).contains("\"action\":\"ACCESS_DENIED\"").contains("\"occurrences\":300")
+                .doesNotContain("HANDOFF_CLAIMED");
+        assertThat(second.body()).as("no further event").contains("\"next\":null");
+        assertThat(reviewer.get(EVENTS + "?limit=5&role=SALES").body()).contains("HANDOFF_CLAIMED")
+                .doesNotContain("ACCESS_DENIED");
+        assertThat(reviewer.get(EVENTS + "?before=12345").statusCode()).isEqualTo(400);
+        assertRedacted(second.body(), List.of(conversation));
+
+        String longTrace = UUID.randomUUID().toString();
+        for (int i = 0; i <= SecurityInspector.MAX_TRACE_ROWS; i++) {
+            jdbc.update("insert into egress_record (trace_id, decision, attempt, field_names, byte_length, occurred_at) "
+                    + "values (?, 'PASS', 1, 'messages', 10, now())", longTrace);
+        }
+        HttpResponse<String> cut = reviewer.get(TRACES + longTrace);
+        assertThat(cut.statusCode()).isEqualTo(200);
+        assertThat(cut.body()).contains("\"truncated\":true");
+    }
+
+    /**
+     * AUDIT-FLOOD reviews M3: keyset paging against PostgreSQL over audit and switch rows that share one instant
+     * visits every row once, in order (audit before switch, then id), with an audit cursor, a switch cursor, a type
+     * filter and a role filter; the last page has no cursor.
+     */
+    @Test
+    void keysetPagesOverBothTablesVisitEveryRowOnce() {
+        Instant at = clock.instant().minusSeconds(60);
+        Timestamp stamp = Timestamp.from(at);
+        for (String outcome : List.of("A_ONE", "A_TWO", "A_THREE")) {
+            jdbc.update("insert into audit_event (action, resource_type, outcome, actor, actor_role, occurred_at) "
+                    + "values ('ACCESS_DENIED', 'HANDOFF', ?, 'usr_KeysetSalesActorAAAAAA', 'SALES', ?)", outcome, stamp);
+        }
+        jdbc.update("insert into feature_switch_event (name, enabled, reason, actor, occurred_at) "
+                + "values ('ai_assistant', false, 'OPERATOR', 'usr_KeysetOpsActorAAAAAAAA', ?)", stamp);
+        jdbc.update("insert into feature_switch_event (name, enabled, reason, actor, occurred_at) "
+                + "values ('ai_assistant', true, null, 'usr_KeysetOpsActorAAAAAAAA', ?)", stamp);
+        DemoHttpClient reviewer = loggedIn("secrev-1");
+        String window = "&to=" + at;
+
+        assertThat(walk(reviewer, window)).containsExactly("A_THREE", "A_TWO", "A_ONE", "ON", "OFF_OPERATOR");
+        assertThat(walk(reviewer, window + "&type=KILL_SWITCH_CHANGED")).containsExactly("ON", "OFF_OPERATOR");
+        assertThat(walk(reviewer, window + "&type=ACCESS_DENIED")).containsExactly("A_THREE", "A_TWO", "A_ONE");
+        assertThat(walk(reviewer, window + "&role=SALES")).containsExactly("A_THREE", "A_TWO", "A_ONE");
+        assertThat(walk(reviewer, window + "&role=OPS")).containsExactly("ON", "OFF_OPERATOR");
+        assertThat(reviewer.get(EVENTS + "?role=ADMIN").statusCode()).isEqualTo(400);
+    }
+
+    /** Pages through {@code /events} one event at a time and returns the outcomes in the order seen. */
+    private static List<String> walk(DemoHttpClient reviewer, String filter) {
+        Pattern outcome = Pattern.compile("\"outcome\":\"([A-Z_]+)\"");
+        Pattern next = Pattern.compile("\"next\":\"([0-9.AK]+)\"");
+        List<String> seen = new ArrayList<>();
+        String before = null;
+        for (int page = 0; page < 20; page++) {
+            HttpResponse<String> response = reviewer.get(EVENTS + "?limit=1" + filter
+                    + (before == null ? "" : "&before=" + before));
+            assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+            Matcher found = outcome.matcher(response.body());
+            while (found.find()) {
+                seen.add(found.group(1));
+            }
+            Matcher cursor = next.matcher(response.body());
+            if (!cursor.find()) {
+                assertThat(response.body()).contains("\"next\":null");
+                return seen;
+            }
+            before = cursor.group(1);
+        }
+        throw new AssertionError("more than 20 pages");
     }
 
     /** Decision 4A: kill switch changes are read from feature_switch_event and shown with the operator. */
