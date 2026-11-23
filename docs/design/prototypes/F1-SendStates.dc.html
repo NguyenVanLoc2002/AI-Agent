@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>F1 · Trạng thái gửi tin</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="width: 390px; min-height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--bg-app);">
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--bg-surface); border-bottom: 1px solid var(--border-default);">
+    <div style="display: flex; flex-direction: column; flex-grow: 1; min-width: 0;">
+      <span style="font: var(--type-card-title);">AutoParts Agent</span>
+      <span style="font: var(--type-caption); color: var(--text-secondary);">Tư vấn phụ tùng · Thử nghiệm</span>
+    </div>
+  </header>
+
+  <main style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+    <span style="font: var(--type-overline); color: var(--text-secondary); text-transform: uppercase;">Đang chờ trả lời</span>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Bạn">Cần má phanh trước cho xe có VIN này</x-import>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="assistant" status="thinking">Đang tra cứu…</x-import>
+
+    <span style="font: var(--type-overline); color: var(--text-secondary); text-transform: uppercase;">Lượt trước chưa xong · 409</span>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="info" icon="clock" title="Tin trước đang được xử lý">Vui lòng chờ câu trả lời rồi gửi tiếp. Nội dung bạn đang gõ vẫn được giữ.</x-import>
+
+    <span style="font: var(--type-overline); color: var(--text-secondary); text-transform: uppercase;">Gửi quá nhiều · 429</span>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="warning" title="Bạn đã gửi nhiều yêu cầu trong thời gian ngắn">Vui lòng thử lại sau ít phút. Chưa có tin nào bị mất.</x-import>
+
+    <span style="font: var(--type-overline); color: var(--text-secondary); text-transform: uppercase;">Quá thời gian chờ</span>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="warning" icon="timer-off" title="Chưa nhận được phản hồi">Tin của bạn có thể đã được ghi nhận. Bấm Gửi lại; hệ thống không xử lý trùng một tin.</x-import>
+
+    <span style="font: var(--type-overline); color: var(--text-secondary); text-transform: uppercase;">Không tìm thấy cuộc trò chuyện · 404</span>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="no-results" compact="{{yes}}" title="Không tìm thấy cuộc trò chuyện" description="Cuộc trò chuyện không còn hoặc không thuộc tài khoản này. Bắt đầu cuộc trò chuyện mới để tiếp tục."></x-import>
+  </main>
+
+  <footer style="flex-shrink: 0; padding: 12px 16px 16px; background: var(--bg-surface); border-top: 1px solid var(--border-default); display: flex; flex-direction: column; gap: 6px;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIComposer" placeholder="Nhập mã OE, số VIN hoặc câu hỏi…" busy="{{yes}}"></x-import>
+    <span style="font: var(--type-caption); color: var(--text-secondary);">Đang gửi… Nút gửi khóa cho đến khi có phản hồi.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { yes: true };
+  }
+}
+</script>
+</body>
+</html>

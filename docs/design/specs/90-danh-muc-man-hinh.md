@@ -22,7 +22,10 @@ Thiết kế là DESIGN PROPOSAL. Cột “Xung đột” trỏ tới docs/DECIS
 | D2-Acting trưởng bộ phận xử lý thay | Chưa có UC (LEAD ngoài PoC) | UX-11 |
 | E1 tổng quan, E3 hồ sơ, E4 yêu cầu cấp quyền | Chưa có UC | UX-11, UX-13 |
 | E2 hoạt động / nhật ký | UC-07 một phần (SECREV chỉ xem trace đã redact) | UX-11 |
-| Chưa thiết kế: chat khách (UC-01), hộp thư nhân viên / handoff (UC-05, UC-06), Security Inspector (UC-07), kill switch (UC-08) | UC-01, UC-05..UC-08 | UX-13 |
+| F1 CH-01..03 chat khách, chờ nhân viên, trạng thái báo giá (`specs/50`, đã duyệt 23/11/2026) | UC-01, UC-03/04 phía khách, UC-05 | UX-05, UX-08, UX-09, UX-13, UX-14, UX-16 |
+| F2 HO-01 hộp chờ, F3 HO-02 hội thoại đang xử lý (`specs/50`, đã duyệt) | UC-05, UC-06 | UX-13, UX-17 |
+| F4 SI-01 Security Inspector (`specs/50`, đã duyệt) | UC-07 | UX-11, UX-13 |
+| F5 OP-01 công tắc AI (`specs/50`, đã duyệt) | UC-08 | UX-13 |
   
   
 Cập nhật sau review có điều kiện ngày 16/11/2026 , Batch B, C, D và E ngày 17/11/2026. “Đã rà soát” nghĩa là đã chạy thử thật trên canvas trong trình duyệt; không mục nào được phê duyệt chính thức.

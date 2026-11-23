@@ -1,13 +1,30 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
 ## Current: SEC03-F4-MORE encoded, spelled and interleaved split honeytokens, 2026-11-23
-- Branch `fix/SEC03-F4-MORE-split-variants` from `main` `6ad77ec` (PR #40 merged). Owner 2026-11-23 ("Đòng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-60.
+- Branch `fix/SEC03-F4-MORE-split-variants` from `main` `6ad77ec` (PR #40 merged); `main` `00f0110` merged in (PR #41–#43, docs only). Owner 2026-11-23 ("Đòng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-60.
 - Change: `policy.internal.SensitiveDataDetector.splitHoneytoken`: decoded forms of each value are text and digit pieces, spelled digits are digit pieces, digit tokens assembled order-free (ordered join kept), digit pieces of 3+ digits only, pieces deduplicated. §2a SEC03-F4-MORE DONE.
 - Tests: `SensitiveDataDetectorTest` (+16: split variants, ordinary numbers, 5 ordinary chats with spelled words, a 64 KiB cost check), new `gateway.internal.HoneytokenVocabularyTest` (2), `AdversarialChatIT` split-turn fixtures +2. Mutations: no decoded pieces → 4 red, no spelled pieces → 2 red, no digit assembly → 6 red, one-digit spelled pieces → 3 red; source restored sha256.
 - Tests (VERIFIED 2026-11-23 10:17–10:21 UTC, Java 21.0.12, after the review fix): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1186, failsafe 307 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
 - Review (advisory, security-auditor, one round): 1H/2M/1L; H (false positives from single spelled words) fixed and pinned, L applied, M recorded in A-60. NOT RUN: second round.
 - Rollback: revert (no migration).
-- Next: (1) owner pushes and opens the PR; (2) SEC03-GAPS-MORE or SEC03-F1-MONEY need an owner decision; SEC03-F2 waits on D-01; EP-10 blocked by UX-13.
+- Next: (1) owner pushes and opens the PR; (2) SEC03-GAPS-MORE, SEC03-F1-MONEY or EP-10 (UX-13 approved, PR #43) need an owner decision; SEC03-F2 waits on D-01.
+
+## Previous: UX-13 approved (docs only), 2026-11-23 — MERGED (PR #43, `00f0110`)
+- Branch `docs/UX-13-approved` from `main` `a4e895a` (PR #42 merged; worktree `../AI-Agent-ux13` reused for this branch, the old local branch deleted). Owner 2026-11-23 ("Tôi đã merge, hãy triển khai theo đề xuất" = 1A).
+- Change: DECISIONS_REQUIRED UX-13, UX-06, UX-17 APPROVED (batch F screens, quote status labels, handoff reason labels in `specs/50`); `specs/50` status, `specs/90` rows, `DESIGN_GUIDE.md` batch F marked approved.
+- Not changed: `.claude/rules/50-frontend-ux.md` still says these screens have no design (rule 70); to be updated only on an explicit owner request.
+- Tests: none (docs only).
+- Next: EP-10 frontend can start (dependency 9–12 + approved wireflow met); open §2a PROPOSED UX13-MSG-TIME, UX13-QUOTE-SOURCE, UX13-CONV-STATE to decide before the screens that need them.
+
+## Previous: UX-13 missing screens designed (batch F, docs only), 2026-11-23 — MERGED (PR #41 `d518cd1`, PR #42 `a4e895a`)
+- Branch `docs/UX-13-missing-screens` from `main` `6ad77ec`. Owner 2026-11-23 ("Đồng ý" = publish F4/F5, then update source).
+- Design: Claude Design canvas "AutoParts – Màn hình UX-13" (private to the owner), built with AutoParts Agent Design System version `1795426540-5cc3`. Seven artboards copied to `docs/design/prototypes/F*.dc.html`: F1 customer chat, waiting for staff, quote states (simulator channel, UX-14); F2 inbox; F3 held conversation; F4 Security Inspector; F5 AI switch. Synthetic data only.
+- Docs: `docs/design/specs/50-batch-f-man-hinh-thieu.md` (spec in the batch E format, gaps against the API, proposed reason labels for UX-17), `specs/90` catalog rows, `DESIGN_GUIDE.md` batch F, DECISIONS_REQUIRED UX-13 (designed, awaiting approval).
+- Not changed: `.claude/rules/50-frontend-ux.md` still says the screens have no design (rule 70: rules are not changed as a side effect).
+- Review (advisory, ux-workflow-reviewer, read only): 4H fixed (confirmation shows only `ConfirmationView` fields, 409 state with a new-version confirm control, `handedOff` confirmation state, staff messages labelled by `direction`, quote status label table); M/L recorded in the spec ("Trạng thái mô tả nhưng chưa vẽ", 30 s source, static dialog note).
+- After the review (owner "Tôi đồng ý theo đề xuất" = 1A, 2A, 3A): states drawn in `F1-SendStates.dc.html` and `F6-StaffStates.dc.html` (loading, empty, 403/404, 409, 429, timeout, 503, trace not found and truncated, switch error); backend gaps recorded as §2a UX13-MSG-TIME, UX13-QUOTE-SOURCE, UX13-CONV-STATE (PROPOSED). A commit of this branch landed on another session's branch by accident (shared working tree); that branch was moved back to `6ad77ec` and this branch now works in its own worktree `../AI-Agent-ux13`.
+- Tests: none (docs only). NOT RUN: browser check of the canvas; second review round.
+- Next: owner approves or edits the canvas; then EP-10 (frontend) can start from batch F plus A–E.
 
 ## Previous: SEC03-F3-AUDIT withheld answers recorded in egress_record (V19), 2026-11-23 — MERGED (PR #40, `6ad77ec`)
 - Branch `feat/SEC03-F3-AUDIT-response-record` from `main` `679e4a5` (PR #39 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-59.

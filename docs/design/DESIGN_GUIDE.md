@@ -42,6 +42,6 @@ Không gian làm việc cho **nhân viên** bán phụ tùng: tra cứu phụ t�
 - Logo `design-system/assets/logo/`: **PROPOSED** (A-17), chưa duyệt.
 
 ## Cách làm việc
-- Theo batch: A (tra cứu) → B (Trợ lý AI) → C (báo giá) → D (đơn nháp) → E (đăng nhập, dashboard, nhật ký, hồ sơ). Mỗi batch là một issue theo `.claude/skills/implement-issue` và `ui-from-claude-design`: kế hoạch → duyệt → code → test.
+- Theo batch: A (tra cứu) → B (Trợ lý AI) → C (báo giá) → D (đơn nháp) → E (đăng nhập, dashboard, nhật ký, hồ sơ) → F (màn hình UX-13: chat khách qua trình mô phỏng, hộp chờ và hội thoại nhân viên, Security Inspector, công tắc AI; `specs/50-batch-f-man-hinh-thieu.md`, prototype `F*.dc.html`, đã duyệt 23/11/2026). Mỗi batch là một issue theo `.claude/skills/implement-issue` và `ui-from-claude-design`: kế hoạch → duyệt → code → test.
 - Trước khi code một batch, giải quyết các mục UX-xx liên quan trong `docs/DECISIONS_REQUIRED.md`.
 - Test cho các trạng thái trong đặc tả (đang tải, rỗng, lỗi ERP, timeout, không có quyền, chờ đối soát). Không ghi "đã kiểm tra" khi chưa chạy test thật.
