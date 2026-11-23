@@ -1,10 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: REFUSAL-MERGE closed as intended (docs and test name only), 2026-11-23
+## Current: TURN-HANDOFF-DEDUP closed as accepted residual (docs only), 2026-11-23
+- Branch `docs/TURN-HANDOFF-DEDUP-closed` from `main` `01f79d5` (PR #29 merged; local branch deleted). Owner 2026-11-23 ("Đồng ý" = 1A, 2A): A-48(b) DECIDED, accepted residual, no code change.
+- Reason: NOT_QUOTED ends the turn at once (`DefaultToolManager` handoff-required, `DefaultAgent` returns without another model call); the gap between the refusal's handoff and `ChatService.handOff` is milliseconds while the conversation is HANDOFF_PENDING; a fix would cross quote, tools, agent and conversation; the outcome already fails safe.
+- Change: DECISIONS_REQUIRED A-48(b), IMPLEMENTATION_PLAN §2a TURN-HANDOFF-DEDUP (CLOSED). Tests: none needed (docs only); NOT RUN.
+- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides AUDIT-READS or DLP-OFF (PROPOSED); otherwise §2a has no OPEN row left (SEC-DASH and AUDIT-RET BLOCKED).
+
+## Previous: REFUSAL-MERGE closed as intended (docs and test name only), 2026-11-23 — MERGED (PR #29, `01f79d5`)
 - Branch `docs/REFUSAL-MERGE-intended` from `main` `090fa7b` (PRs #26, #27, #28 merged; local branches cleaned, only `main` left). Owner 2026-11-23 ("Tôi đồng ý" = 1A, 2A): A-48(a) DECIDED, intended; no production change.
 - Change: `RefusalHandoffIT` test renamed `aRefusalMergedIntoAnOpenHandoffIsLiftedWhenStaffResolveItAfterTheRefusal` with the reasoning (lift rule A-43 7A; same reason shown, A-43 5A); DECISIONS_REQUIRED A-48(a), IMPLEMENTATION_PLAN §2a REFUSAL-MERGE (CLOSED).
 - Tests (VERIFIED 2026-11-23 03:35 UTC): `cd backend && ./mvnw -B -o -Dtest=NoSuchTest -Dit.test=RefusalHandoffIT -Dsurefire.failIfNoSpecifiedTests=false -Dfailsafe.failIfNoSpecifiedTests=false verify` → exit 0, RefusalHandoffIT 7/7, sec05 scan 1. NOT RUN: full `clean verify` (test rename and docs only).
-- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides TURN-HANDOFF-DEDUP, AUDIT-READS, DLP-OFF (PROPOSED).
+- Next (at the time): owner pushes, PR opened; TURN-HANDOFF-DEDUP, AUDIT-READS, DLP-OFF to decide.
 
 ## Previous: INSPECTOR-BLOCK-TRACE honeytoken BLOCK in a SECREV trace, 2026-11-23 — MERGED (PR #28, `090fa7b`; #26 `e47f25a`, #27 `5003072`)
 - Branch `feat/INSPECTOR-BLOCK-TRACE-honeytoken-trace` from `fix/SEC01-FLAKE-UUID-reply-sentinel` `712f68b` (stacked). Owner 2026-11-23 ("Hãy tiến hành theo đề xuất" = 1A–4A; also: open the PRs that can merge first, keep few local branches): DECISIONS_REQUIRED A-50.
