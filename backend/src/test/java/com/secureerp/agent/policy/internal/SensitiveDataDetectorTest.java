@@ -10,8 +10,10 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -59,6 +61,124 @@ class SensitiveDataDetectorTest {
                 .contains("HT-NAME-A");
         assertThat(detector.detect("key=APASHT_KEY_abc")).map(SensitiveDataDetector.Finding::honeytokenId)
                 .contains("HT-KEY-01");
+    }
+
+    /**
+     * SEC03-F1 (A-55): look-alike letters, digits used as letters, accents and separators inside a text honeytoken,
+     * in plain text, in one decoded layer and in a raw payload.
+     */
+    static Stream<Arguments> disguisedTextHoneytokens() {
+        String base64 = Base64.getEncoder().encodeToString("ZZHоney CustomerA".getBytes(StandardCharsets.UTF_8));
+        return Stream.of(
+                Arguments.of("HT-NAME-A", "cyrillic o", "Khach ZZHоney CustomerA can phanh"),
+                Arguments.of("HT-NAME-A", "cyrillic capitals", "ZZНoney СustomerА"),
+                Arguments.of("HT-NAME-A", "cyrillic everywhere", "ZZНоnеу СuѕtоmеrА"),
+                Arguments.of("HT-NAME-A", "greek letters", "ΖΖΗοney CustomerΑ"),
+                Arguments.of("HT-NAME-A", "digit zero", "ZZH0ney CustomerA"),
+                Arguments.of("HT-NAME-A", "digit stand-ins", "ZZH0n3y Cu5t0m3r4"),
+                Arguments.of("HT-NAME-A", "dot", "ZZHoney.CustomerA"),
+                Arguments.of("HT-NAME-A", "dashes and underscores", "ZZ-Honey_Customer-A"),
+                Arguments.of("HT-NAME-A", "letters spaced", "Z Z H o n e y C u s t o m e r A"),
+                Arguments.of("HT-NAME-A", "zero-width and soft hyphen", "ZZH​oney Cus­tomerA"),
+                Arguments.of("HT-NAME-A", "accents", "ZZHốney Cústomerà"),
+                Arguments.of("HT-NAME-A", "fullwidth", "ＺＺＨｏｎｅｙ ＣｕｓｔｏｍｅｒＡ"),
+                Arguments.of("HT-NAME-A", "slash", "Customer ZZHoney/CustomerA"),
+                Arguments.of("HT-NAME-A", "base64 of the cyrillic form", "xem " + base64),
+                Arguments.of("HT-EMAIL-A", "cyrillic in the email", "hоney.custоmer.a@exаmple.invalid"),
+                Arguments.of("HT-EMAIL-A", "capital I for l", "honey.customer.a@example.InvaIid"),
+                Arguments.of("HT-EMAIL-A", "dotless i", "honey.customer.a@example.ınvalıd"),
+                Arguments.of("HT-KEY-01", "cyrillic a", "key=аpasht_key_abc"),
+                Arguments.of("HT-KEY-01", "no underscores", "APASHTKEYabc"),
+                Arguments.of("HT-KEY-01", "dashes", "apas-ht-key-abc"),
+                // security review (A-55): capitals whose small form is listed, invisible letters, missing look-alikes
+                Arguments.of("HT-NAME-A", "cyrillic capital shha", "ZZҺoney CustomerA"),
+                Arguments.of("HT-NAME-A", "greek capital lunate sigma", "ZZHoney ϹustomerA"),
+                Arguments.of("HT-NAME-A", "greek small eta", "ZZHoηey CustomerA"),
+                Arguments.of("HT-NAME-A", "micro sign", "ZZHoney CµstomerA"),
+                Arguments.of("HT-NAME-A", "cyrillic small straight u", "ZZHoneү CustomerA"),
+                Arguments.of("HT-NAME-A", "armenian o", "ZZHօney CustomerA"),
+                Arguments.of("HT-NAME-A", "o with stroke", "ZZHøney CustomerA"),
+                Arguments.of("HT-NAME-A", "small capitals", "ᴢᴢʜᴏney ᴄustomerA"),
+                Arguments.of("HT-NAME-A", "cherokee capitals", "ᏃᏃᎻoney CustomerA"),
+                Arguments.of("HT-NAME-A", "hangul filler", "ZZHoneyㅤCustomerA"),
+                Arguments.of("HT-NAME-A", "halfwidth hangul filler", "ZZHoneyﾠCustomerA"),
+                Arguments.of("HT-NAME-A", "modifier low macron", "ZZHoneyˍCustomerA"),
+                Arguments.of("HT-NAME-A", "modifier apostrophe", "ZZʼHoney CustomerA"),
+                Arguments.of("HT-NAME-A", "digit two for z", "22Honey CustomerA"),
+                Arguments.of("HT-NAME-A", "plus for t", "ZZHoney Cus+omerA"));
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("disguisedTextHoneytokens")
+    void aDisguisedTextHoneytokenIsDetected(String honeytokenId, String variantId, String text) {
+        SensitiveDataDetector.Finding expected = new SensitiveDataDetector.Finding(PolicyCode.HONEYTOKEN, honeytokenId);
+        assertThat(detector.detect(text)).as(variantId).contains(expected);
+        assertThat(detector.honeytoken(text)).as(variantId).contains(expected);
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("disguisedTextHoneytokens")
+    void aDisguisedTextHoneytokenInARawPayloadIsDetected(String honeytokenId, String variantId, String text) {
+        if (variantId.startsWith("base64")) {
+            return; // decoded layers are checked per value, not on the raw payload
+        }
+        String payload = "{\"messages\":[{\"role\":\"user\",\"text\":\"" + text + "\"}]}";
+        assertThat(detector.honeytokenInRawPayload(payload)).as(variantId)
+                .contains(new SensitiveDataDetector.Finding(PolicyCode.HONEYTOKEN, honeytokenId));
+    }
+
+    /** SEC03-F1 (A-55): folding look-alikes does not turn ordinary Vietnamese or technical text into a token. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+        "Khách hàng cần má phanh, honey không phải tên",
+        "customer A hỏi giá lọc gió",
+        "ZZ Honda Customer service",
+        "Мой клиент ищет тормозные колодки", // Cyrillic sentence, no token
+        "Ο πελάτης θέλει φίλτρο αέρα", // Greek sentence, no token
+        "apas hệ thống khóa key",
+        "example.invalid là miền thử nghiệm",
+        "SKU-BRK-PAD-A 04465-0K290 x2",
+        "khach hang can ma phanh truoc cho xe zz honda, giao hang nhanh",
+        "Bộ lọc gió động cơ 17801-0Y040 dùng cho Toyota Vios 2014-2022, hàng chính hãng, bảo hành 6 tháng",
+        "Má phanh trước (Front brake pad) — Customer service: liên hệ cửa hàng",
+        "Ʉ ʼ ˍ ㅤ ﾠ — ký tự lạ nhưng không có token"
+    })
+    void ordinaryTextWithLookAlikesIsNotAHoneytoken(String text) {
+        assertThat(detector.honeytoken(text)).isEmpty();
+        assertThat(detector.honeytokenInRawPayload("{\"text\":\"" + text + "\"}")).isEmpty();
+    }
+
+    @Test
+    void theSkeletonFoldsLookAlikesAndDropsSeparators() {
+        assertThat(TextNormalizer.skeleton("ZZHоney CustomerA")).isEqualTo("zzhoneycustomera");
+        assertThat(TextNormalizer.skeleton("ΖΖΗ0ney.Cu$tomer-@")).isEqualTo("zzhoneycustomera");
+        assertThat(TextNormalizer.skeleton("Đường 1 lIı|")).isEqualTo("duonglllll");
+    }
+
+    /** Security review H1 (A-55): a look-alike folds the same in either case. */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"а", "с", "е", "һ", "о", "р", "у", "ү", "к", "в", "т", "м", "н", "п", "ϲ", "ο", "α", "ρ",
+        "ι", "κ", "ν", "τ", "υ", "χ", "ε", "ω", "ϳ", "η", "γ", "μ", "ø", "ł", "ħ", "ŧ", "đ", "ꮓ", "ꮋ"})
+    void aLookAlikeFoldsTheSameInEitherCase(String letter) {
+        String upper = letter.toUpperCase(Locale.ROOT);
+        String lower = letter.toLowerCase(Locale.ROOT);
+        assertThat(TextNormalizer.skeleton(lower)).as("lower").hasSize(1).matches("[a-z]");
+        if (DRAWN_DIFFERENTLY_BY_CASE.contains(lower)) {
+            assertThat(TextNormalizer.skeleton(upper)).as("upper %s", upper).hasSize(1).matches("[a-z]");
+        } else {
+            assertThat(TextNormalizer.skeleton(upper)).as("upper %s", upper).isEqualTo(TextNormalizer.skeleton(lower));
+        }
+    }
+
+    /** Small letters whose capital looks like another Latin letter (Greek eta: "n" / "H"). */
+    private static final Set<String> DRAWN_DIFFERENTLY_BY_CASE =
+            Set.of("η", "γ", "μ", "ω", "ν", "υ", "в", "т", "м", "н", "п");
+
+    @Test
+    void aTextHoneytokenNeedsSixLettersOrDigitsOnceFolded() {
+        assertThatThrownBy(() -> new Honeytoken("HT-SHORT", Honeytoken.Kind.TEXT, "a.b.c.d.e"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(new Honeytoken("HT-LONG", Honeytoken.Kind.TEXT, "a.b.c.d.e.f").value()).isEqualTo("a.b.c.d.e.f");
     }
 
     @ParameterizedTest(name = "{0}")

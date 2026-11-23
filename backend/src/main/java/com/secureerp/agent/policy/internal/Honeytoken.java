@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 
 /**
  * A synthetic sentinel (DATA_CLASSIFICATION §4). DIGITS tokens are matched against every numeric
- * projection; TEXT tokens against the normalized text with whitespace removed.
+ * projection; TEXT tokens against the look-alike skeleton of the text (SEC03-F1,
+ * {@link TextNormalizer#skeleton}): at least 6 letters or digits once folded.
  */
 public record Honeytoken(String id, Kind kind, String value) {
 
@@ -26,8 +27,8 @@ public record Honeytoken(String id, Kind kind, String value) {
         if (kind == Kind.DIGITS && (value == null || !value.matches("\\d{6,}"))) {
             throw new IllegalArgumentException("digit honeytoken needs at least 6 digits");
         }
-        if (kind == Kind.TEXT && (value == null || value.length() < 6)) {
-            throw new IllegalArgumentException("text honeytoken needs at least 6 characters");
+        if (kind == Kind.TEXT && (value == null || TextNormalizer.skeleton(value).length() < 6)) {
+            throw new IllegalArgumentException("text honeytoken needs at least 6 letters or digits");
         }
         value = kind == Kind.TEXT ? value.toLowerCase(Locale.ROOT).replaceAll("\\s+", "") : value;
     }
