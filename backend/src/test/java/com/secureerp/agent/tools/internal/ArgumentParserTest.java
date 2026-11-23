@@ -9,6 +9,7 @@ import com.secureerp.agent.tools.internal.ToolArguments.QuoteLines;
 import com.secureerp.agent.tools.internal.ToolArguments.SearchByCategoryAndModel;
 import com.secureerp.agent.tools.internal.ToolArguments.SearchByOe;
 import com.secureerp.agent.tools.internal.ToolArguments.SearchByVinRef;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -105,6 +106,44 @@ class ArgumentParserTest {
         }
         assertSchemaRejected(ToolName.REQUEST_QUOTE, lines.append("]}").toString());
         assertSchemaRejected(ToolName.SEARCH_VERIFIED_PRODUCT, "{\"oe\":\"" + "A".repeat(300) + "\"}");
+    }
+
+    private static ToolLimits limits(int maxDepth, int maxArrayItems, int maxStringChars) {
+        return new ToolLimits(3, 20, 40, 5, maxDepth, maxArrayItems, maxStringChars, 3, Duration.ofHours(2));
+    }
+
+    private static String quoteOf(int lines) {
+        StringBuilder json = new StringBuilder("{\"lines\":[");
+        for (int i = 0; i < lines; i++) {
+            json.append(i == 0 ? "" : ",").append("{\"productRef\":\"pr_").append("A".repeat(20))
+                    .append((char) ('A' + i)).append("A\",\"quantity\":1}");
+        }
+        return json.append("]}").toString();
+    }
+
+    private static void assertSchemaRejected(ToolName tool, String json, ToolLimits limits) {
+        assertThatThrownBy(() -> ArgumentParser.parse(tool, json, limits)).isInstanceOf(ToolRejection.class)
+                .hasMessage("TOOL_SCHEMA");
+    }
+
+    /**
+     * SEC03-GAPS (A-56): each shape limit rejects on its own a call that every other check accepts, so removing one
+     * limit turns a test red (the oversized shapes above also break another rule).
+     */
+    @Test
+    void eachShapeLimitRejectsOnItsOwn() {
+        String twoLines = quoteOf(2);
+        assertThat(ArgumentParser.parse(ToolName.REQUEST_QUOTE, twoLines, LIMITS)).isInstanceOf(QuoteLines.class);
+        // depth: object > array > object is 3 levels
+        assertSchemaRejected(ToolName.REQUEST_QUOTE, twoLines, limits(2, 20, 256));
+        // array items: two lines over a limit of one
+        assertSchemaRejected(ToolName.REQUEST_QUOTE, twoLines, limits(3, 1, 256));
+        // string length: a 25-character productRef over a limit of 20
+        assertSchemaRejected(ToolName.REQUEST_QUOTE, twoLines, limits(3, 20, 20));
+        // quote line count: 21 distinct valid lines with the array-item limit raised out of the way
+        ToolLimits wideArrays = limits(3, 50, 256);
+        assertThat(ArgumentParser.parse(ToolName.REQUEST_QUOTE, quoteOf(20), wideArrays)).isInstanceOf(QuoteLines.class);
+        assertSchemaRejected(ToolName.REQUEST_QUOTE, quoteOf(21), wideArrays);
     }
 
     /** T-TOOL-13: a full VIN in any argument, plain or with separators. */
