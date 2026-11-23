@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hộp chờ nhân viên</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 900px; background: var(--bg-app);">
+  <div style="flex: 0 1 248px; min-width: 0;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sidebar}}" active-key="inbox" style="height: 100%;"></x-import>
+  </div>
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" user="{{user}}"></x-import>
+    <main style="width: 100%; max-width: 1192px; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <h1 style="margin: 0; font: var(--type-page-title);">Hộp chờ nhân viên</h1>
+          <p style="margin: 0; font: var(--type-body); color: var(--text-secondary);">Cuộc trò chuyện trợ lý AI đã chuyển cho nhóm của bạn, cũ nhất ở trên.</p>
+        </div>
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" icon-left="refresh-cw">Tải lại</x-import>
+      </div>
+
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="neutral" icon="lock" title="Danh sách không chứa thông tin khách hàng">Nội dung tin nhắn và báo giá chỉ hiện khi bạn nhận xử lý và mở cuộc trò chuyện. Mỗi lần mở được ghi vào nhật ký kiểm toán.</x-import>
+
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); overflow-x: auto;">
+        <table style="width: 100%; min-width: 860px; border-collapse: collapse; font: var(--type-table);">
+          <caption style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Yêu cầu chuyển nhân viên của nhóm</caption>
+          <thead>
+            <tr style="text-align: left; color: var(--text-secondary);">
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Cuộc trò chuyện</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Lý do chuyển</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Trạng thái</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Mở lúc</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default); text-align: right;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="row" hint-placeholder-count="5">
+              <tr style="height: 44px;">
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);"><span class="ap-code">{{row.ref}}</span></td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span>{{row.reason}}</span>
+                    <span style="font: var(--type-caption); color: var(--text-secondary);">{{row.followUp}}</span>
+                  </div>
+                </td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);">
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="{{row.tone}}" shape="pill" size="sm">{{row.status}}</x-import>
+                </td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums; color: var(--text-body);">{{row.openedAt}}</td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); text-align: right;">
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" size="sm" icon-left="{{row.icon}}" disabled="{{row.disabled}}">{{row.action}}</x-import>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin: 0; font: var(--type-caption); color: var(--text-secondary);">Chỉ hiện yêu cầu của nhóm bạn. Yêu cầu đã hoàn tất không còn trong danh sách.</p>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      sidebar: [
+        { title: 'Kinh doanh', items: [
+          { key: 'inbox', label: 'Hộp chờ nhân viên', icon: 'users', badge: 4 },
+          { key: 'unknown', label: 'Đơn chưa rõ kết quả', icon: 'circle-pause', badge: 1 },
+          { key: 'awaiting', label: 'Đơn chờ quyết định', icon: 'clipboard-list' }
+        ] }
+      ],
+      crumbs: [{ label: 'Kinh doanh' }, { label: 'Hộp chờ nhân viên' }],
+      user: { name: 'Nhân viên KD 07', role: 'Kinh doanh · Nhóm Bắc', initials: 'KD' },
+      rows: [
+        { ref: 'HT-3F2A', reason: 'Không lập được báo giá', followUp: '', status: 'Bạn đang xử lý', tone: 'info', openedAt: '23/11/2026 09:12', action: 'Mở', icon: 'arrow-up-right', disabled: false },
+        { ref: 'HT-91C0', reason: 'Khách yêu cầu nhân viên', followUp: '', status: 'Chờ nhận', tone: 'warning', openedAt: '23/11/2026 09:20', action: 'Nhận xử lý', icon: 'check', disabled: false },
+        { ref: 'HT-0B7E', reason: 'Chưa rõ kết quả ERP', followUp: 'Sau khi hoàn tất: mở tiếp vì đơn chưa rõ kết quả', status: 'Chờ nhận', tone: 'warning', openedAt: '23/11/2026 09:31', action: 'Nhận xử lý', icon: 'check', disabled: false },
+        { ref: 'HT-6D14', reason: 'Câu trả lời bị chặn', followUp: '', status: 'Nhân viên khác đang xử lý', tone: 'neutral', openedAt: '23/11/2026 09:35', action: 'Đã có người nhận', icon: 'lock', disabled: true },
+        { ref: 'HT-A250', reason: 'Trợ lý AI đang tắt', followUp: '', status: 'Chờ nhận', tone: 'warning', openedAt: '23/11/2026 09:47', action: 'Nhận xử lý', icon: 'check', disabled: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

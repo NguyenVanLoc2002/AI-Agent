@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC03-F3-AUDIT withheld answers recorded in egress_record (V19), 2026-11-23
+## Current: UX-13 missing screens designed (batch F, docs only), 2026-11-23
+- Branch `docs/UX-13-missing-screens` from `main` `6ad77ec`. Owner 2026-11-23 ("Đồng ý" = publish F4/F5, then update source).
+- Design: Claude Design canvas "AutoParts – Màn hình UX-13" (private to the owner), built with AutoParts Agent Design System version `1795426540-5cc3`. Seven artboards copied to `docs/design/prototypes/F*.dc.html`: F1 customer chat, waiting for staff, quote states (simulator channel, UX-14); F2 inbox; F3 held conversation; F4 Security Inspector; F5 AI switch. Synthetic data only.
+- Docs: `docs/design/specs/50-batch-f-man-hinh-thieu.md` (spec in the batch E format, gaps against the API, proposed reason labels for UX-17), `specs/90` catalog rows, `DESIGN_GUIDE.md` batch F, DECISIONS_REQUIRED UX-13 (designed, awaiting approval).
+- Not changed: `.claude/rules/50-frontend-ux.md` still says the screens have no design (rule 70: rules are not changed as a side effect).
+- Review (advisory, ux-workflow-reviewer, read only): 4H fixed (confirmation shows only `ConfirmationView` fields, 409 state with a new-version confirm control, `handedOff` confirmation state, staff messages labelled by `direction`, quote status label table); M/L recorded in the spec ("Trạng thái mô tả nhưng chưa vẽ", 30 s source, static dialog note).
+- Tests: none (docs only). NOT RUN: browser check of the canvas; second review round.
+- Next: owner approves or edits the canvas; then EP-10 (frontend) can start from batch F plus A–E.
+
+## Previous: SEC03-F3-AUDIT withheld answers recorded in egress_record (V19), 2026-11-23
 - Branch `feat/SEC03-F3-AUDIT-response-record` from `main` `679e4a5` (PR #39 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-59.
 - Change: Flyway V19 (module audit) `egress_record.direction` + wider attempt check; `EgressDecisionEvent.Direction` (every call site names it); `EgressRecordWriter`, `JdbcAuditQueries`, inspector `EgressView` carry it; `DefaultAiGateway.auditWithheld` writes the RESPONSE row (path from `ResponseScreen.Hit.valueIndex`; `SCREEN_FAILED` when the screen throws or names a missing value; a failing record keeps the answer withheld). AI_GATEWAY §2 step 5, DATA_FLOW, §2a SEC03-F3-AUDIT DONE, ACC-01 report.
 - Tests: `EgressDecisionEventTest` (+1), `DefaultAiGatewayTest` (+5: exact paths incl. tool name and across values, retry attempt, `SCREEN_FAILED`, record failure), `GatewayEgressIT.responseRowsAreBlocksOnly`, `InspectorBlockTraceIT` (+1, direction on the BLOCK trace), `EgressSuiteFlow200IT` / `EgressSuiteGw200IT` request counts filter `direction = 'REQUEST'` (baseline change approved, rule 70) and pin RESPONSE rows, `ApplicationBootstrapIT` (V19), `DefaultSecurityInspectorTest` stub. Mutations: no RESPONSE record → 5 unit red; writer always REQUEST → 3 IT red; no index bound check → 1 unit red; sources restored sha256.

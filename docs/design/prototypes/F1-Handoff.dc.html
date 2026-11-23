@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chat khách hàng – chờ nhân viên</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: var(--bg-app);">
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--bg-surface); border-bottom: 1px solid var(--border-default);">
+    <div style="display: flex; flex-direction: column; flex-grow: 1; min-width: 0;">
+      <span style="font: var(--type-card-title);">AutoParts Agent</span>
+      <span style="font: var(--type-caption); color: var(--text-secondary);">Tư vấn phụ tùng · Thử nghiệm</span>
+    </div>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="warning" shape="pill" size="sm">Chờ nhân viên</x-import>
+  </header>
+
+  <div style="padding: 12px 16px 0;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="info" icon="circle-pause" title="Đang chờ nhân viên tư vấn">Trợ lý AI tạm dừng trong cuộc trò chuyện này. Bạn vẫn có thể nhắn; nhân viên sẽ đọc khi tiếp nhận.</x-import>
+  </div>
+
+  <main style="flex-grow: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Bạn" time="09:44">Cho tôi giá tốt hơn nếu lấy 50 bộ</x-import>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Yêu cầu của bạn đã được chuyển cho nhân viên tư vấn. Nhân viên sẽ phản hồi bạn sớm.</x-import>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Bạn" time="09:46">Khoảng bao lâu thì có người trả lời?</x-import>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Cuộc trò chuyện đang chờ nhân viên tư vấn…</x-import>
+    <div role="separator" style="display: flex; align-items: center; gap: 8px; font: var(--type-caption); color: var(--text-secondary);">
+      <span style="flex-grow: 1; height: 1px; background: var(--border-default);"></span>
+      <span>Nhân viên tư vấn đã tham gia</span>
+      <span style="flex-grow: 1; height: 1px; background: var(--border-default);"></span>
+    </div>
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="assistant" author="Nhân viên tư vấn" time="09:52">Chào bạn, tôi đang kiểm tra mức giá cho số lượng 50 bộ và sẽ gửi lại báo giá trong khung chat này.</x-import>
+  </main>
+
+  <footer style="flex-shrink: 0; padding: 12px 16px 16px; background: var(--bg-surface); border-top: 1px solid var(--border-default); display: flex; flex-direction: column; gap: 6px;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AIComposer" placeholder="Nhắn cho nhân viên tư vấn…"></x-import>
+    <span style="font: var(--type-caption); color: var(--text-secondary);">Tin nhắn được lưu cho nhân viên; trợ lý AI không trả lời cho đến khi nhân viên hoàn tất.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
