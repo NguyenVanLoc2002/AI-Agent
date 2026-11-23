@@ -1,12 +1,18 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: MSG-READ-LOCK staff message read under the handoff lock, 2026-11-23
+## Current: ACC-01 SEC-01..07 evidence report (docs only), 2026-11-23
+- Branch `docs/ACC-01-sec-evidence` from `main` `736f665` (PR #33 merged; local branch deleted). Owner 2026-11-23 (1A). Skill `acceptance-sec`.
+- Evidence run (VERIFIED 2026-11-23 04:42–04:44 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` on `736f665` → exit 0; surefire 1017, failsafe 245, sec05 1 (`canary=present appLog=true findings=0`); SEC01-SUITE200 362 model calls, SEC01-GW200 200 calls.
+- Report `docs/security/ACC-01_SEC_EVIDENCE.md`: SEC-01, -02, -04, -07 VERIFIED within scope; SEC-06 VERIFIED by design bound (not measured); SEC-03 PARTIAL (15/50, image OCR BLOCKED); SEC-05 PARTIAL (7-day logs, APM NOT RUN); within the fixtures no leakage, no duplicate write; does not clear a release gate. qa-gatekeeper review (advisory) applied. SECURITY_TEST_MATRIX header updated; §2a SEC03-50 (PROPOSED).
+- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides SEC03-50; EP-10 stays blocked by UX-13 (screens in Claude Design).
+
+## Previous: MSG-READ-LOCK staff message read under the handoff lock, 2026-11-23 — MERGED (PR #33, `736f665`)
 - Branch `fix/MSG-READ-LOCK-staff-messages` from `main` `70ebcd3` (PR #32 merged; local branch deleted). Owner 2026-11-23 (1A): DECISIONS_REQUIRED A-53.
 - Change: `StaffChatService.messages` re-checks the holder and reads inside one transaction under the conversation's handoff lock (`requireStillHolding`); lost handoff → 404 + one denial after the transaction; busy → 409; read audit after the transaction. RBAC_MATRIX, A-52(c), §2a MSG-READ-LOCK (DONE).
 - Tests: `StaffReadAuditIT.aHandoffResolvedBeforeTheReadTakesTheLockShowsNoMessage` (two transactions). Mutation (no re-check in the read only; source restored sha256) → red.
 - Tests (VERIFIED 2026-11-23 04:31–04:34 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 245, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). NOT RUN: advisory review (same pattern as the quote read, A-45(ad)), formatter, CVE scan.
 - Rollback: revert (no schema change).
-- Next: (1) owner pushes, the assistant opens the PR; (2) §2a: no OPEN/PROPOSED row left (SEC-DASH, AUDIT-RET BLOCKED); main backlog: EP-10 is blocked by UX-13 (UC-01, UC-05/06, UC-07, UC-08 screens not designed in Claude Design); ACC-01 (skill `acceptance-sec`, SEC-01..07 evidence report) can start now.
+- Next (at the time): owner pushes, PR opened; then ACC-01 (EP-10 blocked by UX-13).
 
 ## Previous: AUDIT-READS staff reads audited (V18), 2026-11-23 — MERGED (PR #32, `70ebcd3`)
 - Branch `feat/AUDIT-READS-staff-reads` from `main` `89fd165` (PR #31 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý" = 1A–4A): DECISIONS_REQUIRED A-52.
