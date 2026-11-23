@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC03-F4 text honeytoken split across values, 2026-11-23
+## Current: SEC03-F3 gateway withholds a model answer carrying a honeytoken, 2026-11-23
+- Branch `fix/SEC03-F3-model-answer-honeytoken` from `main` `122d022` (PR #38 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–4A): DECISIONS_REQUIRED A-58.
+- Change: new port `policy.ResponseScreen` + `policy.internal.DefaultResponseScreen`; `DefaultAiGateway.screened` checks the answer text, tool names and arguments after a 2xx answer (`SensitiveDataDetector.honeytokenInAnswer`: no all-digits / spelled projections for answers) (fail closed, no retry) → `GatewayResult.Refused(OUTPUT_HONEYTOKEN)`; `DefaultAgent` maps it to `OUTPUT_REJECTED`. Log only for now: a durable audit row needs a migration (stopped per 2A) → §2a SEC03-F3-AUDIT (PROPOSED). §2a SEC03-F3 DONE; ACC-01 report, SECURITY_TEST_MATRIX header.
+- Tests: `DefaultAiGatewayTest` (+11, context-runner test given the new bean; ordinary numbered answers pass), `AdversarialChatIT.aHoneytokenInTheModelAnswerIsRejected` enabled (5). Mutations: screen skipped → 6 unit + 5 IT red; egress projections for answers → 3 unit red; sources restored sha256.
+- Tests (VERIFIED 2026-11-23 08:28–08:31 UTC, Java 21.0.12, after the review fix): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1162, failsafe 303 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
+- Review (advisory, security-auditor, one round): 0H/2M/5L; M1 (false positives on numbered answers) and L5 (tool names) fixed; the rest recorded in A-58 / §2a SEC03-F3-AUDIT. NOT RUN: second round.
+- Rollback: revert (no migration).
+- Next: (1) owner pushes and opens the PR; (2) owner decides SEC03-F3-AUDIT, SEC03-F4-MORE, SEC03-GAPS-MORE, SEC03-F1-MONEY; SEC03-F2 waits on D-01; EP-10 blocked by UX-13.
+
+## Previous: SEC03-F4 text honeytoken split across values, 2026-11-23 — MERGED (PR #38, `122d022`)
 - Branch `fix/SEC03-F4-split-text-honeytoken` from `main` `3fabda0` (PR #37 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-57.
 - Change: `policy.internal.SensitiveDataDetector.splitHoneytoken` also checks text honeytokens: `assembles` finds a token as one value's suffix + whole values + another value's prefix, order-free, on the A-55 skeleton, edge pieces at least 3 characters (an order-preserving join failed: `role`, tool name, SKU/OE sit between the pieces; deviation from the plan recorded in A-57 for owner confirmation). `DefaultEgressPolicy` Javadoc. §2a SEC03-F4 DONE; ACC-01 report, SECURITY_TEST_MATRIX header.
 - Tests: `SensitiveDataDetectorTest` (+13), `AdversarialChatIT` F4 fixtures enabled (3, `DLP_EGRESS`) + three-turn test, `AdversarialFlowIT` customer + catalog split; `EgressSuiteFlow200IT` unchanged (pins the exact BLOCK count). Mutations: no cross-value check → 10 unit + 5 IT red; middle pieces ignored → 1 unit red; edge minimum 1 → 2 unit red; sources restored sha256.

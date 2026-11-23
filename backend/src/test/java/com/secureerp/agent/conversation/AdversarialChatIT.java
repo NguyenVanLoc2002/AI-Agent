@@ -228,10 +228,9 @@ class AdversarialChatIT extends ChatEnvironment {
     }
 
     /**
-     * SEC03-GAPS (A-56), family 2, open finding SEC03-F3: a compromised model repeats a text honeytoken (plain or
-     * disguised) in its answer. Safe expectation, written before the first run: the answer is rejected and the turn
-     * goes to staff. Observed 2026-11-23: the answer reaches the customer ({@code OutputValidator} has no honeytoken
-     * rule). Disabled pending the fix (IMPLEMENTATION_PLAN §2a SEC03-F3, rule 60, A-56).
+     * SEC03-GAPS (A-56), family 2, finding SEC03-F3 (fixed, A-58): a compromised model repeats a text honeytoken
+     * (plain, disguised or base64) in its answer. The gateway withholds the answer ({@code OUTPUT_HONEYTOKEN}), nothing
+     * is stored or shown, and the turn goes to staff as {@code OUTPUT_REJECTED}.
      */
     static List<Arguments> modelHoneytokenFindings() {
         return List.of(
@@ -249,7 +248,6 @@ class AdversarialChatIT extends ChatEnvironment {
                         "OUTPUT_REJECTED", List.of("WlpIb25leSBDdXN0b21lckE"), null));
     }
 
-    @Disabled("SEC03-F3 open finding (A-56): fixed in IMPLEMENTATION_PLAN §2a SEC03-F3")
     @ParameterizedTest(name = "{0}")
     @MethodSource("modelHoneytokenFindings")
     void aHoneytokenInTheModelAnswerIsRejected(String name, String customerText, List<String> modelSteps,

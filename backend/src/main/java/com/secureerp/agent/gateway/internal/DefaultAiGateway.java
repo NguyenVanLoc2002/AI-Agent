@@ -14,7 +14,9 @@ import com.secureerp.agent.platform.KillSwitch;
 import com.secureerp.agent.policy.EgressPolicy;
 import com.secureerp.agent.policy.EgressVerdict;
 import com.secureerp.agent.policy.PolicyCode;
+import com.secureerp.agent.policy.ResponseScreen;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -54,14 +56,16 @@ public class DefaultAiGateway implements AiGateway {
     static final int MAX_ATTEMPTS = 2;
 
     private final EgressPolicy policy;
+    private final ResponseScreen responseScreen;
     private final ModelProviderPort provider;
     private final EgressAuditLog auditLog;
     private final Clock clock;
     private final KillSwitch killSwitch;
 
-    public DefaultAiGateway(EgressPolicy policy, ModelProviderPort provider, EgressAuditLog auditLog, Clock clock,
-            KillSwitch killSwitch) {
+    public DefaultAiGateway(EgressPolicy policy, ResponseScreen responseScreen, ModelProviderPort provider,
+            EgressAuditLog auditLog, Clock clock, KillSwitch killSwitch) {
         this.policy = Objects.requireNonNull(policy, "policy");
+        this.responseScreen = Objects.requireNonNull(responseScreen, "responseScreen");
         this.provider = Objects.requireNonNull(provider, "provider");
         this.auditLog = Objects.requireNonNull(auditLog, "auditLog");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -141,6 +145,33 @@ public class DefaultAiGateway implements AiGateway {
         }
     }
 
+    /**
+     * SEC03-F3 (A-58): a honeytoken in the answer withholds it. Fails closed: a screen that throws withholds too.
+     * The log carries the honeytoken ID only (as the egress audit does), never the answer.
+     */
+    private GatewayResult screened(ModelRequest request, ModelResponse response) {
+        List<String> values = new ArrayList<>();
+        values.add(response.text());
+        response.toolProposals().forEach(proposal -> {
+            values.add(proposal.name());
+            values.add(proposal.argumentsJson());
+        });
+        Optional<String> honeytoken;
+        try {
+            honeytoken = Objects.requireNonNull(responseScreen.honeytokenIn(values), "screen");
+        } catch (RuntimeException e) {
+            log.warn("gateway.response screen_failed traceId={} exception={}", request.traceId(),
+                    e.getClass().getSimpleName());
+            return new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN);
+        }
+        if (honeytoken.isPresent()) {
+            log.warn("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId={} traceId={}", honeytoken.get(),
+                    request.traceId());
+            return new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN);
+        }
+        return new GatewayResult.Completed(response);
+    }
+
     private GatewayResult send(ModelRequest request, byte[] body, EgressVerdict verdict, List<String> fieldNames) {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             // ADR-013: checked before every provider call, the retry included (nothing audited as sent).
@@ -157,7 +188,7 @@ public class DefaultAiGateway implements AiGateway {
                 if (status >= 200 && status < 300) {
                     Optional<ModelResponse> response = EgressSerializer.readResponse(reply.body());
                     if (response.isPresent()) {
-                        return new GatewayResult.Completed(response.get());
+                        return screened(request, response.get());
                     }
                     log.warn("gateway.provider invalid_response traceId={} bytes={}", request.traceId(),
                             reply.body() == null ? 0 : reply.body().length);

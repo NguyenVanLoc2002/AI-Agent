@@ -168,6 +168,38 @@ public class SensitiveDataDetector {
     }
 
     /**
+     * SEC03-F3 (A-58): honeytokens in what a model answered. Text tokens as everywhere (skeleton per value and one
+     * decoded layer, then assembled across values, A-57); digit tokens only on the normalized and separator-collapsed
+     * forms, without the all-digits and spelled-digit projections or a digit join across values, because an answer
+     * routinely carries numbered steps ("1. … 2. … 9.") that those projections turn into a sentinel (security review
+     * of A-58).
+     */
+    public Optional<Finding> honeytokenInAnswer(List<String> values) {
+        for (String value : values) {
+            List<String> forms = new ArrayList<>();
+            forms.add(value);
+            forms.addAll(OneLayerDecoder.decodedVariants(value));
+            for (String form : forms) {
+                String normalized = TextNormalizer.forMatching(form);
+                Optional<Finding> digit =
+                        digitTokenIn(List.of(normalized, TextNormalizer.collapseDigitSeparators(normalized)));
+                if (digit.isPresent()) {
+                    return digit;
+                }
+                Optional<Finding> text = textTokenIn(form);
+                if (text.isPresent()) {
+                    return text;
+                }
+            }
+        }
+        List<String> pieces = values.stream().map(TextNormalizer::skeleton).filter(piece -> !piece.isEmpty()).toList();
+        return textTokens.stream()
+                .filter(token -> assembles(token.skeleton(), pieces))
+                .findFirst()
+                .map(token -> new Finding(PolicyCode.HONEYTOKEN, token.id()));
+    }
+
+    /**
      * Safety net over the whole raw payload: normalized and separator-collapsed forms only (text
      * tokens: the look-alike skeleton, which also joins a JSON name to the next value; a false
      * positive there needs a value that ends a token and a name that starts it). The
