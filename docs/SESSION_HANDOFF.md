@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC03-F3-AUDIT withheld answers recorded in egress_record (V19), 2026-11-23
+## Current: SEC03-F4-MORE encoded, spelled and interleaved split honeytokens, 2026-11-23
+- Branch `fix/SEC03-F4-MORE-split-variants` from `main` `6ad77ec` (PR #40 merged). Owner 2026-11-23 ("Đòng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-60.
+- Change: `policy.internal.SensitiveDataDetector.splitHoneytoken`: decoded forms of each value are text and digit pieces, spelled digits are digit pieces, digit tokens assembled order-free (ordered join kept), digit pieces of 3+ digits only, pieces deduplicated. §2a SEC03-F4-MORE DONE.
+- Tests: `SensitiveDataDetectorTest` (+16: split variants, ordinary numbers, 5 ordinary chats with spelled words, a 64 KiB cost check), new `gateway.internal.HoneytokenVocabularyTest` (2), `AdversarialChatIT` split-turn fixtures +2. Mutations: no decoded pieces → 4 red, no spelled pieces → 2 red, no digit assembly → 6 red, one-digit spelled pieces → 3 red; source restored sha256.
+- Tests (VERIFIED 2026-11-23 10:17–10:21 UTC, Java 21.0.12, after the review fix): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1186, failsafe 307 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
+- Review (advisory, security-auditor, one round): 1H/2M/1L; H (false positives from single spelled words) fixed and pinned, L applied, M recorded in A-60. NOT RUN: second round.
+- Rollback: revert (no migration).
+- Next: (1) owner pushes and opens the PR; (2) SEC03-GAPS-MORE or SEC03-F1-MONEY need an owner decision; SEC03-F2 waits on D-01; EP-10 blocked by UX-13.
+
+## Previous: SEC03-F3-AUDIT withheld answers recorded in egress_record (V19), 2026-11-23 — MERGED (PR #40, `6ad77ec`)
 - Branch `feat/SEC03-F3-AUDIT-response-record` from `main` `679e4a5` (PR #39 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-59.
 - Change: Flyway V19 (module audit) `egress_record.direction` + wider attempt check; `EgressDecisionEvent.Direction` (every call site names it); `EgressRecordWriter`, `JdbcAuditQueries`, inspector `EgressView` carry it; `DefaultAiGateway.auditWithheld` writes the RESPONSE row (path from `ResponseScreen.Hit.valueIndex`; `SCREEN_FAILED` when the screen throws or names a missing value; a failing record keeps the answer withheld). AI_GATEWAY §2 step 5, DATA_FLOW, §2a SEC03-F3-AUDIT DONE, ACC-01 report.
 - Tests: `EgressDecisionEventTest` (+1), `DefaultAiGatewayTest` (+5: exact paths incl. tool name and across values, retry attempt, `SCREEN_FAILED`, record failure), `GatewayEgressIT.responseRowsAreBlocksOnly`, `InspectorBlockTraceIT` (+1, direction on the BLOCK trace), `EgressSuiteFlow200IT` / `EgressSuiteGw200IT` request counts filter `direction = 'REQUEST'` (baseline change approved, rule 70) and pin RESPONSE rows, `ApplicationBootstrapIT` (V19), `DefaultSecurityInspectorTest` stub. Mutations: no RESPONSE record → 5 unit red; writer always REQUEST → 3 IT red; no index bound check → 1 unit red; sources restored sha256.

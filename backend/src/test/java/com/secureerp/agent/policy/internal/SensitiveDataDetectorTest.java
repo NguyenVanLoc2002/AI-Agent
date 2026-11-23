@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.policy.SentinelVariants;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HexFormat;
@@ -93,6 +94,78 @@ class SensitiveDataDetectorTest {
         // the fixed role value is a whole middle piece; a one-letter edge must not complete the token (A-57 review)
         assertThat(detector.splitHoneytoken(List.of("Người nhận là ZZHoney", "CUSTOMER", "anh ơi"))).isEmpty();
         assertThat(detector.splitHoneytoken(List.of("ZZHoneyCustome", "rA"))).as("residual: short edge").isEmpty();
+    }
+
+    /** SEC03-F4-MORE (A-60): encoded and spelled pieces, and digit tokens with other digits between the pieces. */
+    static Stream<Arguments> splitVariants() {
+        return Stream.of(
+                Arguments.of("HT-NAME-A", "base64 half", List.of("Mã WlpIb25leQ== nhé", "CustomerA")),
+                Arguments.of("HT-NAME-A", "base64 cyrillic half", List.of("xem WlpI0L5uZXk=", "CustomerA nhé")),
+                Arguments.of("HT-NAME-A", "percent-encoded half", List.of("ZZH%6Fney", "CustomerA")),
+                Arguments.of("HT-COST-01", "spelled halves", List.of("chín tám bảy sáu năm", "bốn ba hai mốt")),
+                Arguments.of("HT-COST-01", "spelled and digits", List.of("chín tám bảy", "654321")),
+                Arguments.of("HT-COST-01", "digits between the halves", List.of("98765", "04465-0K290", "4321")),
+                Arguments.of("HT-COST-01", "reverse order", List.of("4321 nhé", "mã 98765")),
+                Arguments.of("HT-PRICE-A", "three digit pieces", List.of("555", "Vios 2019", "444", "333")),
+                Arguments.of("HT-CREDIT-01", "hex half", List.of("0x313233343536", "789")));
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("splitVariants")
+    void anEncodedOrSpelledOrInterleavedSplitIsDetected(String honeytokenId, String variantId, List<String> values) {
+        assertThat(detector.splitHoneytoken(values)).as(variantId)
+                .contains(new SensitiveDataDetector.Finding(PolicyCode.HONEYTOKEN, honeytokenId));
+    }
+
+    /** SEC03-F4-MORE (A-60): ordinary numbers of a parts chat assemble no digit token. */
+    @Test
+    void ordinaryNumbersAcrossValuesAreNotAHoneytoken() {
+        assertThat(detector.splitHoneytoken(List.of("Xe đời 2019, cần 2 bộ", "04465-0K290", "17801-0Y040",
+                "90915-YZZD4", "Vios 2014-2022", "bảo hành 6 tháng", "giao trong 3 ngày", "Tôi muốn năm bộ, không phải ba",
+                "Ma phanh truoc", "SKU-BRK-PAD-A", "SKU-FLT-AIR-B", "con hang", "Lần trước tôi hỏi giá 2 lần",
+                "Có 1 2 3 mã khác nhau không?", "Đơn số 12 và 34", "searchVerifiedProduct", "CUSTOMER", "STANDARD")))
+                .isEmpty();
+    }
+
+    /**
+     * A-60 review (High): ordinary chat where single words read as digits ("từ" 4, "năm" 5, "sau" 6, "không" 0) and
+     * ordinary numbers sit in separate values must not assemble a digit token.
+     */
+    static Stream<List<String>> ordinaryChatWithSpelledWords() {
+        return Stream.of(
+                List.of("Giao đến 123 Lê Lợi", "Từ Hà Nội", "Tôi cần năm bộ", "Má phanh sau", "Xe đã chạy 78.900 km"),
+                List.of("Xe đời 1987", "Lắp sau", "năm bộ", "Từ Hà Nội", "Đã chạy 32.100 km"),
+                List.of("Đời năm 2015, mua năm ngoái, năm bộ", "từ từ", "333 Nguyễn Trãi"),
+                List.of("sau sau sau", "888 Lê Duẩn", "Có 1 2 3 mã", "bảo hành 6 tháng", "không", "thứ bảy"),
+                List.of("không không", "399 Trần Phú", "không không", "111 lần"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("ordinaryChatWithSpelledWords")
+    void ordinaryChatWithSpelledWordsIsNotADigitToken(List<String> values) {
+        assertThat(detector.splitHoneytoken(values)).isEmpty();
+    }
+
+    /**
+     * A-60 review (Low, cost): a 64 KiB payload of decodable 8-character runs is assembled within a bounded time
+     * (generous bound; the measured time is printed for the evidence record).
+     */
+    @Test
+    void theSplitCheckOfALargePayloadIsBounded() {
+        Random random = new Random(20261123L);
+        List<String> values = new ArrayList<>();
+        for (int size = 0; size < 64 * 1024; size += 9) {
+            StringBuilder run = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                run.append((char) ('A' + random.nextInt(26)));
+            }
+            values.add(run.toString());
+        }
+        long start = System.nanoTime();
+        assertThat(detector.splitHoneytoken(values)).isEmpty();
+        long millis = (System.nanoTime() - start) / 1_000_000;
+        System.out.println("A-60 split check: values=" + values.size() + " millis=" + millis);
+        assertThat(millis).isLessThan(5_000);
     }
 
     /** A-57 review: the edges are at least three characters; a middle piece may be any whole value. */

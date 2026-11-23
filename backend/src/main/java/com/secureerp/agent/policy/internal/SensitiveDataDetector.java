@@ -2,10 +2,12 @@ package com.secureerp.agent.policy.internal;
 
 import com.secureerp.agent.policy.PolicyCode;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
@@ -221,9 +223,11 @@ public class SensitiveDataDetector {
      * text tokens an assembly of look-alike skeletons, so "ZZHoney" in one history message and
      * "CustomerA" in the next, or half in customer text and half in a catalog string, are one token.
      * The assembly ignores payload order, because fixed server values sit between the pieces (the
-     * message {@code role}, the tool name, SKU and OE before a category). Residuals (A-57): filler
-     * inside a value between the pieces, and pieces sent in separate requests (no cross-request
-     * window, A-46).
+     * message {@code role}, the tool name, SKU and OE before a category). A-60: decoded forms of a
+     * value are pieces too (a base64 half), and digit tokens are also assembled order-free from each
+     * value's digits, spelled digits and decoded digits (the ordered join stays for one- and two-digit
+     * edges). Residuals (A-57, A-60): filler inside a value between the pieces, and pieces sent in
+     * separate requests (no cross-request window, A-46).
      */
     public Optional<Finding> splitHoneytoken(List<String> values) {
         StringBuilder digits = new StringBuilder();
@@ -234,11 +238,40 @@ public class SensitiveDataDetector {
         if (digit.isPresent()) {
             return digit;
         }
-        List<String> pieces = values.stream().map(TextNormalizer::skeleton).filter(piece -> !piece.isEmpty()).toList();
+        // SEC03-F4-MORE (A-60): each value contributes its own form and its decoded forms (base64, hex, escapes) as
+        // text pieces, and its digits, spelled digits and decoded digits as digit pieces; digit tokens are assembled
+        // order-free like text tokens, so digits of other values between the pieces do not hide them. Every digit
+        // piece, middle ones included, has at least MIN_EDGE_PIECE digits: single words read as digits ("từ" 4,
+        // "năm" 5, "sau" 6, "không" 0) would otherwise assemble a sentinel from ordinary chat (A-60 review, High).
+        // Pieces are deduplicated (decoded variants repeat).
+        Set<String> textPieces = new LinkedHashSet<>();
+        Set<String> digitPieces = new LinkedHashSet<>();
+        for (String value : values) {
+            List<String> forms = new ArrayList<>();
+            forms.add(value);
+            forms.addAll(OneLayerDecoder.decodedVariants(value));
+            for (String form : forms) {
+                String normalized = TextNormalizer.forMatching(form);
+                addPiece(textPieces, TextNormalizer.skeleton(form), 1);
+                addPiece(digitPieces, TextNormalizer.digitsOnly(normalized), MIN_EDGE_PIECE);
+                addPiece(digitPieces, TextNormalizer.spelledDigits(normalized), MIN_EDGE_PIECE);
+            }
+        }
+        for (Honeytoken token : honeytokens) {
+            if (token.kind() == Honeytoken.Kind.DIGITS && assembles(token.value(), List.copyOf(digitPieces))) {
+                return Optional.of(new Finding(PolicyCode.HONEYTOKEN, token.id()));
+            }
+        }
         return textTokens.stream()
-                .filter(token -> assembles(token.skeleton(), pieces))
+                .filter(token -> assembles(token.skeleton(), List.copyOf(textPieces)))
                 .findFirst()
                 .map(token -> new Finding(PolicyCode.HONEYTOKEN, token.id()));
+    }
+
+    private static void addPiece(Set<String> pieces, String piece, int minimumLength) {
+        if (piece.length() >= minimumLength) {
+            pieces.add(piece);
+        }
     }
 
     /**
