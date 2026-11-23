@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Công tắc AI</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 900px; background: var(--bg-app);">
+  <div style="flex: 0 1 248px; min-width: 0;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sidebar}}" active-key="switch" style="height: 100%;"></x-import>
+  </div>
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" user="{{user}}"></x-import>
+    <main style="width: 100%; max-width: 1192px; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h1 style="margin: 0; font: var(--type-page-title);">Công tắc trợ lý AI</h1>
+        <p style="margin: 0; font: var(--type-body); color: var(--text-secondary);">Tắt khẩn cấp việc gọi nhà cung cấp AI cho toàn bộ hệ thống. Màn hình này không hiển thị dữ liệu kinh doanh.</p>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+        <section aria-label="Trạng thái hiện tại" style="flex: 1 1 420px; min-width: 0; background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="font: var(--type-section-title);">Trạng thái hiện tại</span>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="success" shape="pill">AI đang bật</x-import>
+          </div>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Switch" checked="{{yes}}" label="Cho phép trợ lý AI trả lời khách" description="Khi tắt, mọi lượt chat mới được chuyển cho nhân viên với lý do “Trợ lý AI đang tắt” và không gọi nhà cung cấp AI."></x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DescriptionList" items="{{current}}" columns="{{one}}"></x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="info" icon="clock" title="Thời gian áp dụng">Máy chủ này áp dụng ngay. Các máy chủ khác áp dụng trong tối đa 30 giây. Lượt đang chạy không bị hủy giữa chừng.</x-import>
+        </section>
+
+        <section aria-label="Mẫu hộp thoại xác nhận (sản phẩm dùng Dialog tone danger, role alertdialog)" style="flex: 1 1 420px; min-width: 0; background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Hộp thoại xác nhận</span>
+          <div style="display: flex; gap: 12px; align-items: flex-start;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Icon" name="triangle-alert" color="var(--status-error)"></x-import>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span id="ks-title" style="font: var(--type-section-title);">Tắt trợ lý AI?</span>
+              <p id="ks-desc" style="margin: 0; font: var(--type-body); color: var(--text-body);">Khách hàng vẫn nhắn được, nhưng mọi yêu cầu sẽ chờ nhân viên kinh doanh. Thao tác được ghi vào nhật ký kiểm toán.</p>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary">Hủy</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="danger" icon-left="circle-pause">Tắt AI</x-import>
+          </div>
+        </section>
+      </div>
+
+      <section aria-label="Các trạng thái tắt" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+        <span style="font: var(--type-card-title);">Khi AI đang tắt, màn hình hiển thị lý do</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+          <div style="flex: 1 1 260px; min-width: 0; background: var(--bg-nested); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="warning" shape="pill" size="sm">AI đang tắt</x-import>
+            <span style="font: var(--type-label);">Do người vận hành tắt</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Từ 23/11/2026 08:40. Bật lại bằng công tắc ở trên.</span>
+          </div>
+          <div style="flex: 1 1 260px; min-width: 0; background: var(--bg-nested); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="error" shape="pill" size="sm">AI đang tắt</x-import>
+            <span style="font: var(--type-label);">Nhà cung cấp AI từ chối khóa truy cập</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Hệ thống tự tắt. Thay khóa trong kho bí mật, rồi bật lại bằng công tắc.</span>
+          </div>
+          <div style="flex: 1 1 260px; min-width: 0; background: var(--bg-nested); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="restricted" shape="pill" size="sm">Không đọc được trạng thái</x-import>
+            <span style="font: var(--type-label);">AI được coi là đang tắt</span>
+            <span style="font: var(--type-caption); color: var(--text-secondary);">Không đọc được cấu hình. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true,
+      one: 1,
+      sidebar: [
+        { title: 'Vận hành', items: [
+          { key: 'switch', label: 'Công tắc AI', icon: 'sliders-horizontal' }
+        ] }
+      ],
+      crumbs: [{ label: 'Vận hành' }, { label: 'Công tắc AI' }],
+      user: { name: 'Vận hành 01', role: 'Vận hành', initials: 'VH' },
+      current: [
+        { label: 'Thay đổi gần nhất', value: 'Bật lại lúc 23/11/2026 08:41' },
+        { label: 'Lý do tắt gần nhất', value: 'Do người vận hành tắt' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

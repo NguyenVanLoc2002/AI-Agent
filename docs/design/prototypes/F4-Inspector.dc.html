@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Security Inspector</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 980px; background: var(--bg-app);">
+  <div style="flex: 0 1 248px; min-width: 0;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sidebar}}" active-key="events" style="height: 100%;"></x-import>
+  </div>
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" user="{{user}}"></x-import>
+    <main style="width: 100%; max-width: 1192px; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <h1 style="margin: 0; font: var(--type-page-title);">Sự kiện bảo mật</h1>
+        <p style="margin: 0; font: var(--type-body); color: var(--text-secondary);">Chỉ hiện mã chính sách, tên trường, tên công cụ và mã tham chiếu. Không có nội dung tin nhắn, giá hay dữ liệu cá nhân.</p>
+        <div style="display: flex; gap: 8px;">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="neutral" size="sm" icon="database">Dữ liệu tổng hợp (synthetic)</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="neutral" size="sm" icon="history">Lần xem này được ghi nhật ký</x-import>
+        </div>
+      </div>
+
+      <form aria-label="Lọc sự kiện" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 16px 20px;">
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Select" label="Loại sự kiện" options="{{types}}" value="ACCESS_DENIED" style="flex: 1 1 200px;"></x-import>
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Select" label="Vai trò" options="{{roles}}" value="" style="flex: 1 1 160px;"></x-import>
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Input" label="Từ" value="22/11/2026 09:00" helper="dd/mm/yyyy hh:mm" style="flex: 1 1 160px;"></x-import>
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Input" label="Đến" value="23/11/2026 09:00" helper="Tối đa 7 ngày" style="flex: 1 1 160px;"></x-import>
+        <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="primary" icon-left="list-filter">Áp dụng</x-import>
+      </form>
+
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); overflow-x: auto;">
+        <table style="width: 100%; min-width: 900px; border-collapse: collapse; font: var(--type-table);">
+          <caption style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Sự kiện kiểm toán, mới nhất ở trên</caption>
+          <thead>
+            <tr style="text-align: left; color: var(--text-secondary);">
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Thời điểm</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Hành động</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Tài nguyên</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Kết quả</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Vai trò · Người</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default);">Mã trace</th>
+              <th scope="col" style="font: var(--type-table-header); text-transform: uppercase; letter-spacing: var(--tracking-caps); padding: 12px 16px; border-bottom: 1px solid var(--border-default); text-align: right;">Số lần</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{events}}" as="ev" hint-placeholder-count="6">
+              <tr style="height: 44px; background: {{ev.bg}};">
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums;">{{ev.at}}</td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);"><span class="ap-code">{{ev.action}}</span></td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);"><span class="ap-code">{{ev.resource}}</span></td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);">
+                  <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="{{ev.tone}}" size="sm">{{ev.outcome}}</x-import>
+                </td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);">{{ev.who}}</td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle);"><a href="#trace" class="ap-code">{{ev.trace}}</a></td>
+                <td style="padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); text-align: right; font-variant-numeric: tabular-nums;">{{ev.count}}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
+          <span style="font: var(--type-caption); color: var(--text-secondary);">50 sự kiện mỗi trang · sự kiện lặp trong 1 phút được gộp</span>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" size="sm" icon-left="chevron-down">Tải thêm</x-import>
+        </div>
+      </div>
+
+      <section id="trace" aria-label="Chi tiết trace" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;">
+          <span style="font: var(--type-section-title);">Trace <span class="ap-code">7c1e…a904</span></span>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="error" size="sm" icon="shield-alert">Chặn trước khi gửi nhà cung cấp AI</x-import>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+          <div style="flex: 1 1 360px; min-width: 0; background: var(--bg-nested); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Kiểm tra dữ liệu gửi ra</span>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.DescriptionList" items="{{egress}}" columns="{{two}}"></x-import>
+          </div>
+          <div style="flex: 1 1 360px; min-width: 0; background: var(--bg-nested); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Gọi công cụ</span>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" name="searchVerifiedProduct" label="Tra cứu sản phẩm đã xác minh" status="success"></x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ToolCall" name="getCost" label="Công cụ không có trong danh sách cho phép" status="unauthorized" message="TOOL_UNKNOWN · không chạy"></x-import>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sel = 'var(--bg-selected)';
+    return {
+      two: 2,
+      sidebar: [
+        { title: 'Kiểm tra bảo mật', items: [
+          { key: 'events', label: 'Sự kiện bảo mật', icon: 'shield-check' },
+          { key: 'trace', label: 'Tra cứu trace', icon: 'search' }
+        ] }
+      ],
+      crumbs: [{ label: 'Kiểm tra bảo mật' }, { label: 'Sự kiện bảo mật' }],
+      user: { name: 'Kiểm tra viên 02', role: 'Kiểm tra bảo mật', initials: 'KT' },
+      types: [
+        { value: '', label: 'Tất cả' },
+        { value: 'ACCESS_DENIED', label: 'Từ chối truy cập' },
+        { value: 'HANDOFF_CLAIMED', label: 'Nhận xử lý' },
+        { value: 'STAFF_CONVERSATION_READ', label: 'Nhân viên đọc hội thoại' },
+        { value: 'KILL_SWITCH_CHANGED', label: 'Đổi công tắc AI' }
+      ],
+      roles: [
+        { value: '', label: 'Tất cả' },
+        { value: 'CUST', label: 'Khách hàng' },
+        { value: 'SALES', label: 'Kinh doanh' },
+        { value: 'OPS', label: 'Vận hành' },
+        { value: 'SECREV', label: 'Kiểm tra bảo mật' }
+      ],
+      events: [
+        { at: '23/11 08:58', action: 'ACCESS_DENIED', resource: 'QUOTE', outcome: 'Không tìm thấy', tone: 'restricted', who: 'Khách hàng · —', trace: '7c1e…a904', count: '3', bg: sel },
+        { at: '23/11 08:41', action: 'KILL_SWITCH_CHANGED', resource: 'AI_SWITCH', outcome: 'Bật', tone: 'success', who: 'Vận hành · VH-01', trace: '19ab…22f0', count: '1', bg: 'transparent' },
+        { at: '23/11 08:40', action: 'KILL_SWITCH_CHANGED', resource: 'AI_SWITCH', outcome: 'Tắt', tone: 'warning', who: 'Vận hành · VH-01', trace: 'c3d2…0b18', count: '1', bg: 'transparent' },
+        { at: '23/11 08:12', action: 'STAFF_CONVERSATION_READ', resource: 'CONVERSATION', outcome: 'Đã đọc', tone: 'neutral', who: 'Kinh doanh · KD-07', trace: 'e0f4…7d31', count: '4', bg: 'transparent' },
+        { at: '23/11 08:05', action: 'HANDOFF_CLAIMED', resource: 'HANDOFF', outcome: 'Thành công', tone: 'success', who: 'Kinh doanh · KD-07', trace: '5a90…c6e2', count: '1', bg: 'transparent' },
+        { at: '23/11 07:52', action: 'ACCESS_DENIED', resource: 'ENDPOINT_OPS', outcome: 'Không có quyền', tone: 'restricted', who: 'Kinh doanh · KD-03', trace: '88b1…4e07', count: '1', bg: 'transparent' }
+      ],
+      egress: [
+        { label: 'Quyết định', value: 'BLOCK' },
+        { label: 'Lần gửi', value: '1' },
+        { label: 'Mã chính sách', value: 'HONEYTOKEN', mono: true },
+        { label: 'Mã honeytoken', value: 'HT-03', mono: true },
+        { label: 'Trường bị chặn', value: 'messages[2].content', mono: true },
+        { label: 'Số byte', value: '1.284' },
+        { label: 'Tên trường gửi', value: 'messages, tools, toolResults', mono: true, span: 2 }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

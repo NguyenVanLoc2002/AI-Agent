@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hội thoại đang xử lý</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 900px; background: var(--bg-app);">
+  <div style="flex: 0 1 248px; min-width: 0;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Sidebar" sections="{{sidebar}}" active-key="inbox" style="height: 100%;"></x-import>
+  </div>
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+    <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.AppHeader" breadcrumb="{{crumbs}}" user="{{user}}"></x-import>
+    <main style="width: 100%; max-width: 1192px; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <h1 style="margin: 0; font: var(--type-page-title);">Cuộc trò chuyện <span class="ap-code">HT-3F2A</span></h1>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="info" shape="pill" size="sm">Bạn đang xử lý</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="neutral" size="sm" icon="circle-alert">Lý do: Không lập được báo giá</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="restricted" size="sm" icon="circle-pause">Trợ lý AI đang tạm dừng</x-import>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="ghost" icon-left="arrow-left">Về hộp chờ</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="primary" icon-left="circle-check">Hoàn tất và mở lại AI</x-import>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+        <section aria-label="Tin nhắn" style="flex: 999 1 480px; min-width: 0; background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); display: flex; flex-direction: column;">
+          <div style="padding: 20px; display: flex; flex-direction: column; gap: 12px; min-height: 420px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Khách hàng">Báo giá 2 bộ má phanh trước, mã OE 04465-0K290</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="assistant">Tôi đã tìm thấy má phanh trước khớp mã OE 04465-0K290. Báo giá do hệ thống lập được gửi bên dưới.</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Khách hàng">[tin nhắn đã bị chặn]</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="user" author="Khách hàng">Cho tôi giá tốt hơn nếu lấy 50 bộ</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="system">Yêu cầu của bạn đã được chuyển cho nhân viên tư vấn. Nhân viên sẽ phản hồi bạn sớm.</x-import>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.ChatMessage" role="assistant" author="Nhân viên tư vấn">Chào bạn, tôi đang kiểm tra mức giá cho số lượng 50 bộ và sẽ gửi lại báo giá trong khung chat này.</x-import>
+          </div>
+          <div style="border-top: 1px solid var(--border-default); padding: 16px 20px; display: flex; flex-direction: column; gap: 8px;">
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Textarea" label="Trả lời khách hàng" rows="{{three}}" placeholder="Nhập tin nhắn cho khách…" helper="Tối đa 2.000 ký tự. Khách thấy tin với nhãn “Nhân viên tư vấn”."></x-import>
+            <div style="display: flex; justify-content: flex-end;">
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="secondary" icon-left="send">Gửi</x-import>
+            </div>
+          </div>
+        </section>
+
+        <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+          <section aria-label="Báo giá của cuộc trò chuyện" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font: var(--type-card-title);">Báo giá <span class="ap-code">BG-2026-0412</span></span>
+                <span style="font: var(--type-caption); color: var(--text-secondary);">Phiên bản 1 · Hiệu lực đến 24/11/2026 09:41</span>
+              </div>
+              <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="info" shape="pill" size="sm">Đã gửi khách</x-import>
+            </div>
+            <div style="display: flex; justify-content: space-between; font: var(--type-table); font-variant-numeric: tabular-nums; padding: 10px 0; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);">
+              <span><span class="ap-code">SKU-BRK-PAD-A</span> × 2</span>
+              <span>2.500.000 ₫</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-variant-numeric: tabular-nums;">
+              <span style="font: var(--type-label);">Tạm tính</span>
+              <span style="font: var(--type-card-title);">2.500.000 ₫</span>
+            </div>
+            <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Badge" tone="restricted" size="sm" icon="lock">Chỉ xem, không sửa giá tại đây</x-import>
+          </section>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="neutral" icon="history" title="Đã ghi nhật ký kiểm toán">Việc mở tin nhắn và báo giá của cuộc trò chuyện này được ghi lại. Sau khi hoàn tất, bạn không còn xem được nội dung.</x-import>
+          <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="info" title="Khi bấm Hoàn tất">Trợ lý AI trả lời lại khách. Nếu còn việc chưa xong (ví dụ đơn chưa rõ kết quả), hệ thống mở yêu cầu tiếp theo và AI vẫn tạm dừng.</x-import>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      three: 3,
+      sidebar: [
+        { title: 'Kinh doanh', items: [
+          { key: 'inbox', label: 'Hộp chờ nhân viên', icon: 'users', badge: 4 },
+          { key: 'unknown', label: 'Đơn chưa rõ kết quả', icon: 'circle-pause', badge: 1 },
+          { key: 'awaiting', label: 'Đơn chờ quyết định', icon: 'clipboard-list' }
+        ] }
+      ],
+      crumbs: [{ label: 'Kinh doanh' }, { label: 'Hộp chờ nhân viên' }, { label: 'HT-3F2A' }],
+      user: { name: 'Nhân viên KD 07', role: 'Kinh doanh · Nhóm Bắc', initials: 'KD' }
+    };
+  }
+}
+</script>
+</body>
+</html>
