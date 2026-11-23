@@ -55,7 +55,7 @@
   - One expectation corrected after the run, stricter than written: a forged but well-formed productRef hands off at once (`TOOL_REJECTED_REPEATED`).
   - Mutations (sources restored, sha256): no LINK rule → markdown link and email fixtures red; no quantity cap → quantity 100000 red; no base64 decoding inbound → base64 fixture red.
 - **FIXED (SEC03-F1, A-55, 2026-11-23):** the Cyrillic look-alike honeytoken fixture is enabled in `moreFixtures` and passes (`DLP_INBOUND`, nothing at the provider); regression checks outside the 50: `AdversarialChatIT.disguisedHoneytokensAreBlockedInbound` (digit zero, separators, Greek), `AdversarialFlowIT` catalog category (Cyrillic, Greek) and catalog OE (digit zero, dashes) → `DLP_EGRESS`; mutations (no look-alike folding, separators kept, no stand-ins) → red. Residual: look-alikes outside the curated table.
-- **SEC03-GAPS (A-56, 2026-11-23, regression checks outside the 50):** encoded injection (base64, Cyrillic; customer text and catalog) and price/credit failures carrying sentinels VERIFIED; one mutation per `OutputValidator` rule (10) and 7 TOOL_SCHEMA checks red. New findings SEC03-F3 (honeytoken in a model answer reaches the customer; OPEN, `@Disabled`, §2a SEC03-F3) and SEC03-F4 (honeytoken split over two turns reaches the provider; FIXED 2026-11-23, A-57: egress assembles text tokens across values, tests enabled).
+- **SEC03-GAPS (A-56, 2026-11-23, regression checks outside the 50):** encoded injection (base64, Cyrillic; customer text and catalog) and price/credit failures carrying sentinels VERIFIED; one mutation per `OutputValidator` rule (10) and 7 TOOL_SCHEMA checks red. New findings SEC03-F3 (honeytoken in a model answer reaches the customer; FIXED 2026-11-23, A-58: the gateway withholds the answer, tests enabled; durable audit §2a SEC03-F3-AUDIT) and SEC03-F4 (honeytoken split over two turns reaches the provider; FIXED 2026-11-23, A-57: egress assembles text tokens across values, tests enabled).
 - **OPEN FINDING (1, `AdversarialChatIT.openFindings`, `@Disabled` with owner approval, A-54; the failure was observed in an earlier run, the skipped method does not reproduce it):** SEC03-F2 an ERP customer key typed by the customer reaches the provider. Fix: IMPLEMENTATION_PLAN §2a SEC03-F2 (BLOCKED on D-01). Until then SEC-03 does not pass.
 - **Related coverage (not counted toward the 50):** `DefaultToolManagerTest` (54), `ArgumentParserTest` (43), `DefaultInboundSanitizerTest` (13), poisoned catalog rows in `EgressSuiteFlow200IT` (category and OE) and `InspectorBlockTraceIT`.
 - **BLOCKED:** attacks via image OCR: there is no image or registration upload path (rule 10: no raw document uploads; local OCR not built).
@@ -89,8 +89,8 @@
 
 ## Follow-ups
 
-- **DONE (IMPLEMENTATION_PLAN §2a SEC03-50, A-54):** 48/50; findings SEC03-F1 (DONE 2026-11-23, A-55 → 49/50), SEC03-F2 (BLOCKED, D-01); SEC03-GAPS DONE (A-56) with findings SEC03-F3 (OPEN), SEC03-F4 (DONE, A-57); SEC03-F1-MONEY PROPOSED.
+- **DONE (IMPLEMENTATION_PLAN §2a SEC03-50, A-54):** 48/50; findings SEC03-F1 (DONE 2026-11-23, A-55 → 49/50), SEC03-F2 (BLOCKED, D-01); SEC03-GAPS DONE (A-56) with findings SEC03-F3 (DONE, A-58), SEC03-F4 (DONE, A-57); SEC03-F1-MONEY PROPOSED.
 - **PROPOSED (IMPLEMENTATION_PLAN §2a, QA review):** SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK, SEC07-403-E2E.
 - **Review:** qa-gatekeeper (advisory, 2026-11-23): corrections applied (SEC-06 wording, SEC-02 limit, SEC-04/SEC-01/SEC-07 scope, release gate); counts confirmed against annotations where comparable.
 - **BLOCKED:** SEC-03 image OCR (no upload path); SEC-DASH stays blocked by EP-10 (UX-13).
-- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55, A-56, A-57; ADR-004, ADR-009, ADR-013, ADR-016.
+- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55, A-56, A-57, A-58; ADR-004, ADR-009, ADR-013, ADR-016.

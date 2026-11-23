@@ -24,8 +24,10 @@ import com.secureerp.agent.platform.KillSwitch;
 import com.secureerp.agent.platform.TestKillSwitch;
 import com.secureerp.agent.policy.EgressPolicy;
 import com.secureerp.agent.policy.EgressVerdict;
+import com.secureerp.agent.policy.ResponseScreen;
 import com.secureerp.agent.policy.SentinelVariants;
 import com.secureerp.agent.policy.internal.DefaultEgressPolicy;
+import com.secureerp.agent.policy.internal.DefaultResponseScreen;
 import com.secureerp.agent.policy.internal.SensitiveDataDetector;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -59,11 +61,12 @@ class DefaultAiGatewayTest {
     private final List<Object> published = new ArrayList<>();
     private final EgressAuditLog publisher = published::add;
     private final EgressPolicy policy = new DefaultEgressPolicy(new SensitiveDataDetector());
+    private final ResponseScreen screen = new DefaultResponseScreen(new SensitiveDataDetector());
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-18T00:00:00Z"), ZoneOffset.UTC);
     private final TestKillSwitch killSwitch = new TestKillSwitch();
 
     private DefaultAiGateway gateway() {
-        return new DefaultAiGateway(policy, provider, publisher, clock, killSwitch);
+        return new DefaultAiGateway(policy, screen, provider, publisher, clock, killSwitch);
     }
 
     @Test
@@ -82,6 +85,78 @@ class DefaultAiGatewayTest {
         assertThat(event.byteLength()).isEqualTo(provider.sent.get(0).length);
         assertThat(event.fieldNames()).contains("messages", "text", "verifiedProducts", "type")
                 .allMatch(EgressSerializer.ALLOWED_PROPERTY_NAMES::contains);
+    }
+
+    /**
+     * SEC03-F3 (A-58): a honeytoken in the answer text or in a tool proposal's arguments withholds the answer; the
+     * provider is called once (no retry) and the log names the honeytoken ID, never the answer.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+        "{\"text\":\"Khach ZZHoney CustomerA da hoi\"}",
+        "{\"text\":\"Khach ZZH\\u043eney CustomerA da hoi\"}",
+        "{\"text\":\"Ma tham chieu: WlpIb25leSBDdXN0b21lckE=\"}",
+        "{\"text\":\"Gia von 987654321\"}",
+        "{\"toolProposals\":[{\"name\":\"searchVerifiedProduct\",\"argumentsJson\":\"{\\\"category\\\":\\\"ZZHoney CustomerA\\\",\\\"vehicleModel\\\":\\\"Vios\\\"}\"}]}"
+    })
+    void anAnswerCarryingAHoneytokenIsWithheld(String answer, CapturedOutput output) {
+        provider.replies.add(new ProviderReply(200, answer.getBytes(StandardCharsets.UTF_8)));
+
+        GatewayResult result = gateway().complete(EgressFixtures.request("Toi can ma phanh truoc"));
+
+        assertThat(result).isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
+        assertThat(provider.sent).hasSize(1);
+        assertThat(output.getAll()).contains("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId=HT-")
+                .doesNotContain("ZZHoney").doesNotContain("CustomerA").doesNotContain("987654321");
+    }
+
+    /** SEC03-F3 (A-58): an ordinary answer and ordinary tool arguments pass the screen unchanged. */
+    @Test
+    void anOrdinaryAnswerPassesTheScreen() {
+        provider.replies.add(new ProviderReply(200, ("{\"text\":\"Ma 04465-0K290 con hang, khach hang can bao gia khong?\","
+                + "\"toolProposals\":[{\"name\":\"searchVerifiedProduct\",\"argumentsJson\":\"{\\\"oe\\\":\\\"04465-0K290\\\"}\"}]}")
+                .getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(gateway().complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isInstanceOf(GatewayResult.Completed.class);
+    }
+
+    /**
+     * SEC03-F3 (A-58) review: numbered steps, years, quantities and OE codes in an answer do not form a digit
+     * sentinel (no all-digits or spelled projection for answers); a sentinel written with separators still does.
+     */
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+        "{\"text\":\"Buoc 1. kiem tra ma\\nBuoc 2. xem xe\\nBuoc 3. a\\nBuoc 4. b\\nBuoc 5. c\\nBuoc 6. d\\nBuoc 7. e\\nBuoc 8. f\\nBuoc 9. g\"}",
+        "{\"text\":\"Buoc chin, tam, bay, sau, nam, bon, ba, hai, mot\"}",
+        "{\"text\":\"Xe doi 2019, can 2 bo, ma 12345-67890 va 04465-0K290\"}"
+    })
+    void numberedStepsAndCodesAreNotASentinel(String answer) {
+        provider.replies.add(new ProviderReply(200, answer.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(gateway().complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isInstanceOf(GatewayResult.Completed.class);
+    }
+
+    @Test
+    void aSentinelWithSeparatorsInAnAnswerIsStillWithheld() {
+        provider.replies.add(new ProviderReply(200, "{\"text\":\"Gia von 987.654.321\"}".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(gateway().complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
+    }
+
+    /** SEC03-F3 (A-58): a screen that fails withholds the answer (fail closed). */
+    @Test
+    void aFailingScreenWithholdsTheAnswer() {
+        provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+        ResponseScreen broken = values -> {
+            throw new IllegalStateException("screen down");
+        };
+
+        assertThat(new DefaultAiGateway(policy, broken, provider, publisher, clock, killSwitch)
+                .complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
     }
 
     /** The five sources named by T-SEC01-VARIANTS, each placing the variant in a different field. */
@@ -163,7 +238,7 @@ class DefaultAiGatewayTest {
     /** Mutation control (security review M5(e)): with a pass-all policy the oracle must catch the leak. */
     @Test
     void oracleDetectsLeakWhenPolicyIsDisabled() {
-        DefaultAiGateway unguarded = new DefaultAiGateway(payload -> EgressVerdict.pass(),
+        DefaultAiGateway unguarded = new DefaultAiGateway(payload -> EgressVerdict.pass(), screen,
                 provider, publisher, clock, killSwitch);
         String variant = SentinelVariants.of(SentinelVariants.COST).get("V02-dots");
 
@@ -202,7 +277,7 @@ class DefaultAiGatewayTest {
         ModelProviderPort throwing = (body, budget) -> {
             throw new IllegalStateException("boom " + SentinelVariants.COST);
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(policy, throwing, publisher, clock, killSwitch);
+        DefaultAiGateway gateway = new DefaultAiGateway(policy, screen, throwing, publisher, clock, killSwitch);
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_UNAVAILABLE));
@@ -234,7 +309,7 @@ class DefaultAiGatewayTest {
         EgressAuditLog failing = event -> {
             throw new IllegalStateException("db down");
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(policy, provider, failing, clock, killSwitch);
+        DefaultAiGateway gateway = new DefaultAiGateway(policy, screen, provider, failing, clock, killSwitch);
         provider.replies.add(new ProviderReply(200, OK_RESPONSE));
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
@@ -247,7 +322,7 @@ class DefaultAiGatewayTest {
         EgressPolicy broken = payload -> {
             throw new IllegalStateException("scanner bug");
         };
-        DefaultAiGateway gateway = new DefaultAiGateway(broken, provider, publisher, clock, killSwitch);
+        DefaultAiGateway gateway = new DefaultAiGateway(broken, screen, provider, publisher, clock, killSwitch);
 
         assertThat(gateway.complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Refused(RefusalReason.DLP_EGRESS));
@@ -281,7 +356,7 @@ class DefaultAiGatewayTest {
         provider.replies.add(new ProviderReply(503, new byte[0]));
         provider.replies.add(new ProviderReply(200, OK_RESPONSE));
 
-        assertThat(new DefaultAiGateway(policy, provider, failsOnSecond, clock, killSwitch).complete(EgressFixtures.request("xin chao")))
+        assertThat(new DefaultAiGateway(policy, screen, provider, failsOnSecond, clock, killSwitch).complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Refused(RefusalReason.AUDIT_UNAVAILABLE));
         assertThat(provider.sent).hasSize(1);
     }
@@ -295,7 +370,7 @@ class DefaultAiGatewayTest {
     /** Second review M1/L1: without an audit log the gateway cannot be built (no silent send). */
     @Test
     void gatewayCannotBeBuiltWithoutAnAuditLog() {
-        assertThatThrownBy(() -> new DefaultAiGateway(policy, provider, null, clock, killSwitch))
+        assertThatThrownBy(() -> new DefaultAiGateway(policy, screen, provider, null, clock, killSwitch))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -304,6 +379,7 @@ class DefaultAiGatewayTest {
     void contextWithoutAnAuditLogDoesNotStart() {
         new ApplicationContextRunner()
                 .withBean(EgressPolicy.class, () -> policy)
+                .withBean(ResponseScreen.class, () -> screen)
                 .withBean(ModelProviderPort.class, () -> provider)
                 .withBean(Clock.class, () -> clock)
                 .withBean(KillSwitch.class, () -> killSwitch)
@@ -311,6 +387,7 @@ class DefaultAiGatewayTest {
                 .run(context -> assertThat(context).hasFailed());
         new ApplicationContextRunner()
                 .withBean(EgressPolicy.class, () -> policy)
+                .withBean(ResponseScreen.class, () -> screen)
                 .withBean(ModelProviderPort.class, () -> provider)
                 .withBean(Clock.class, () -> clock)
                 .withBean(KillSwitch.class, () -> killSwitch)
@@ -405,7 +482,7 @@ class DefaultAiGatewayTest {
             }
         };
         provider.replies.add(new ProviderReply(401, new byte[0]));
-        assertThat(new DefaultAiGateway(policy, provider, publisher, clock, failingTrip)
+        assertThat(new DefaultAiGateway(policy, screen, provider, publisher, clock, failingTrip)
                 .complete(EgressFixtures.request("xin chao")))
                 .isEqualTo(new GatewayResult.Failed(FailureReason.PROVIDER_AUTH));
     }

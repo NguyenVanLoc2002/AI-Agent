@@ -16,7 +16,8 @@ public sealed interface GatewayResult {
 
     /**
      * Nothing (further) was sent: a switch turned off before a retry refuses after the first attempt went
-     * out. The caller must hand off to staff with this reason.
+     * out. Or (A-58) the provider answered but the answer is withheld ({@code OUTPUT_HONEYTOKEN}). The caller
+     * must hand off to staff with this reason.
      */
     record Refused(RefusalReason reason) implements GatewayResult {
 
@@ -41,7 +42,12 @@ public sealed interface GatewayResult {
         /** EP-09a: the kill switch is off, or its state could not be read (fail closed); nothing was sent. */
         AI_DISABLED,
         /** EP-09a: the provider-auth breaker is open after a 401/403 (SEC-07); nothing was sent. */
-        PROVIDER_AUTH_BREAKER
+        PROVIDER_AUTH_BREAKER,
+        /**
+         * SEC03-F3 (A-58): the answer (text or tool arguments) carries a honeytoken; it is withheld from the caller,
+         * nothing of it is stored, shown or executed, and the call is not retried.
+         */
+        OUTPUT_HONEYTOKEN
     }
 
     enum FailureReason {

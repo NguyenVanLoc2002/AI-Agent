@@ -170,6 +170,8 @@ class DefaultAgent implements Agent {
                 case DLP_EGRESS, AUDIT_UNAVAILABLE -> Reason.DLP_EGRESS;
                 case AI_DISABLED -> Reason.AI_DISABLED;
                 case PROVIDER_AUTH_BREAKER -> Reason.PROVIDER_AUTH;
+                // SEC03-F3 (A-58): an answer withheld for a honeytoken is a rejected output.
+                case OUTPUT_HONEYTOKEN -> Reason.OUTPUT_REJECTED;
             });
             case GatewayResult.Failed failed -> Optional.of(failed.reason() == GatewayResult.FailureReason.PROVIDER_AUTH
                     ? Reason.PROVIDER_AUTH : Reason.PROVIDER_ERROR);
