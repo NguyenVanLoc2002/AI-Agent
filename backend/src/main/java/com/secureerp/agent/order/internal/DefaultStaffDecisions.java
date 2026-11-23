@@ -56,10 +56,14 @@ class DefaultStaffDecisions implements StaffDecisions {
     @Override
     public List<AwaitingDecision> awaiting(SessionIdentity staff) {
         Team team = SalesStaff.teamOf(staff, "staff_decision", audit);
-        return store.awaitingDecision(team.value(), MAX_LISTED).stream()
+        List<AwaitingDecision> awaiting = store.awaitingDecision(team.value(), MAX_LISTED).stream()
                 .map(request -> new AwaitingDecision(request.id(), request.quoteRef(), request.quoteVersion(),
                         request.erpOrderRef(), request.completedAt()))
                 .toList();
+        // AUDIT-READS (A-52): best effort, collapsed per minute.
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_LIST_READ, AuditEvent.Resource.DRAFT_ORDER,
+                "AWAITING", staff.auditActor()));
+        return awaiting;
     }
 
     @Override

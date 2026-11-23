@@ -138,9 +138,14 @@ class JdbcHandoffs implements Handoffs, HandoffInbox {
     public List<Item> list(SessionIdentity staff) {
         Team team = team(staff);
         String me = staff.principal().pseudonym();
-        return jdbc.query("select " + COLUMNS + " from handoff where team = ? and status in ('OPEN', 'CLAIMED') "
-                        + "order by opened_at, handoff_id limit ?", (rs, row) -> toRow(rs), team.value(), MAX_LISTED)
+        List<Item> items = jdbc.query("select " + COLUMNS + " from handoff where team = ? "
+                        + "and status in ('OPEN', 'CLAIMED') order by opened_at, handoff_id limit ?",
+                        (rs, row) -> toRow(rs), team.value(), MAX_LISTED)
                 .stream().map(row -> item(row, me)).toList();
+        // AUDIT-READS (A-52): best effort, collapsed per minute.
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_LIST_READ, AuditEvent.Resource.HANDOFF,
+                "INBOX", staff.auditActor()));
+        return items;
     }
 
     @Override

@@ -1,13 +1,22 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: DLP-OFF blocked message keeps DLP_INBOUND while the AI is off, 2026-11-23
+## Current: AUDIT-READS staff reads audited (V18), 2026-11-23
+- Branch `feat/AUDIT-READS-staff-reads` from `main` `89fd165` (PR #31 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý" = 1A–4A): DECISIONS_REQUIRED A-52.
+- Change: Flyway V18 (module audit, constraint widening) adds actions `STAFF_CONVERSATION_READ`, `STAFF_LIST_READ`; recorded best effort (`recordSeparately`, collapsed per minute) after the read was answered in `StaffChatService.messages`, `JdbcHandoffs.list` (INBOX), `DefaultDraftOrders.unknown` (UNKNOWN), `DefaultStaffDecisions.awaiting` (AWAITING); kind of resource only, no ID or text. RBAC_MATRIX, A-45(j), §2a AUDIT-READS (DONE), new §2a MSG-READ-LOCK (PROPOSED).
+- Tests: `StaffReadAuditIT` (3: every read by kind and collapsed; only answered reads, customer reads not audited; read answered when the record fails, no text or conversation ID in logs). Changed on purpose: `SecurityInspectorIT` (inbox read before claim is a row), `ApplicationBootstrapIT` (V18). Mutations (no record, record before the holder check, fail-closed write; source restored sha256) → red.
+- Review (advisory): security-auditor 0H/0M/3L; residuals A-52 (a)–(c). NOT RUN: second round, formatter, CVE scan.
+- Tests (VERIFIED 2026-11-23 04:22–04:25 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 244, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). Afterwards one log assertion added to `StaffReadAuditIT`: `-Dit.test=StaffReadAuditIT verify` → exit 0, 3/3.
+- Rollback: drop the branch; after merge revert; V18 is forward-only: `docker compose down -v` locally.
+- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides MSG-READ-LOCK (PROPOSED); (3) main backlog: EP-10 (UC-07 screen) / ACC-01 to unblock SEC-DASH.
+
+## Previous: DLP-OFF blocked message keeps DLP_INBOUND while the AI is off, 2026-11-23 — MERGED (PR #31, `89fd165`)
 - Branch `fix/DLP-OFF-inbound-reason` from `main` `0d9b967` (PR #30 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý hãy triển khai" = 1A, 2A, 3A): DECISIONS_REQUIRED A-51.
 - Change: `conversation.internal.ChatService.run` checks `InboundSanitizer.Blocked` before the kill switch (blocked → `DLP_INBOUND` whether the AI is on, off, unreadable or the breaker is open; clean messages unchanged). No migration. DATA_FLOW step 2 note, ADR-013, A-44(r), A-45(k), §2a DLP-OFF (DONE).
 - Tests: `KillSwitchIT.aBlockedMessageKeepsItsDlpReasonWhileTheAiIsOff` (off, breaker, unreadable; 0 provider calls, no VIN, no tool call, value not stored or logged), `ChatServiceTest.aBlockedMessageHandsOffAsDlpWhateverTheSwitchSays`. Mutation (old order, source restored sha256) → both red.
 - Review (advisory): security-auditor 0H/0M/3L, all fixed. NOT RUN: second round, formatter, CVE scan.
 - Tests (VERIFIED 2026-11-23 03:55–03:58 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 241, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). `git diff --check` exit 0.
 - Rollback: revert (no schema change).
-- Next: (1) owner pushes, the assistant opens the PR; (2) §2a has no OPEN or PROPOSED row except AUDIT-READS (needs an owner decision whether it is wanted); SEC-DASH and AUDIT-RET BLOCKED (EP-10/ACC-01, D-09).
+- Next (at the time): owner pushes, PR opened; AUDIT-READS to decide.
 
 ## Previous: TURN-HANDOFF-DEDUP closed as accepted residual (docs only), 2026-11-23 — MERGED (PR #30, `0d9b967`)
 - Branch `docs/TURN-HANDOFF-DEDUP-closed` from `main` `01f79d5` (PR #29 merged; local branch deleted). Owner 2026-11-23 ("Đồng ý" = 1A, 2A): A-48(b) DECIDED, accepted residual, no code change.
