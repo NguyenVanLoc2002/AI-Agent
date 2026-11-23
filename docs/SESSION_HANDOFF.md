@@ -1,6 +1,12 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: INSPECTOR-BLOCK-TRACE honeytoken BLOCK in a SECREV trace, 2026-11-23
+## Current: REFUSAL-MERGE closed as intended (docs and test name only), 2026-11-23
+- Branch `docs/REFUSAL-MERGE-intended` from `main` `090fa7b` (PRs #26, #27, #28 merged; local branches cleaned, only `main` left). Owner 2026-11-23 ("Tôi đồng ý" = 1A, 2A): A-48(a) DECIDED, intended; no production change.
+- Change: `RefusalHandoffIT` test renamed `aRefusalMergedIntoAnOpenHandoffIsLiftedWhenStaffResolveItAfterTheRefusal` with the reasoning (lift rule A-43 7A; same reason shown, A-43 5A); DECISIONS_REQUIRED A-48(a), IMPLEMENTATION_PLAN §2a REFUSAL-MERGE (CLOSED).
+- Tests (VERIFIED 2026-11-23 03:35 UTC): `cd backend && ./mvnw -B -o -Dtest=NoSuchTest -Dit.test=RefusalHandoffIT -Dsurefire.failIfNoSpecifiedTests=false -Dfailsafe.failIfNoSpecifiedTests=false verify` → exit 0, RefusalHandoffIT 7/7, sec05 scan 1. NOT RUN: full `clean verify` (test rename and docs only).
+- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides TURN-HANDOFF-DEDUP, AUDIT-READS, DLP-OFF (PROPOSED).
+
+## Previous: INSPECTOR-BLOCK-TRACE honeytoken BLOCK in a SECREV trace, 2026-11-23 — MERGED (PR #28, `090fa7b`; #26 `e47f25a`, #27 `5003072`)
 - Branch `feat/INSPECTOR-BLOCK-TRACE-honeytoken-trace` from `fix/SEC01-FLAKE-UUID-reply-sentinel` `712f68b` (stacked). Owner 2026-11-23 ("Hãy tiến hành theo đề xuất" = 1A–4A; also: open the PRs that can merge first, keep few local branches): DECISIONS_REQUIRED A-50.
 - Change (tests and docs only): `InspectorBlockTraceIT` on the SEC-01b topology (catalog poisoned with `HT-NAME-A`): turn handed off DLP_EGRESS, provider got the first call only; SECREV trace shows PASS then BLOCK (HONEYTOKEN, HT-NAME-A, `$.toolResults[0].candidates[0].category`), field names within `EgressSuiteFlow200IT.EXPECTED_PROPERTY_NAMES` (now package-visible, content unchanged); no honeytoken value, sentinel, message or identifier. SECURITY_TEST_MATRIX, ADR-012, A-45(aa) updated.
 - Mutations of `DefaultSecurityInspector` (BLOCK rows dropped, honeytoken ID dropped, path changed) → `InspectorBlockTraceIT` exit 1; source restored (sha256).
