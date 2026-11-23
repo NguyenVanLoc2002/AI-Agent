@@ -52,13 +52,27 @@ class StaffChatService implements StaffChat {
     @Override
     public List<Chat.ChatMessage> messages(SessionIdentity staff, ConversationId conversation) {
         requireHolder(staff, conversation);
-        List<Chat.ChatMessage> messages = store.messages(conversation, ChatService.MAX_LISTED_MESSAGES).stream()
-                .map(message -> new Chat.ChatMessage(message.direction().name(), message.text()))
-                .toList();
+        // MSG-READ-LOCK (A-53, owner 2026-11-23): checked again and read under the conversation's handoff lock, as
+        // the quote read and the post do, so a resolve cannot land between the check and the read (A-15).
+        List<Chat.ChatMessage> messages;
+        try {
+            messages = transactions.execute(tx -> {
+                requireStillHolding(staff, conversation);
+                return store.messages(conversation, ChatService.MAX_LISTED_MESSAGES).stream()
+                        .map(message -> new Chat.ChatMessage(message.direction().name(), message.text()))
+                        .toList();
+            });
+        } catch (DeniedInTransaction lostTheHandoff) {
+            throw denied(lostTheHandoff);
+        } catch (PessimisticLockingFailureException busy) {
+            log.warn("conversation.staff_messages refused code=CONFLICT");
+            throw new ApplicationException(ErrorCode.CONFLICT);
+        }
         // AUDIT-READS (A-52, owner 2A): best effort, collapsed per minute; never which conversation or any text.
+        // Recorded after the read transaction returned its connection (EP-09b reviews M-1).
         audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_CONVERSATION_READ,
                 AuditEvent.Resource.CONVERSATION, "READ", staff.auditActor()));
-        return messages;
+        return Objects.requireNonNull(messages);
     }
 
     @Override

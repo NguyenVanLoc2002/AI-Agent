@@ -1,13 +1,21 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: AUDIT-READS staff reads audited (V18), 2026-11-23
+## Current: MSG-READ-LOCK staff message read under the handoff lock, 2026-11-23
+- Branch `fix/MSG-READ-LOCK-staff-messages` from `main` `70ebcd3` (PR #32 merged; local branch deleted). Owner 2026-11-23 (1A): DECISIONS_REQUIRED A-53.
+- Change: `StaffChatService.messages` re-checks the holder and reads inside one transaction under the conversation's handoff lock (`requireStillHolding`); lost handoff → 404 + one denial after the transaction; busy → 409; read audit after the transaction. RBAC_MATRIX, A-52(c), §2a MSG-READ-LOCK (DONE).
+- Tests: `StaffReadAuditIT.aHandoffResolvedBeforeTheReadTakesTheLockShowsNoMessage` (two transactions). Mutation (no re-check in the read only; source restored sha256) → red.
+- Tests (VERIFIED 2026-11-23 04:31–04:34 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 245, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). NOT RUN: advisory review (same pattern as the quote read, A-45(ad)), formatter, CVE scan.
+- Rollback: revert (no schema change).
+- Next: (1) owner pushes, the assistant opens the PR; (2) §2a: no OPEN/PROPOSED row left (SEC-DASH, AUDIT-RET BLOCKED); main backlog: EP-10 is blocked by UX-13 (UC-01, UC-05/06, UC-07, UC-08 screens not designed in Claude Design); ACC-01 (skill `acceptance-sec`, SEC-01..07 evidence report) can start now.
+
+## Previous: AUDIT-READS staff reads audited (V18), 2026-11-23 — MERGED (PR #32, `70ebcd3`)
 - Branch `feat/AUDIT-READS-staff-reads` from `main` `89fd165` (PR #31 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý" = 1A–4A): DECISIONS_REQUIRED A-52.
 - Change: Flyway V18 (module audit, constraint widening) adds actions `STAFF_CONVERSATION_READ`, `STAFF_LIST_READ`; recorded best effort (`recordSeparately`, collapsed per minute) after the read was answered in `StaffChatService.messages`, `JdbcHandoffs.list` (INBOX), `DefaultDraftOrders.unknown` (UNKNOWN), `DefaultStaffDecisions.awaiting` (AWAITING); kind of resource only, no ID or text. RBAC_MATRIX, A-45(j), §2a AUDIT-READS (DONE), new §2a MSG-READ-LOCK (PROPOSED).
 - Tests: `StaffReadAuditIT` (3: every read by kind and collapsed; only answered reads, customer reads not audited; read answered when the record fails, no text or conversation ID in logs). Changed on purpose: `SecurityInspectorIT` (inbox read before claim is a row), `ApplicationBootstrapIT` (V18). Mutations (no record, record before the holder check, fail-closed write; source restored sha256) → red.
 - Review (advisory): security-auditor 0H/0M/3L; residuals A-52 (a)–(c). NOT RUN: second round, formatter, CVE scan.
 - Tests (VERIFIED 2026-11-23 04:22–04:25 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 244, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). Afterwards one log assertion added to `StaffReadAuditIT`: `-Dit.test=StaffReadAuditIT verify` → exit 0, 3/3.
 - Rollback: drop the branch; after merge revert; V18 is forward-only: `docker compose down -v` locally.
-- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides MSG-READ-LOCK (PROPOSED); (3) main backlog: EP-10 (UC-07 screen) / ACC-01 to unblock SEC-DASH.
+- Next (at the time): owner pushes, PR opened; MSG-READ-LOCK to decide; then EP-10 / ACC-01.
 
 ## Previous: DLP-OFF blocked message keeps DLP_INBOUND while the AI is off, 2026-11-23 — MERGED (PR #31, `89fd165`)
 - Branch `fix/DLP-OFF-inbound-reason` from `main` `0d9b967` (PR #30 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý hãy triển khai" = 1A, 2A, 3A): DECISIONS_REQUIRED A-51.
