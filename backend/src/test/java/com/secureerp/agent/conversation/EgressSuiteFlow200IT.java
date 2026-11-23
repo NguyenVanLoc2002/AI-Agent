@@ -310,7 +310,7 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
                 script(text("Giá má phanh là 555.444.333 đ"));
                 HttpResponse<String> response = send(client, conversation, "Giá bao nhiêu?");
                 handedOff(response, conversation, "OUTPUT_REJECTED");
-                assertThat(response.body()).doesNotContain("555");
+                assertThat(ChatBodies.withoutTurnId(response.body())).doesNotContain("555");
                 expectCalls(1, before, Outcome.OUTPUT_REJECTED);
             }
             case 11 -> {
