@@ -155,8 +155,10 @@ class DefaultQuoteService implements QuoteService {
 
     /**
      * Records the reason for staff and, for a business refusal, retires the older ISSUED quote (A-33).
+     * A refusal that locks the customer also opens the handoff in the same transaction (A-43(s), A-48).
      * Best effort: NOT_QUOTED (and the handoff) must not depend on the database. If this write fails after
-     * a business refusal, the customer is not locked (recorded residual; the tool layer still hands off).
+     * a business refusal, the customer is not locked (recorded residual A-43(t); the tool layer still hands
+     * off).
      */
     private QuoteOutcome notQuoted(QuoteRequest request, String customer, NotQuotedReason reason, Instant now) {
         int lineCount = request.lines().size();

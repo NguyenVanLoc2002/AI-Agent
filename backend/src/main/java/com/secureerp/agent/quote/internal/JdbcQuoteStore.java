@@ -1,6 +1,7 @@
 package com.secureerp.agent.quote.internal;
 
 import com.secureerp.agent.platform.ConversationId;
+import com.secureerp.agent.quote.QuoteStaffRequired;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -10,6 +11,9 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -26,6 +30,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Repository
 class JdbcQuoteStore implements QuoteStore {
+
+    private static final Logger log = LoggerFactory.getLogger(JdbcQuoteStore.class);
 
     /** Advisory lock namespace for quote writes (tools uses 30_003). */
     static final int LOCK_NAMESPACE = 30_006;
@@ -54,8 +60,8 @@ class JdbcQuoteStore implements QuoteStore {
      * so a refusal committed later always has a higher id. No row when nothing locks. This relies on two
      * invariants (review round 2): every insert into {@code quote_request} takes {@link #lock} first, and
      * {@code quote_request.id} is an identity with the default CACHE 1 (V6), so ids are drawn in commit
-     * order per conversation. A refusal committed before the resolve whose handoff is opened after it is
-     * lifted as well (A-43(s)).
+     * order per conversation. A refusal that locks opens its handoff in its own transaction (A-43(s),
+     * {@link #recordNotQuoted}), so a resolve either sees it as a follow-up or does not see the refusal.
      */
     private static final String LIFT = """
             insert into quote_lock_lift (conversation_id, up_to_request_id, lifted_at)
@@ -72,9 +78,12 @@ class JdbcQuoteStore implements QuoteStore {
 
     private final JdbcTemplate jdbc;
     private final TransactionTemplate ownTransaction;
+    private final ApplicationEventPublisher events;
 
-    JdbcQuoteStore(JdbcTemplate jdbc, PlatformTransactionManager transactionManager) {
+    JdbcQuoteStore(JdbcTemplate jdbc, PlatformTransactionManager transactionManager,
+            ApplicationEventPublisher events) {
         this.jdbc = jdbc;
+        this.events = events;
         this.ownTransaction = new TransactionTemplate(transactionManager);
         this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.ownTransaction.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
@@ -145,9 +154,31 @@ class JdbcQuoteStore implements QuoteStore {
         }
     }
 
+    /**
+     * A-43(s) (owner 2026-11-23, 1A/2A): a refusal that locks the customer opens its handoff in the same
+     * transaction ({@link QuoteStaffRequired}, after the quote locks, as {@code ConfirmationStore.block}
+     * does), so a staff resolve either sees the reason as a follow-up and keeps the lock, or runs before
+     * the refusal is visible and does not lift it. When the handoff cannot be opened the refusal is stored
+     * alone in a new transaction, so the customer stays locked; the handoff then comes from the end of the
+     * chat turn as before.
+     */
     @Override
     public void recordNotQuoted(ConversationId conversation, String customerDigest, NotQuotedReason reason,
             int lineCount, Instant now) {
+        boolean handOff = reason.locksAndRetires() && customerDigest != null;
+        try {
+            insertNotQuoted(conversation, customerDigest, reason, lineCount, now, handOff);
+        } catch (HandoffNotOpened notOpened) {
+            // Only a failure of the handoff itself; a failure of the refusal or of the commit is not retried
+            // (an unknown commit outcome must not write the refusal twice; backend review M-1).
+            log.error("quote.not_quoted handoff_failed exception={}",
+                    notOpened.getCause().getClass().getSimpleName());
+            insertNotQuoted(conversation, customerDigest, reason, lineCount, now, false);
+        }
+    }
+
+    private void insertNotQuoted(ConversationId conversation, String customerDigest, NotQuotedReason reason,
+            int lineCount, Instant now, boolean handOff) {
         ownTransaction.executeWithoutResult(status -> {
             Timestamp at = Timestamp.from(now);
             lock(customerDigest, conversation.value());
@@ -161,7 +192,24 @@ class JdbcQuoteStore implements QuoteStore {
                                                occurred_at)
                     values (?, 'NOT_QUOTED', ?, ?, ?, ?)
                     """, conversation.value(), reason.name(), customerDigest, lineCount, at);
+            if (handOff) {
+                try {
+                    events.publishEvent(new QuoteStaffRequired(conversation, customerDigest,
+                            QuoteStaffRequired.Reason.NOT_QUOTED));
+                } catch (RuntimeException handoffFailure) {
+                    // Rolls this transaction back (the listener joined it); the caller stores the refusal alone.
+                    throw new HandoffNotOpened(handoffFailure);
+                }
+            }
         });
+    }
+
+    /** The handoff of a refusal could not be opened (A-48 (2)); carries the cause for its class name only. */
+    private static final class HandoffNotOpened extends RuntimeException {
+
+        HandoffNotOpened(RuntimeException cause) {
+            super(null, cause, false, false);
+        }
     }
 
     @Override
