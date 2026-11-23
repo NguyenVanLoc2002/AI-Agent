@@ -37,7 +37,8 @@ public class SensitiveDataDetector {
      * money (fail-closed): "giá 450000x2", "giá 45000kx2", "giá 45000đồng2", "giá 45000-VND",
      * "giá 450000-500000", a digit-only OE such as "giá 90915-10004", and OE codes whose tail starts with
      * one of those words ("giá 48510-K0010") (security reviews 1 and 2 of A-39(h)). Residual: Cyrillic
-     * look-alike letters ("х", "к") are not folded (SEC-03).
+     * look-alike letters ("х", "к") are not folded here (IMPLEMENTATION_PLAN §2a SEC03-F1-MONEY; A-55 folds them for
+     * text honeytokens only).
      */
     static final Pattern MONEY_PREFIX = Pattern.compile(
             "(?U)(?:(?<!\\w)(?<!quoc )(?<!quốc )(?<!tham )(?:giá|gia|price|tổng|tong|total|thành tiền|thanh tien|vốn|von|cost|công nợ|cong no|nợ|debt|hạn mức|han muc)(?!\\w)"
@@ -111,7 +112,12 @@ public class SensitiveDataDetector {
         }
     }
 
+    /** A text honeytoken in the form it is matched in ({@link TextNormalizer#skeleton}). */
+    private record TextToken(String id, String skeleton) {
+    }
+
     private final List<Honeytoken> honeytokens;
+    private final List<TextToken> textTokens;
 
     public SensitiveDataDetector() {
         this(Honeytoken.syntheticRegistry());
@@ -119,6 +125,10 @@ public class SensitiveDataDetector {
 
     public SensitiveDataDetector(List<Honeytoken> honeytokens) {
         this.honeytokens = List.copyOf(honeytokens);
+        this.textTokens = this.honeytokens.stream()
+                .filter(token -> token.kind() == Honeytoken.Kind.TEXT)
+                .map(token -> new TextToken(token.id(), TextNormalizer.skeleton(token.value())))
+                .toList();
     }
 
     /** Honeytokens first (most specific), then patterns; on the text and on one decoded layer. */
@@ -155,7 +165,9 @@ public class SensitiveDataDetector {
     }
 
     /**
-     * Safety net over the whole raw payload: normalized and separator-collapsed forms only. The
+     * Safety net over the whole raw payload: normalized and separator-collapsed forms only (text
+     * tokens: the look-alike skeleton, which also joins a JSON name to the next value; a false
+     * positive there needs a value that ends a token and a name that starts it). The
      * all-digits projection is not applied here, because it would join digits of identifiers and
      * structure (false positives); values are covered per segment and by {@link #splitHoneytoken}.
      */
@@ -165,11 +177,7 @@ public class SensitiveDataDetector {
         if (digit.isPresent()) {
             return digit;
         }
-        String compact = normalized.replaceAll("\\s+", "");
-        return honeytokens.stream()
-                .filter(token -> token.kind() == Honeytoken.Kind.TEXT && compact.contains(token.value()))
-                .findFirst()
-                .map(token -> new Finding(PolicyCode.HONEYTOKEN, token.id()));
+        return textTokenIn(rawText);
     }
 
     /**
@@ -196,13 +204,19 @@ public class SensitiveDataDetector {
         if (digit.isPresent()) {
             return digit;
         }
-        String compact = normalized.replaceAll("\\s+", "");
-        for (Honeytoken token : honeytokens) {
-            if (token.kind() == Honeytoken.Kind.TEXT && compact.contains(token.value())) {
-                return Optional.of(new Finding(PolicyCode.HONEYTOKEN, token.id()));
-            }
-        }
-        return Optional.empty();
+        return textTokenIn(form);
+    }
+
+    /**
+     * SEC03-F1 (A-55): text honeytokens compared on the look-alike skeleton of both sides, so a Cyrillic or Greek
+     * letter, a digit used as a letter, an accent or any separator inside the token does not hide it.
+     */
+    private Optional<Finding> textTokenIn(String text) {
+        String skeleton = TextNormalizer.skeleton(text);
+        return textTokens.stream()
+                .filter(token -> skeleton.contains(token.skeleton()))
+                .findFirst()
+                .map(token -> new Finding(PolicyCode.HONEYTOKEN, token.id()));
     }
 
     private Optional<Finding> digitTokenIn(List<String> projections) {

@@ -3,6 +3,7 @@ package com.secureerp.agent.policy.internal;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -12,7 +13,8 @@ import java.util.regex.Pattern;
 /**
  * Canonicalisation and numeric projections used before matching (AI_GATEWAY §2.3): NFKC, removal
  * of zero-width/format characters, Unicode digits to ASCII, NBSP and other spaces to a plain space,
- * digit-separator collapsing, scientific notation and spelled-out digits (Vietnamese and English).
+ * digit-separator collapsing, scientific notation and spelled-out digits (Vietnamese and English), and a
+ * look-alike skeleton for text-honeytoken matching (SEC03-F1, A-55).
  */
 public final class TextNormalizer {
 
@@ -34,6 +36,29 @@ public final class TextNormalizer {
             Map.entry("bay", '7'), Map.entry("seven", '7'),
             Map.entry("tam", '8'), Map.entry("eight", '8'),
             Map.entry("chin", '9'), Map.entry("nine", '9'));
+
+    /**
+     * SEC03-F1 (A-55): letters of other scripts drawn like Latin letters, keyed by code point with case kept (Greek
+     * capital eta looks like "H", small eta like "n"). A code point is looked up as written, then in lower case, then
+     * in upper case, so a capital whose small form is listed (and the reverse) folds too (security review H1). A
+     * curated table, not the full UTS #39 data (owner 1A): look-alikes outside it are a recorded residual.
+     */
+    private static final Map<Integer, Character> LOOK_ALIKES = lookAlikes(
+            // Cyrillic capitals, then small letters
+            "АAВBСCЕEНHІIЈJКKМMОOРPЅSТTХXУYҮYԌGԚQԜWӀl"
+                    + "аaсcеeіiјjоoрpѕsхxуyһhԁdԛqԝwӏlкkвbтtмmнhгrпn"
+                    // Greek capitals, then small letters; the micro sign is listed itself (its capital is Greek "Μ")
+                    + "ΑAΒBΕEΖZΗHΙIΚKΜMΝNΟOΡPΤTΥYΧX"
+                    + "αaοoρpιiκkνvτtυuχxεeωwϲcϳjηnγyμuµu"
+                    // Armenian, Cherokee capitals
+                    + "օoոnսuհhԁd" + "ᏃZᎻHᎪAᏴBᏟCᎬEᏀGᎫJᏦKᏞLᎷMᏢPᏚSᎢTᏙVᏔWᏃZ"
+                    // Latin letters without a decomposition, small capitals, Latin alpha
+                    + "ıiøoØOłlŁLħhĦHŧtŦTđdĐDɑaʜhᴏoᴢzᴄcᴀaᴇeᴛtᴜuʏyɴnʀr");
+    /**
+     * Digits and signs written instead of letters, applied after lower-casing; "i" and "l" share one form because
+     * "1", "l", "I", "|" and "!" are drawn alike.
+     */
+    private static final Map<Integer, Character> LETTER_STAND_INS = lookAlikes("0o1l2z3e4a5s7til$s@a|l!l+t€e");
 
     private TextNormalizer() {
     }
@@ -61,6 +86,69 @@ public final class TextNormalizer {
     /** Lower-case canonical form used for matching. */
     public static String forMatching(String text) {
         return canonical(text).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * SEC03-F1 (A-55): the form text honeytokens are compared in. Canonical form, accents removed, look-alike letters
+     * and letter stand-ins folded to one Latin letter, lower case, and every character that is not a letter or digit
+     * removed (spaces, dots, dashes, underscores, punctuation). Applied to the honeytoken and to the scanned text
+     * alike, so "ZZHоney CustomerA" (Cyrillic о), "ZZH0ney CustomerA" and "ZZHoney.Customer-A" all match. Lossy and
+     * for matching only.
+     */
+    public static String skeleton(String text) {
+        String unaccented = COMBINING_MARKS.matcher(
+                Normalizer.normalize(canonical(foldLookAlikes(text)), Normalizer.Form.NFD)).replaceAll("");
+        StringBuilder out = new StringBuilder(unaccented.length());
+        unaccented.codePoints().forEach(cp -> {
+            if (isInvisibleLetter(cp)) {
+                return;
+            }
+            int folded = Character.toLowerCase(lookAlike(cp));
+            Character standIn = LETTER_STAND_INS.get(folded);
+            if (standIn != null) {
+                out.append(standIn.charValue());
+            } else if (Character.isLetterOrDigit(folded)) {
+                out.appendCodePoint(folded);
+            }
+        });
+        return out.toString();
+    }
+
+    /**
+     * Look-alikes folded before NFKC as well, because NFKC rewrites some of them into letters that look different
+     * (lunate sigma "Ϲ" becomes "Σ"); the second pass catches look-alikes NFKC produces (fullwidth forms).
+     */
+    private static String foldLookAlikes(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        text.codePoints().forEach(cp -> out.appendCodePoint(lookAlike(cp)));
+        return out.toString();
+    }
+
+    private static int lookAlike(int cp) {
+        for (int candidate : new int[] {cp, Character.toLowerCase(cp), Character.toUpperCase(cp)}) {
+            Character latin = LOOK_ALIKES.get(candidate);
+            if (latin != null) {
+                return latin;
+            }
+        }
+        return cp;
+    }
+
+    /**
+     * Letters that draw as blank or as punctuation, used as separators (security review H2): modifier letters
+     * (apostrophe- and underscore-like signs), the Hangul fillers and the sinological dot.
+     */
+    private static boolean isInvisibleLetter(int cp) {
+        return Character.getType(cp) == Character.MODIFIER_LETTER
+                || cp == 0x115F || cp == 0x1160 || cp == 0x3164 || cp == 0xFFA0 || cp == 0xA78F;
+    }
+
+    private static Map<Integer, Character> lookAlikes(String pairs) {
+        Map<Integer, Character> table = new HashMap<>();
+        for (int i = 0; i + 1 < pairs.length(); i += 2) {
+            table.put((int) pairs.charAt(i), pairs.charAt(i + 1));
+        }
+        return Map.copyOf(table);
     }
 
     /** "987.654.321", "987 654 321", "987_654_321" become "987654321". */

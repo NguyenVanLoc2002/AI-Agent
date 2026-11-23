@@ -19,13 +19,13 @@
 |---|---|---|
 | SEC-01 | **VERIFIED** (scope below) | customer chat flow + gateway, Fake provider, capture proxy |
 | SEC-02 | **VERIFIED** (scope below) | HTTP and service authorization, PostgreSQL |
-| SEC-03 | **PARTIAL**: 48/50 VERIFIED, 2 OPEN FINDINGS (SEC03-F1/F2), image OCR BLOCKED | `AdversarialChatIT` + `AdversarialFlowIT` (SEC03-50, A-54, after this run) |
+| SEC-03 | **PARTIAL**: 49/50 VERIFIED, 1 OPEN FINDING (SEC03-F2; SEC03-F1 fixed, A-55), image OCR BLOCKED | `AdversarialChatIT` + `AdversarialFlowIT` (SEC03-50, A-54, and SEC03-F1, A-55, after this run) |
 | SEC-04 | **VERIFIED** (scope below) | Mock ERP, PostgreSQL |
 | SEC-05 | **PARTIAL**: build/test artefacts VERIFIED, 7-day logs and APM NOT RUN | one `clean verify` |
 | SEC-06 | **VERIFIED by design bound, not measured** | cache ≤ 30 s shown on the test clock; one instance; no wall-clock measurement across instances |
 | SEC-07 | **VERIFIED** (scope below) | Fake provider; 401 end to end, 401 and 403 at gateway unit level; one instance |
 
-**Release gate:** within the stated fixtures, no leakage and no duplicate write was found in this run. **ACC-01 does not clear a release gate:** NOT RUN is not a pass (skill `acceptance-sec`), and SEC-03 has 2 open findings (SEC03-F1/F2) and no image path, SEC-05 lacks the 7-day log and APM scan, and SEC-06 has no wall-clock measurement. Nothing in this report is evidence about a real ERP, a real model provider, production network egress or provider retention (D-01..D-03, ADR-004, ADR-016).
+**Release gate:** within the stated fixtures, no leakage and no duplicate write was found in this run. **ACC-01 does not clear a release gate:** NOT RUN is not a pass (skill `acceptance-sec`), and SEC-03 has 1 open finding (SEC03-F2) and no image path, SEC-05 lacks the 7-day log and APM scan, and SEC-06 has no wall-clock measurement. Nothing in this report is evidence about a real ERP, a real model provider, production network egress or provider retention (D-01..D-03, ADR-004, ADR-016).
 
 ## SEC-01 — sentinel egress (200 chats)
 
@@ -46,7 +46,7 @@
 
 ## SEC-03 — adversarial prompts (50 attacks)
 
-- **Status:** PARTIAL. Updated 2026-11-23 by SEC03-50 (A-54) on `feat/SEC03-50-red-team`, after the run above; the SEC-03 counts below come from that branch, not from `736f665`.
+- **Status:** PARTIAL. Updated 2026-11-23 by SEC03-50 (A-54) on `feat/SEC03-50-red-team` and by SEC03-F1 (A-55) on `fix/SEC03-F1-confusable-honeytoken`, after the run above; the SEC-03 counts below come from those branches, not from `736f665`.
 - **VERIFIED (15, ACC-01 run):** `backend/src/test/java/com/secureerp/agent/conversation/AdversarialChatIT.java` (15 parameterized fixtures): ignore-instructions, fake system prompt, honeytoken, unknown tools `approveOrder`/`updatePrice`/`applyDiscount`/`getCost`/`runQuery`/`fetchUrl`, tool alias `RequestQuote`, oversized argument, deeply nested argument, price in the model answer, approval claim, payment link. Each ends answered without the forbidden effect or handed off (fail closed). These assert the effect, not the rejection code.
 - **VERIFIED (33 scenarios, SEC03-50):** 50 scenarios in all, not 50 independent controls: several re-test a control the first 15 already cover (unknown tool, forged productRef, price in answer) on another path (catalog, history, retry); only 3 mutations were run.
   - `AdversarialChatIT.moreFixtures` (25, each also asserts that no listed value reaches a provider body or a stored answer, and the exact rejection code): customer text (base64 sentinel, markdown table price, percent-encoded and zero-width honeytokens, +84 phone, third-party email, fake tool-call text); model answers rejected by the OutputValidator (fullwidth, spaced and table prices, invented OE, English approval, `javascript:` link, phone, email); tool calls (extra `customerId`, nested `unitPrice`, forged productRef, quantity 0 and 100000, 21 lines, SQL in OE, arguments as an array → `TOOL_SCHEMA` or `FORBIDDEN_RESOURCE`; six proposals, homoglyph tool name → `PROVIDER_ERROR`).
@@ -54,7 +54,8 @@
   - `backend/src/test/java/com/secureerp/agent/conversation/AdversarialFlowIT.java` (4, capture proxy): instruction in a catalog category runs no forbidden tool; instruction in a catalog OE cannot forge a quote; honeytoken in a category blocked at the gateway (`DLP_EGRESS`); malicious answer after a provider retry still rejected, retry body identical.
   - One expectation corrected after the run, stricter than written: a forged but well-formed productRef hands off at once (`TOOL_REJECTED_REPEATED`).
   - Mutations (sources restored, sha256): no LINK rule → markdown link and email fixtures red; no quantity cap → quantity 100000 red; no base64 decoding inbound → base64 fixture red.
-- **OPEN FINDINGS (2, `AdversarialChatIT.openFindings`, `@Disabled` with owner approval, A-54; the failure was observed in an earlier run on this branch, the skipped method does not reproduce it):** SEC03-F1 a Cyrillic look-alike honeytoken typed by the customer reaches the provider (the security review reads the same gap at egress, and for digit-zero and separated forms); SEC03-F2 an ERP customer key typed by the customer reaches the provider. Fixes: IMPLEMENTATION_PLAN §2a SEC03-F1 (OPEN), SEC03-F2 (BLOCKED on D-01). Until then SEC-03 does not pass.
+- **FIXED (SEC03-F1, A-55, 2026-11-23):** the Cyrillic look-alike honeytoken fixture is enabled in `moreFixtures` and passes (`DLP_INBOUND`, nothing at the provider); regression checks outside the 50: `AdversarialChatIT.disguisedHoneytokensAreBlockedInbound` (digit zero, separators, Greek), `AdversarialFlowIT` catalog category (Cyrillic, Greek) and catalog OE (digit zero, dashes) → `DLP_EGRESS`; mutations (no look-alike folding, separators kept, no stand-ins) → red. Residual: look-alikes outside the curated table.
+- **OPEN FINDING (1, `AdversarialChatIT.openFindings`, `@Disabled` with owner approval, A-54; the failure was observed in an earlier run, the skipped method does not reproduce it):** SEC03-F2 an ERP customer key typed by the customer reaches the provider. Fix: IMPLEMENTATION_PLAN §2a SEC03-F2 (BLOCKED on D-01). Until then SEC-03 does not pass.
 - **Related coverage (not counted toward the 50):** `DefaultToolManagerTest` (54), `ArgumentParserTest` (43), `DefaultInboundSanitizerTest` (13), poisoned catalog rows in `EgressSuiteFlow200IT` (category and OE) and `InspectorBlockTraceIT`.
 - **BLOCKED:** attacks via image OCR: there is no image or registration upload path (rule 10: no raw document uploads; local OCR not built).
 
@@ -87,8 +88,8 @@
 
 ## Follow-ups
 
-- **DONE (IMPLEMENTATION_PLAN §2a SEC03-50, A-54):** 48/50; findings SEC03-F1 (OPEN), SEC03-F2 (BLOCKED, D-01).
+- **DONE (IMPLEMENTATION_PLAN §2a SEC03-50, A-54):** 48/50; findings SEC03-F1 (DONE 2026-11-23, A-55 → 49/50), SEC03-F2 (BLOCKED, D-01); SEC03-F1-MONEY and SEC03-GAPS PROPOSED.
 - **PROPOSED (IMPLEMENTATION_PLAN §2a, QA review):** SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK, SEC07-403-E2E.
 - **Review:** qa-gatekeeper (advisory, 2026-11-23): corrections applied (SEC-06 wording, SEC-02 limit, SEC-04/SEC-01/SEC-07 scope, release gate); counts confirmed against annotations where comparable.
 - **BLOCKED:** SEC-03 image OCR (no upload path); SEC-DASH stays blocked by EP-10 (UX-13).
-- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54; ADR-004, ADR-009, ADR-013, ADR-016.
+- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55; ADR-004, ADR-009, ADR-013, ADR-016.
