@@ -22,8 +22,9 @@ public interface SecurityInspector {
     /** Pseudo-action of a kill switch change (stored in {@code feature_switch_event}, decision 4A). */
     String KILL_SWITCH_CHANGED = "KILL_SWITCH_CHANGED";
 
+    /** @param direction {@code REQUEST}, or {@code RESPONSE} for a model answer the gateway withheld (A-59) */
     record EgressView(String decision, int attempt, String policyCode, String honeytokenId, String blockedFieldPath,
-            List<String> fieldNames, int byteLength, Instant occurredAt) {
+            List<String> fieldNames, int byteLength, Instant occurredAt, String direction) {
     }
 
     record ToolView(String toolName, String decision, String reasonCode, Instant occurredAt) {

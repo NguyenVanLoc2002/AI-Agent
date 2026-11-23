@@ -129,7 +129,8 @@ class SecurityInspectorIT extends ChatEnvironment {
         HttpResponse<String> trace = reviewer.get(TRACES + requestId);
 
         assertThat(trace.statusCode()).as(trace.body()).isEqualTo(200);
-        assertThat(jdbc.queryForObject("select count(*) from egress_record where request_id = ?", Integer.class,
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where request_id = ? and direction = 'REQUEST'",
+                Integer.class,
                 requestId)).as("three model calls").isEqualTo(3);
         assertThat(trace.body()).contains("\"traceId\":\"" + requestId + "\"")
                 .contains("\"decision\":\"PASS\"").contains("\"fieldNames\":[")

@@ -1,6 +1,7 @@
 package com.secureerp.agent.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.secureerp.agent.audit.EgressAuditLog;
 import com.secureerp.agent.audit.EgressDecisionEvent;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ApplicationContext;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -164,10 +166,43 @@ class GatewayEgressIT extends FakeProviderEnvironment {
         String traceId = EgressFixtures.traceId(22);
         auditLog.record(new EgressDecisionEvent(traceId,
                 EgressDecisionEvent.Decision.PASS, null, null, null, List.of("text"), 10,
-                Instant.parse("2026-11-18T00:00:00Z"), 1));
+                Instant.parse("2026-11-18T00:00:00Z"), 1, EgressDecisionEvent.Direction.REQUEST));
 
         assertThat(jdbc.queryForObject("select count(*) from egress_record where trace_id = ?", Integer.class, traceId))
                 .isEqualTo(1);
+    }
+
+    /** SEC03-F3-AUDIT (A-59): a RESPONSE row is stored as such; V19 rejects a RESPONSE pass and unknown directions. */
+    @Test
+    void responseRowsAreBlocksOnly() {
+        String traceId = EgressFixtures.traceId(23);
+        auditLog.record(new EgressDecisionEvent(traceId, EgressDecisionEvent.Decision.BLOCK, "HONEYTOKEN", "HT-NAME-A",
+                "$.text", List.of("text"), 40, Instant.parse("2026-11-18T00:00:00Z"), 1,
+                EgressDecisionEvent.Direction.RESPONSE));
+
+        assertThat(jdbc.queryForObject("select direction || ':' || decision || ':' || attempt from egress_record "
+                + "where trace_id = ?", String.class, traceId)).isEqualTo("RESPONSE:BLOCK:1");
+        String attemptCheck = "egress_record_attempt_matches_decision";
+        assertThatThrownBy(() -> jdbc.update("insert into egress_record (trace_id, decision, attempt, field_names, "
+                + "byte_length, occurred_at, direction) values (?, 'PASS', 1, 'text', 1, now(), 'RESPONSE')", traceId))
+                .isInstanceOf(DataIntegrityViolationException.class).hasMessageContaining(attemptCheck);
+        assertThatThrownBy(() -> jdbc.update("insert into egress_record (trace_id, decision, attempt, policy_code, "
+                + "blocked_field_path, field_names, byte_length, occurred_at, direction) "
+                + "values (?, 'BLOCK', 0, 'HONEYTOKEN', '$', 'text', 1, now(), 'RESPONSE')", traceId))
+                .isInstanceOf(DataIntegrityViolationException.class).hasMessageContaining(attemptCheck);
+        // The REQUEST branch is not widened: a request block still has attempt 0 (A-59 review).
+        assertThatThrownBy(() -> jdbc.update("insert into egress_record (trace_id, decision, attempt, policy_code, "
+                + "blocked_field_path, field_names, byte_length, occurred_at) "
+                + "values (?, 'BLOCK', 1, 'HONEYTOKEN', '$', 'text', 1, now())", traceId))
+                .isInstanceOf(DataIntegrityViolationException.class).hasMessageContaining(attemptCheck);
+        // An unknown direction breaks both checks; either name is the rejection.
+        assertThatThrownBy(() -> jdbc.update("insert into egress_record (trace_id, decision, attempt, field_names, "
+                + "byte_length, occurred_at, direction) values (?, 'PASS', 1, 'text', 1, now(), 'OTHER')", traceId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        // A screen failure has no honeytoken ID.
+        jdbc.update("insert into egress_record (trace_id, decision, attempt, policy_code, blocked_field_path, "
+                + "field_names, byte_length, occurred_at, direction) "
+                + "values (?, 'BLOCK', 1, 'SCREEN_FAILED', '$', 'text', 1, now(), 'RESPONSE')", traceId);
     }
 
     @Test

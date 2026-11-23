@@ -55,6 +55,9 @@ public class DefaultAiGateway implements AiGateway {
     /** One initial attempt plus one retry (rule 30 §7: bounded retries). */
     static final int MAX_ATTEMPTS = 2;
 
+    /** Policy code of the egress row when the response screen itself failed (A-59). */
+    static final String SCREEN_FAILED = "SCREEN_FAILED";
+
     private final EgressPolicy policy;
     private final ResponseScreen responseScreen;
     private final ModelProviderPort provider;
@@ -136,7 +139,8 @@ public class DefaultAiGateway implements AiGateway {
             auditLog.record(new EgressDecisionEvent(request.traceId(),
                     verdict.allowed() ? EgressDecisionEvent.Decision.PASS : EgressDecisionEvent.Decision.BLOCK,
                     verdict.allowed() ? null : verdict.policyCode().name(), verdict.honeytokenId(),
-                    verdict.fieldPath(), fieldNames, length, clock.instant(), attempt));
+                    verdict.fieldPath(), fieldNames, length, clock.instant(), attempt,
+                    EgressDecisionEvent.Direction.REQUEST));
             return true;
         } catch (RuntimeException e) {
             log.error("gateway.egress audit_failed traceId={} exception={}", request.traceId(),
@@ -147,29 +151,64 @@ public class DefaultAiGateway implements AiGateway {
 
     /**
      * SEC03-F3 (A-58): a honeytoken in the answer withholds it. Fails closed: a screen that throws withholds too.
-     * The log carries the honeytoken ID only (as the egress audit does), never the answer.
+     * SEC03-F3-AUDIT (A-59): the withheld answer is recorded as an egress row with direction RESPONSE (policy code,
+     * honeytoken ID, structural path, the attempt that produced it; never the answer). The answer stays withheld when
+     * that record fails (decision 3A): the record documents the block, it does not authorize anything.
      */
-    private GatewayResult screened(ModelRequest request, ModelResponse response) {
+    private GatewayResult screened(ModelRequest request, ModelResponse response, int attempt, int byteLength) {
         List<String> values = new ArrayList<>();
+        List<String> paths = new ArrayList<>();
         values.add(response.text());
-        response.toolProposals().forEach(proposal -> {
-            values.add(proposal.name());
-            values.add(proposal.argumentsJson());
-        });
-        Optional<String> honeytoken;
+        paths.add("$.text");
+        for (int i = 0; i < response.toolProposals().size(); i++) {
+            values.add(response.toolProposals().get(i).name());
+            paths.add("$.toolProposals[" + i + "].name");
+            values.add(response.toolProposals().get(i).argumentsJson());
+            paths.add("$.toolProposals[" + i + "].argumentsJson");
+        }
+        Optional<ResponseScreen.Hit> hit;
         try {
-            honeytoken = Objects.requireNonNull(responseScreen.honeytokenIn(values), "screen");
+            hit = Objects.requireNonNull(responseScreen.honeytokenIn(values), "screen");
         } catch (RuntimeException e) {
             log.warn("gateway.response screen_failed traceId={} exception={}", request.traceId(),
                     e.getClass().getSimpleName());
+            auditWithheld(request, SCREEN_FAILED, null, "$", response, attempt, byteLength);
             return new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN);
         }
-        if (honeytoken.isPresent()) {
-            log.warn("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId={} traceId={}", honeytoken.get(),
-                    request.traceId());
+        if (hit.isPresent() && hit.get().valueIndex() >= paths.size()) {
+            // A screen breaking its contract (A-59 review L1): withheld and recorded as a screen failure.
+            log.warn("gateway.response screen_failed traceId={} exception=IndexOutOfRange", request.traceId());
+            auditWithheld(request, SCREEN_FAILED, null, "$", response, attempt, byteLength);
+            return new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN);
+        }
+        if (hit.isPresent()) {
+            String path = hit.get().valueIndex() < 0 ? "$" : paths.get(hit.get().valueIndex());
+            log.warn("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId={} traceId={}",
+                    hit.get().honeytokenId(), request.traceId());
+            auditWithheld(request, PolicyCode.HONEYTOKEN.name(), hit.get().honeytokenId(), path, response, attempt,
+                    byteLength);
             return new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN);
         }
         return new GatewayResult.Completed(response);
+    }
+
+    private void auditWithheld(ModelRequest request, String policyCode, String honeytokenId, String path,
+            ModelResponse response, int attempt, int byteLength) {
+        List<String> fieldNames = new ArrayList<>();
+        if (response.text() != null) {
+            fieldNames.add("text");
+        }
+        if (!response.toolProposals().isEmpty()) {
+            fieldNames.addAll(List.of("toolProposals", "name", "argumentsJson"));
+        }
+        try {
+            auditLog.record(new EgressDecisionEvent(request.traceId(), EgressDecisionEvent.Decision.BLOCK, policyCode,
+                    honeytokenId, path, fieldNames, byteLength, clock.instant(), attempt,
+                    EgressDecisionEvent.Direction.RESPONSE));
+        } catch (RuntimeException e) {
+            log.error("gateway.response audit_failed traceId={} exception={}", request.traceId(),
+                    e.getClass().getSimpleName());
+        }
     }
 
     private GatewayResult send(ModelRequest request, byte[] body, EgressVerdict verdict, List<String> fieldNames) {
@@ -188,7 +227,7 @@ public class DefaultAiGateway implements AiGateway {
                 if (status >= 200 && status < 300) {
                     Optional<ModelResponse> response = EgressSerializer.readResponse(reply.body());
                     if (response.isPresent()) {
-                        return screened(request, response.get());
+                        return screened(request, response.get(), attempt, reply.body().length);
                     }
                     log.warn("gateway.provider invalid_response traceId={} bytes={}", request.traceId(),
                             reply.body() == null ? 0 : reply.body().length);

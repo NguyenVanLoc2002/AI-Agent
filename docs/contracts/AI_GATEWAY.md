@@ -27,7 +27,7 @@ ModelProviderPort.complete(ModelRequest) -> ModelResponse   // chỉ gateway.ada
    - Đối chiếu: honeytoken registry; pattern tiền tệ gần ngữ cảnh giá; SĐT/email; số dạng mũ (`9.87654321e8`); chữ số đọc bằng tiếng Việt (danh sách giới hạn cho sentinel).
    - Quét cả payload ghép và cửa sổ trượt theo conversation (chống tách qua nhiều field/tin).
 4. **Quyết định:** PASS → gửi; HIT hoặc không phân loại được → **không gửi**, `SecurityEvent(policyCode, fieldPath, length)`, handoff `DLP_EGRESS`.
-5. **Publish `EgressDecision` → audit lưu `egress_record`:** traceId, field names, decision, policy code, honeytoken ID (nếu hit), byte length. Không ghi body, **không HMAC theo từng giá trị** (tránh SECREV so sánh được giá trị giữa các khách — review F9).
+5. **Publish `EgressDecision` → audit lưu `egress_record`:** traceId, field names, decision, policy code, honeytoken ID (nếu hit), byte length. A-59 (V19): cột `direction` — `REQUEST` cho request; `RESPONSE` (luôn BLOCK, attempt sinh ra câu trả lời, đường dẫn cấu trúc) khi gateway giữ lại câu trả lời có honeytoken (A-58); ghi lỗi thì câu trả lời vẫn bị giữ lại. Không ghi body, **không HMAC theo từng giá trị** (tránh SECREV so sánh được giá trị giữa các khách — review F9).
 
 Lưu ý (security-auditor): honeytoken scan chỉ chứng minh *vắng sentinel*; giá thật không phải sentinel chỉ bị chặn nhờ type gate (bước 1–2). Do đó type gate là boundary chính.
 

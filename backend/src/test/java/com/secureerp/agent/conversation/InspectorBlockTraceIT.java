@@ -54,6 +54,7 @@ class InspectorBlockTraceIT extends EgressFlowEnvironment {
         List<JsonNode> egress = new ArrayList<>();
         root.get("egress").forEach(egress::add);
         assertThat(egress).extracting(row -> row.get("decision").asText()).containsExactly("PASS", "BLOCK");
+        assertThat(egress).extracting(row -> row.get("direction").asText()).containsExactly("REQUEST", "REQUEST");
         JsonNode pass = egress.get(0);
         assertThat(pass.get("policyCode").isNull()).isTrue();
         assertThat(pass.get("honeytokenId").isNull()).isTrue();
@@ -76,6 +77,42 @@ class InspectorBlockTraceIT extends EgressFlowEnvironment {
         assertNothingRestricted(trace.body(), List.of(HONEYTOKEN, "ZZHoney", "CustomerA", conversation, message,
                 "má phanh", "cust-a", "SYNTH", "usr_", "cref_", "BG-"));
         assertNothingRestrictedLeftTheApplication();
+    }
+
+    /**
+     * SEC03-F3-AUDIT (A-59): a model answer carrying {@code HT-NAME-A} is withheld by the gateway. The trace shows the
+     * request (PASS, REQUEST) and then the answer (BLOCK, RESPONSE, attempt 1) with the policy code, the honeytoken ID,
+     * the path {@code $.text} and the field name {@code text}: never the answer.
+     */
+    @Test
+    void aWithheldAnswerShowsAsAResponseRowWithoutItsValue() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = createConversation(customer);
+        String answer = "Khách " + HONEYTOKEN + " đã hỏi giá này";
+        script(text(answer));
+
+        HttpResponse<String> turn = send(customer, conversation, "Giá má phanh bao nhiêu?");
+
+        assertThat(turn.body()).contains("\"handedOff\":true").doesNotContain("ZZHoney");
+        assertThat(handoffReason(conversation)).isEqualTo("OUTPUT_REJECTED");
+        String requestId = turn.headers().firstValue("X-Request-Id").orElseThrow();
+
+        HttpResponse<String> trace = loggedIn("secrev-1").get(TRACES + requestId);
+
+        assertThat(trace.statusCode()).as(trace.body()).isEqualTo(200);
+        List<JsonNode> egress = new ArrayList<>();
+        JSON.readTree(trace.body()).get("egress").forEach(egress::add);
+        assertThat(egress).extracting(row -> row.get("decision").asText() + ":" + row.get("direction").asText())
+                .containsExactly("PASS:REQUEST", "BLOCK:RESPONSE");
+        JsonNode withheld = egress.get(1);
+        assertThat(withheld.get("attempt").asInt()).isEqualTo(1);
+        assertThat(withheld.get("policyCode").asText()).isEqualTo("HONEYTOKEN");
+        assertThat(withheld.get("honeytokenId").asText()).isEqualTo("HT-NAME-A");
+        assertThat(withheld.get("blockedFieldPath").asText()).isEqualTo("$.text");
+        assertThat(withheld.get("fieldNames")).hasSize(1);
+        assertThat(withheld.get("fieldNames").get(0).asText()).isEqualTo("text");
+        assertNothingRestricted(trace.body(), List.of(HONEYTOKEN, "ZZHoney", "CustomerA", answer, conversation,
+                "cust-a", "usr_", "cref_"));
     }
 
     /** Property names of a field path such as {@code $.toolResults[0].candidates[0].category}. */

@@ -10,9 +10,13 @@ import java.util.List;
  */
 public interface AuditQueries {
 
-    /** One {@code egress_record} row: field names and codes, never values (ADR-012). */
+    /**
+     * One {@code egress_record} row: field names and codes, never values (ADR-012).
+     *
+     * @param direction {@code REQUEST}, or {@code RESPONSE} for a model answer the gateway withheld (A-59)
+     */
     record EgressRow(String decision, int attempt, String policyCode, String honeytokenId, String blockedFieldPath,
-            List<String> fieldNames, int byteLength, Instant occurredAt) {
+            List<String> fieldNames, int byteLength, Instant occurredAt, String direction) {
 
         public EgressRow {
             fieldNames = List.copyOf(fieldNames);
