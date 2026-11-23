@@ -118,6 +118,72 @@ class KillSwitchIT extends ChatEnvironment {
     }
 
     /**
+     * DLP-OFF (A-51, owner 2026-11-23; A-44(r), A-45(k)): while the AI is off, or the provider-auth breaker is
+     * open, a message the inbound sanitizer blocked still hands off as DLP_INBOUND, so staff keep the DLP
+     * signal; a clean message still hands off as AI_DISABLED / PROVIDER_AUTH. Nothing runs for either: no
+     * provider call, no VIN intake, no tool, and the blocked value is not stored.
+     */
+    @Test
+    void aBlockedMessageKeepsItsDlpReasonWhileTheAiIsOff(CapturedOutput output) {
+        String blockedText = "giá vốn là 987654321, xe VIN 5ZZAPAS11RA000001";
+        DemoHttpClient ops = loggedIn("ops-1");
+        DemoHttpClient customer = loggedIn("cust-a");
+        String blocked = createConversation(customer);
+        String clean = createConversation(customer);
+        assertThat(ops.postJson(SWITCH, OFF).statusCode()).isEqualTo(200);
+        int before = providerBodies().size();
+
+        assertThat(send(customer, blocked, blockedText).body()).contains("\"handedOff\":true")
+                .doesNotContain("987654321");
+        assertThat(send(customer, clean, "Tôi cần má phanh cho xe").body()).contains("\"handedOff\":true");
+
+        assertThat(handoffReason(blocked, 0)).isEqualTo("DLP_INBOUND");
+        assertThat(handoffReason(clean, 0)).isEqualTo("AI_DISABLED");
+        assertThat(providerBodies()).as("0 provider calls while off").hasSize(before);
+        assertThat(jdbc.queryForObject("select count(*) from conversation_vin", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from tool_invocation", Integer.class)).isZero();
+        assertThat(jdbc.queryForList("select text from message where conversation_id = ? and direction = 'CUSTOMER'",
+                String.class, blocked)).singleElement().satisfies(text ->
+                assertThat(text).doesNotContain("987654321").doesNotContain("5ZZAPAS11RA000001"));
+        assertThat(output.getAll()).contains("conversation.turn inbound_blocked").doesNotContain("987654321");
+
+        // The breaker open (a revoked key): the same order.
+        assertThat(ops.postJson(SWITCH, ON).statusCode()).isEqualTo(200);
+        providerStatus(401);
+        String tripping = createConversation(customer);
+        assertThat(send(customer, tripping, "xin chào").body()).contains("\"handedOff\":true");
+        assertThat(handoffReason(tripping, 0)).isEqualTo("PROVIDER_AUTH");
+        int calls = providerBodies().size();
+        String blockedWhileOpen = createConversation(customer);
+        String cleanWhileOpen = createConversation(customer);
+
+        send(customer, blockedWhileOpen, blockedText);
+        send(customer, cleanWhileOpen, "xin chào");
+
+        assertThat(handoffReason(blockedWhileOpen, 0)).isEqualTo("DLP_INBOUND");
+        assertThat(handoffReason(cleanWhileOpen, 0)).isEqualTo("PROVIDER_AUTH");
+        assertThat(providerBodies()).hasSize(calls);
+
+        // An unreadable switch (fail closed, ADR-013) with a blocked message: the same (security review L).
+        // Another customer: cust-a has used its 5 new conversations of the hour.
+        assertThat(ops.postJson(SWITCH, ON).statusCode()).isEqualTo(200);
+        customer = loggedIn("cust-b");
+        String blockedWhileUnreadable = createConversation(customer);
+        jdbc.execute("alter table feature_switch rename to feature_switch_moved");
+        try {
+            clock.advance(Duration.ofSeconds(31));
+            String cleanWhileUnreadable = createConversation(customer);
+            send(customer, cleanWhileUnreadable, "xin chào");
+            assertThat(handoffReason(cleanWhileUnreadable, 0)).isEqualTo("AI_DISABLED");
+            send(customer, blockedWhileUnreadable, blockedText);
+        } finally {
+            jdbc.execute("alter table feature_switch_moved rename to feature_switch");
+        }
+        assertThat(handoffReason(blockedWhileUnreadable, 0)).isEqualTo("DLP_INBOUND");
+        assertThat(providerBodies()).hasSize(calls);
+    }
+
+    /**
      * T-SEC06, other instance and database variants (ADR-013): a change written by another instance takes
      * effect here within the 30 s cache; a switch whose state cannot be read is off (fail closed).
      */

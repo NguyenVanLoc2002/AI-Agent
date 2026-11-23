@@ -42,6 +42,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>atomic admission: dedup by client event, one turn in flight per conversation (409), limits per
  *       conversation and principal (429), conversation status read under the lock;</li>
  *   <li>a conversation waiting for staff gets a fixed reply, no model call;</li>
+ *   <li>a message the sanitizer blocked hands off (DLP_INBOUND), whether the AI is on or off (A-51);</li>
  *   <li>kill switch (EP-09a, ADR-013): off or unreadable → hand off (AI_DISABLED, or PROVIDER_AUTH while the
  *       provider-auth breaker is open), nothing else runs;</li>
  *   <li>VIN intake with the raw text (A-29): Invalid/Multiple → ask again, Unavailable → hand off; no
@@ -160,6 +161,13 @@ class ChatService implements Chat {
             // EP-08a: the message is stored for the staff member; the bot stays silent (no model call).
             return reply(id, turnId, ChatTexts.WITH_STAFF, true, null);
         }
+        // DLP-OFF (A-51, owner 2026-11-23): a message the inbound sanitizer blocked hands off as DLP_INBOUND
+        // whether the AI is on or off, so staff keep the DLP signal. It runs nothing either way (no VIN intake,
+        // no agent, no tool, no provider call), so checking it first gives the kill switch nothing to guard.
+        if (sanitized instanceof InboundSanitizer.Blocked block) {
+            log.warn("conversation.turn inbound_blocked code={}", block.policyCode());
+            return handOff(identity, id, turnId, HandoffReason.DLP_INBOUND);
+        }
         // DATA_FLOW step 2 (EP-09a, ADR-013): with the AI off nothing below runs for this turn (no VIN intake,
         // no agent, no tool); the conversation goes to staff. The agent checks again before tools and the
         // gateway before every provider call.
@@ -168,10 +176,6 @@ class ChatService implements Chat {
             log.warn("conversation.turn ai_disabled reason={}", ai.disabledReason());
             return handOff(identity, id, turnId, ai.disabledReason() == KillSwitch.Reason.PROVIDER_AUTH
                     ? HandoffReason.PROVIDER_AUTH : HandoffReason.AI_DISABLED);
-        }
-        if (sanitized instanceof InboundSanitizer.Blocked block) {
-            log.warn("conversation.turn inbound_blocked code={}", block.policyCode());
-            return handOff(identity, id, turnId, HandoffReason.DLP_INBOUND);
         }
 
         String maskedVin = null;

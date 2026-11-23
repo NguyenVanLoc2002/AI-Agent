@@ -29,6 +29,7 @@ import com.secureerp.agent.platform.ConversationId;
 import com.secureerp.agent.platform.ErrorCode;
 import com.secureerp.agent.platform.TestKillSwitch;
 import com.secureerp.agent.policy.InboundSanitizer;
+import com.secureerp.agent.policy.PolicyCode;
 import com.secureerp.agent.quote.QuoteCards;
 import java.time.Clock;
 import java.time.Duration;
@@ -114,6 +115,35 @@ class ChatServiceTest {
 
         verify(handoffs, times(3)).open(ID, HandoffReason.AI_DISABLED, IdentityFixtures.TEAM_1);
         verify(handoffs).open(ID, HandoffReason.PROVIDER_AUTH, IdentityFixtures.TEAM_1);
+        verify(agent, never()).reply(any());
+        verify(vehicles, never()).register(any(), anyString());
+    }
+
+    /**
+     * DLP-OFF (A-51): a message the sanitizer blocked hands off as DLP_INBOUND whatever the switch says (off,
+     * unreadable, throwing, breaker open). Nothing else runs for it: no VIN intake, no agent (security review
+     * of A-51, recommended test).
+     */
+    @Test
+    void aBlockedMessageHandsOffAsDlpWhateverTheSwitchSays() {
+        when(sanitizer.sanitize(anyString())).thenReturn(new InboundSanitizer.Blocked(PolicyCode.HONEYTOKEN, "HT-COST-01"));
+        killSwitch.set(false, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        chat.post(identity, ID, UUID.randomUUID(), "x");
+        killSwitch.set(true, "usr_AAAAAAAAAAAAAAAAAAAAAA");
+        killSwitch.unreadable(true);
+        chat.post(identity, ID, UUID.randomUUID(), "x");
+        killSwitch.unreadable(false);
+        killSwitch.throwOnRead = true;
+        chat.post(identity, ID, UUID.randomUUID(), "x");
+        killSwitch.throwOnRead = false;
+        killSwitch.tripProviderAuth();
+        ChatTurn turn = chat.post(identity, ID, UUID.randomUUID(), "x");
+
+        assertThat(turn.handedOff()).isTrue();
+        assertThat(turn.reply()).isEqualTo(ChatTexts.HANDED_OFF);
+        verify(handoffs, times(4)).open(ID, HandoffReason.DLP_INBOUND, IdentityFixtures.TEAM_1);
+        verify(handoffs, never()).open(any(), eq(HandoffReason.AI_DISABLED), any());
+        verify(handoffs, never()).open(any(), eq(HandoffReason.PROVIDER_AUTH), any());
         verify(agent, never()).reply(any());
         verify(vehicles, never()).register(any(), anyString());
     }
