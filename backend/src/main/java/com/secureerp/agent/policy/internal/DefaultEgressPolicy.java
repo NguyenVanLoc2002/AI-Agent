@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Final-bytes scan (AI_GATEWAY §2.3–2.4): each string value (honeytokens + patterns), the raw
- * payload (honeytokens), then the digits of all values concatenated (sentinels split across fields).
+ * payload (honeytokens), then all values together (sentinels split across fields or messages: their
+ * digits concatenated for digit tokens, an assembly of their look-alike skeletons in any order for
+ * text tokens, SEC03-F4 / A-57).
  *
  * <p>Server-generated identifiers (trace ID, prompt ID, opaque refs and handles, masked VIN) are
  * format-validated by their egress record and contain random characters, so they get the honeytoken

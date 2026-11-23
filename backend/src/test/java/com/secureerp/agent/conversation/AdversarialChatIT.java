@@ -267,11 +267,9 @@ class AdversarialChatIT extends ChatEnvironment {
     }
 
     /**
-     * SEC03-GAPS (A-56), family 1, open finding SEC03-F4: a text honeytoken typed in two halves over two turns. Each
-     * half alone is harmless and the first turn is answered; the second turn sends both halves together in the
-     * history (ADR-011), so it must be stopped before the provider (safe expectation, written before the first run).
-     * Observed 2026-11-23: the second request carries both halves (text honeytokens are matched per value and on the
-     * raw payload only). Disabled pending the fix (IMPLEMENTATION_PLAN §2a SEC03-F4, rule 60, A-56).
+     * SEC03-GAPS (A-56), family 1, finding SEC03-F4 (fixed, A-57): a text honeytoken typed in two halves over two
+     * turns. Each half alone is harmless and the first turn is answered; the second turn sends both halves together in
+     * the history (ADR-011), so the egress policy joins the values and blocks the request ({@code DLP_EGRESS}).
      */
     static List<Arguments> splitHoneytokens() {
         return List.of(
@@ -280,7 +278,6 @@ class AdversarialChatIT extends ChatEnvironment {
                 Arguments.of("email", "Email tôi là honey.customer.a", "@example.invalid nhé"));
     }
 
-    @Disabled("SEC03-F4 open finding (A-56): fixed in IMPLEMENTATION_PLAN §2a SEC03-F4")
     @ParameterizedTest(name = "{0}")
     @MethodSource("splitHoneytokens")
     void aHoneytokenSplitAcrossTwoTurnsNeverReachesTheProviderWhole(String name, String first, String second) {
@@ -298,7 +295,25 @@ class AdversarialChatIT extends ChatEnvironment {
                 .noneMatch(body -> body.contains(head) && body.contains(tail));
         assertThat(providerBodies()).as("no provider call for the second turn").hasSize(1);
         assertThat(later.body()).contains("\"handedOff\":true");
-        assertThat(handoffReason(conversation)).isIn("DLP_INBOUND", "DLP_EGRESS");
+        assertThat(handoffReason(conversation)).isEqualTo("DLP_EGRESS");
+    }
+
+    /** SEC03-F4 (A-57): the honeytoken in three pieces over three turns; the third request is blocked. */
+    @Test
+    void aHoneytokenInThreePiecesOverThreeTurnsNeverReachesTheProviderWhole() {
+        DemoHttpClient client = loggedIn("cust-a");
+        String conversation = createConversation(client);
+        for (String piece : List.of("Gửi cho ZZH", "oney Cust")) {
+            script(text("Vâng."));
+            assertThat(send(client, conversation, piece).body()).contains("\"handedOff\":false");
+        }
+        script(text("Vâng."));
+
+        HttpResponse<String> last = send(client, conversation, "omerA nhé");
+
+        assertThat(last.body()).contains("\"handedOff\":true");
+        assertThat(handoffReason(conversation)).isEqualTo("DLP_EGRESS");
+        assertThat(providerBodies()).hasSize(2).noneMatch(body -> body.contains("omerA"));
     }
 
     /**

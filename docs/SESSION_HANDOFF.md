@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC03-GAPS missing SEC-03 attack families, 2026-11-23
+## Current: SEC03-F4 text honeytoken split across values, 2026-11-23
+- Branch `fix/SEC03-F4-split-text-honeytoken` from `main` `3fabda0` (PR #37 merged). Owner 2026-11-23 ("đồng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-57.
+- Change: `policy.internal.SensitiveDataDetector.splitHoneytoken` also checks text honeytokens: `assembles` finds a token as one value's suffix + whole values + another value's prefix, order-free, on the A-55 skeleton, edge pieces at least 3 characters (an order-preserving join failed: `role`, tool name, SKU/OE sit between the pieces; deviation from the plan recorded in A-57 for owner confirmation). `DefaultEgressPolicy` Javadoc. §2a SEC03-F4 DONE; ACC-01 report, SECURITY_TEST_MATRIX header.
+- Tests: `SensitiveDataDetectorTest` (+13), `AdversarialChatIT` F4 fixtures enabled (3, `DLP_EGRESS`) + three-turn test, `AdversarialFlowIT` customer + catalog split; `EgressSuiteFlow200IT` unchanged (pins the exact BLOCK count). Mutations: no cross-value check → 10 unit + 5 IT red; middle pieces ignored → 1 unit red; edge minimum 1 → 2 unit red; sources restored sha256.
+- Tests (VERIFIED 2026-11-23 08:03–08:06 UTC, Java 21.0.12, after the review fix): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1151, failsafe 299 (2 skipped: SEC03-F2, -F3), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
+- Review (advisory, security-auditor, one round): 4M/1L; edge minimum applied; the rest in §2a SEC03-F4-MORE (PROPOSED). NOT RUN: second round.
+- Rollback: revert (no migration).
+- Next: (1) owner pushes and opens the PR; (2) SEC03-F3 (honeytoken rule in `OutputValidator`); SEC03-F2 waits on D-01; EP-10 blocked by UX-13.
+
+## Previous: SEC03-GAPS missing SEC-03 attack families, 2026-11-23 — MERGED (PR #37, `3fabda0`)
 - Branch `feat/SEC03-GAPS-red-team-families` from `main` `0927e4d` (PR #36 merged). Owner 2026-11-23 ("Tôi đồng ý, hãy triển khai theo đề xuất" = 1A–6A): DECISIONS_REQUIRED A-56.
 - Change (tests and docs only): `AdversarialChatIT` `gapFixtures` (2: base64 and Cyrillic instructions), `aSentinelInAPriceOrCreditFailureNeverReachesTheModel` (2), control `twoHarmlessHalvesOverTwoTurnsAreAnswered`, findings `aHoneytokenInTheModelAnswerIsRejected` (5, `@Disabled`, SEC03-F3) and `aHoneytokenSplitAcrossTwoTurnsNeverReachesTheProviderWhole` (3, `@Disabled`, SEC03-F4); `AdversarialFlowIT` Cyrillic instruction in a category (1); `ArgumentParserTest.eachShapeLimitRejectsOnItsOwn`. §2a SEC03-GAPS DONE, SEC03-F3 and SEC03-F4 OPEN, SEC03-GAPS-MORE PROPOSED; ACC-01 report, SECURITY_TEST_MATRIX header.
 - Mutations (sources restored sha256): 10/10 `OutputValidator` rules red; TOOL_SCHEMA 7/7 red after the new limit test (depth, string length, array items, line count first survived).

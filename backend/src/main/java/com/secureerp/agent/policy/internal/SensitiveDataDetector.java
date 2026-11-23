@@ -112,6 +112,9 @@ public class SensitiveDataDetector {
         }
     }
 
+    /** Shortest first or last piece of a text honeytoken assembled across values (A-57). */
+    static final int MIN_EDGE_PIECE = 3;
+
     /** A text honeytoken in the form it is matched in ({@link TextNormalizer#skeleton}). */
     private record TextToken(String id, String skeleton) {
     }
@@ -181,15 +184,66 @@ public class SensitiveDataDetector {
     }
 
     /**
-     * Sentinels split across fields or messages: checks only the all-digits projection of the
-     * concatenated values (used for the whole payload, not per segment).
+     * Sentinels split across fields or messages (used for the whole payload, not per segment): the
+     * all-digits projection of the concatenated values for digit tokens, and (SEC03-F4, A-57) for
+     * text tokens an assembly of look-alike skeletons, so "ZZHoney" in one history message and
+     * "CustomerA" in the next, or half in customer text and half in a catalog string, are one token.
+     * The assembly ignores payload order, because fixed server values sit between the pieces (the
+     * message {@code role}, the tool name, SKU and OE before a category). Residuals (A-57): filler
+     * inside a value between the pieces, and pieces sent in separate requests (no cross-request
+     * window, A-46).
      */
     public Optional<Finding> splitHoneytoken(List<String> values) {
         StringBuilder digits = new StringBuilder();
         for (String value : values) {
             digits.append(TextNormalizer.digitsOnly(TextNormalizer.forMatching(value)));
         }
-        return digitTokenIn(List.of(digits.toString()));
+        Optional<Finding> digit = digitTokenIn(List.of(digits.toString()));
+        if (digit.isPresent()) {
+            return digit;
+        }
+        List<String> pieces = values.stream().map(TextNormalizer::skeleton).filter(piece -> !piece.isEmpty()).toList();
+        return textTokens.stream()
+                .filter(token -> assembles(token.skeleton(), pieces))
+                .findFirst()
+                .map(token -> new Finding(PolicyCode.HONEYTOKEN, token.id()));
+    }
+
+    /**
+     * True if the token is one piece's suffix, then any number of whole pieces, then another piece's
+     * prefix (or lies inside one piece). Pieces may come in any order and may repeat. The suffix and
+     * the prefix are at least {@value #MIN_EDGE_PIECE} characters, so a fixed server value such as the
+     * message role {@code CUSTOMER} cannot complete a token from a one- or two-letter edge (security
+     * review of A-57); a split with a shorter edge is a residual.
+     */
+    static boolean assembles(String token, List<String> pieces) {
+        int length = token.length();
+        boolean[] reached = new boolean[length];
+        for (String piece : pieces) {
+            if (piece.contains(token)) {
+                return true;
+            }
+            for (int end = MIN_EDGE_PIECE; end < length && end <= piece.length(); end++) {
+                if (piece.endsWith(token.substring(0, end))) {
+                    reached[end] = true;
+                }
+            }
+        }
+        for (int at = 1; at < length; at++) {
+            if (!reached[at]) {
+                continue;
+            }
+            String rest = token.substring(at);
+            for (String piece : pieces) {
+                if (rest.length() >= MIN_EDGE_PIECE && piece.startsWith(rest)) {
+                    return true;
+                }
+                if (piece.length() < rest.length() && rest.startsWith(piece)) {
+                    reached[at + piece.length()] = true;
+                }
+            }
+        }
+        return false;
     }
 
     private Optional<Finding> honeytokenInForm(String form) {

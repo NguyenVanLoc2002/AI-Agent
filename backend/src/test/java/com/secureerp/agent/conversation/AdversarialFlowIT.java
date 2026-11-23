@@ -73,6 +73,25 @@ class AdversarialFlowIT extends EgressFlowEnvironment {
     }
 
     /**
+     * SEC03-F4 (A-57): half of the text honeytoken in the customer message, the other half in a catalog category. Each
+     * passes on its own; the request carrying the tool result joins them and is blocked at the gateway.
+     */
+    @Test
+    void aHoneytokenSplitBetweenCustomerTextAndCatalogIsBlockedAtTheGateway() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String conversation = createConversation(customer);
+        catalog.poisonWith("Customer A");
+        script(toolCall("searchVerifiedProduct", "{\"oe\":\"" + OE + "\"}"), text("Đã gửi."));
+
+        HttpResponse<String> turn = send(customer, conversation, "Cần má phanh " + OE + " cho ZZHoney");
+
+        assertThat(turn.body()).contains("\"handedOff\":true");
+        assertThat(handoffReason(conversation)).isEqualTo("DLP_EGRESS");
+        assertThat(providerBodies()).hasSize(1).noneMatch(body -> body.contains("Customer A"));
+        assertThat(proxyBodies()).hasSize(1);
+    }
+
+    /**
      * D2: an instruction shaped as an OE code (letters, dots and dashes only) asks the model to quote 9999 units of a
      * product reference it never got: the forged reference is refused and the turn goes to staff.
      */
