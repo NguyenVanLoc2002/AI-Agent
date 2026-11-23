@@ -1,10 +1,19 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: TURN-HANDOFF-DEDUP closed as accepted residual (docs only), 2026-11-23
+## Current: DLP-OFF blocked message keeps DLP_INBOUND while the AI is off, 2026-11-23
+- Branch `fix/DLP-OFF-inbound-reason` from `main` `0d9b967` (PR #30 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý hãy triển khai" = 1A, 2A, 3A): DECISIONS_REQUIRED A-51.
+- Change: `conversation.internal.ChatService.run` checks `InboundSanitizer.Blocked` before the kill switch (blocked → `DLP_INBOUND` whether the AI is on, off, unreadable or the breaker is open; clean messages unchanged). No migration. DATA_FLOW step 2 note, ADR-013, A-44(r), A-45(k), §2a DLP-OFF (DONE).
+- Tests: `KillSwitchIT.aBlockedMessageKeepsItsDlpReasonWhileTheAiIsOff` (off, breaker, unreadable; 0 provider calls, no VIN, no tool call, value not stored or logged), `ChatServiceTest.aBlockedMessageHandsOffAsDlpWhateverTheSwitchSays`. Mutation (old order, source restored sha256) → both red.
+- Review (advisory): security-auditor 0H/0M/3L, all fixed. NOT RUN: second round, formatter, CVE scan.
+- Tests (VERIFIED 2026-11-23 03:55–03:58 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 241, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). `git diff --check` exit 0.
+- Rollback: revert (no schema change).
+- Next: (1) owner pushes, the assistant opens the PR; (2) §2a has no OPEN or PROPOSED row except AUDIT-READS (needs an owner decision whether it is wanted); SEC-DASH and AUDIT-RET BLOCKED (EP-10/ACC-01, D-09).
+
+## Previous: TURN-HANDOFF-DEDUP closed as accepted residual (docs only), 2026-11-23 — MERGED (PR #30, `0d9b967`)
 - Branch `docs/TURN-HANDOFF-DEDUP-closed` from `main` `01f79d5` (PR #29 merged; local branch deleted). Owner 2026-11-23 ("Đồng ý" = 1A, 2A): A-48(b) DECIDED, accepted residual, no code change.
 - Reason: NOT_QUOTED ends the turn at once (`DefaultToolManager` handoff-required, `DefaultAgent` returns without another model call); the gap between the refusal's handoff and `ChatService.handOff` is milliseconds while the conversation is HANDOFF_PENDING; a fix would cross quote, tools, agent and conversation; the outcome already fails safe.
 - Change: DECISIONS_REQUIRED A-48(b), IMPLEMENTATION_PLAN §2a TURN-HANDOFF-DEDUP (CLOSED). Tests: none needed (docs only); NOT RUN.
-- Next: (1) owner pushes, the assistant opens the PR; (2) owner decides AUDIT-READS or DLP-OFF (PROPOSED); otherwise §2a has no OPEN row left (SEC-DASH and AUDIT-RET BLOCKED).
+- Next (at the time): owner pushes, PR opened; AUDIT-READS or DLP-OFF to decide.
 
 ## Previous: REFUSAL-MERGE closed as intended (docs and test name only), 2026-11-23 — MERGED (PR #29, `01f79d5`)
 - Branch `docs/REFUSAL-MERGE-intended` from `main` `090fa7b` (PRs #26, #27, #28 merged; local branches cleaned, only `main` left). Owner 2026-11-23 ("Tôi đồng ý" = 1A, 2A): A-48(a) DECIDED, intended; no production change.
