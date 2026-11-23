@@ -93,4 +93,4 @@
 - **PROPOSED (IMPLEMENTATION_PLAN §2a, QA review):** SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK, SEC07-403-E2E.
 - **Review:** qa-gatekeeper (advisory, 2026-11-23): corrections applied (SEC-06 wording, SEC-02 limit, SEC-04/SEC-01/SEC-07 scope, release gate); counts confirmed against annotations where comparable.
 - **BLOCKED:** SEC-03 image OCR (no upload path); SEC-DASH stays blocked by EP-10 (UX-13).
-- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55, A-56, A-57, A-58, A-59; ADR-004, ADR-009, ADR-013, ADR-016.
+- Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55, A-56, A-57, A-58, A-59, A-60; ADR-004, ADR-009, ADR-013, ADR-016.
