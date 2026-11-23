@@ -6,6 +6,7 @@
 - Docs: `docs/design/specs/50-batch-f-man-hinh-thieu.md` (spec in the batch E format, gaps against the API, proposed reason labels for UX-17), `specs/90` catalog rows, `DESIGN_GUIDE.md` batch F, DECISIONS_REQUIRED UX-13 (designed, awaiting approval).
 - Not changed: `.claude/rules/50-frontend-ux.md` still says the screens have no design (rule 70: rules are not changed as a side effect).
 - Review (advisory, ux-workflow-reviewer, read only): 4H fixed (confirmation shows only `ConfirmationView` fields, 409 state with a new-version confirm control, `handedOff` confirmation state, staff messages labelled by `direction`, quote status label table); M/L recorded in the spec ("Trạng thái mô tả nhưng chưa vẽ", 30 s source, static dialog note).
+- After the review (owner "Tôi đồng ý theo đề xuất" = 1A, 2A, 3A): states drawn in `F1-SendStates.dc.html` and `F6-StaffStates.dc.html` (loading, empty, 403/404, 409, 429, timeout, 503, trace not found and truncated, switch error); backend gaps recorded as §2a UX13-MSG-TIME, UX13-QUOTE-SOURCE, UX13-CONV-STATE (PROPOSED). A commit of this branch landed on another session's branch by accident (shared working tree); that branch was moved back to `6ad77ec` and this branch now works in its own worktree `../AI-Agent-ux13`.
 - Tests: none (docs only). NOT RUN: browser check of the canvas; second review round.
 - Next: owner approves or edits the canvas; then EP-10 (frontend) can start from batch F plus A–E.
 

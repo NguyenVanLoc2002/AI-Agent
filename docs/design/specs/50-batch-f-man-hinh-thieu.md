@@ -145,16 +145,16 @@ Artboard: `F5-KillSwitch.dc.html` (1440×900, trang co giãn) · Đã thiết k�
 | CANCELLED | Đã hủy | Đã hủy |
 | DRAFT, CONFIRMED | không hiện cho khách (trạng thái nội bộ, chuyển tiếp ngay) | Đang xử lý |
 
-## Trạng thái mô tả nhưng chưa vẽ
+## F1 · CH-04 · Trạng thái gửi tin và F6 · Trạng thái dùng chung F2–F5
 
-Các trạng thái sau có trong đặc tả nhưng chưa có artboard riêng; vẽ trước khi code EP-10:
-- đang tải (Skeleton) cho F2–F5;
-- danh sách rỗng F2;
-- 403 / 404 cho F2–F5;
-- quá thời gian khi gửi tin (F1, F3);
-- 409 khi nhận xử lý hoặc khi khóa đang bận (F2, F3);
-- "Không tìm thấy trace" và cờ `truncated` (F4);
-- lỗi khi gạt công tắc (F5).
+Artboard: `F1-SendStates.dc.html` (390×1060) và `F6-StaffStates.dc.html` (1440×1100, trang co giãn) · Đã thiết kế (vẽ sau review, 23/11/2026)
+
+| | |
+|---|---|
+| Khách (CH-04) | Đang chờ trả lời (tin trợ lý "Đang tra cứu…", ô nhập khóa); 409 lượt trước chưa xong (giữ nội dung đang gõ); 429 gửi quá nhiều; quá thời gian (gửi lại an toàn nhờ `clientEventId`, AC-01.2); 404 không tìm thấy cuộc trò chuyện. |
+| Nhân viên (F6) | Đang tải (Skeleton) F2–F4; hộp chờ rỗng F2; 404 F3 (đã hoàn tất hoặc không còn giữ); 403 F2–F5 (xám, khóa, không đỏ); 409 F2/F3 (đã có người nhận, đang bận); quá thời gian F2–F5; 503 F3 (không ghi được nhật ký nên không hiện báo giá); F4 không tìm thấy trace và cờ `truncated` (200 dòng mỗi mục); F5 đang tắt và lỗi khi đổi công tắc. |
+| Mã tham chiếu | Lấy từ `traceId` của phản hồi lỗi (`application/problem+json`); không hiện mã HTTP, endpoint hay tên vai trò nội bộ. |
+| Thành phần dùng lại | Skeleton, EmptyState, Toast, Alert, Button, ChatMessage, AIComposer |
 
 ## Khoảng trống so với backend (chưa giải quyết)
 

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>F6 · Trạng thái màn hình nhân viên</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/tokens.css">
+<link rel="stylesheet" href="ds/autopartsagentdesignsystem_aa8546/components/bundle.css">
+<script src="ds/autopartsagentdesignsystem_aa8546/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--text-primary)}
+a{color:var(--text-link)}a:hover{color:var(--action-primary-hover)}
+</style>
+</helmet>
+<div style="min-height: 1100px; box-sizing: border-box; padding: 32px; background: var(--bg-app); display: flex; flex-direction: column; gap: 24px;">
+  <div style="display: flex; flex-direction: column; gap: 4px; max-width: 1376px;">
+    <h1 style="margin: 0; font: var(--type-page-title);">Trạng thái dùng chung cho F2–F5</h1>
+    <p style="margin: 0; font: var(--type-body); color: var(--text-secondary);">Mỗi ô là vùng nội dung của trang; sidebar và header giữ nguyên như F2–F5. Mã tham chiếu lấy từ <span class="ap-code">traceId</span> của phản hồi lỗi.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; max-width: 1376px;">
+    <section aria-label="Đang tải" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Đang tải · F2, F3, F4</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Skeleton" height="{{h20}}" width="60%"></x-import>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Skeleton" lines="{{five}}" gap="{{gap}}"></x-import>
+    </section>
+
+    <section aria-label="Hộp chờ rỗng" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Rỗng · F2</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="empty" icon="users" compact="{{yes}}" title="Chưa có yêu cầu nào" description="Khi trợ lý AI chuyển một cuộc trò chuyện cho nhóm bạn, yêu cầu sẽ hiện ở đây."></x-import>
+    </section>
+
+    <section aria-label="Không tìm thấy" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Không tìm thấy · 404 · F3</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="no-results" compact="{{yes}}" title="Không tìm thấy cuộc trò chuyện" description="Yêu cầu đã hoàn tất hoặc không còn do bạn xử lý. Quay lại hộp chờ để xem yêu cầu khác." code="Mã tham chiếu: 5a90c6e2"></x-import>
+    </section>
+
+    <section aria-label="Không có quyền" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Không có quyền · 403 · F2–F5</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="unauthorized" compact="{{yes}}" title="Bạn không có quyền xem trang này" description="Trang này dành cho nhóm khác. Liên hệ người quản lý tài khoản nếu bạn cần truy cập." code="Mã tham chiếu: 88b14e07"></x-import>
+    </section>
+
+    <section aria-label="Đã có người nhận" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Xung đột · 409 · F2, F3</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="warning" title="Yêu cầu đã có người nhận" description="Một nhân viên khác vừa nhận yêu cầu này. Danh sách đã được tải lại."></x-import>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Toast" tone="warning" title="Cuộc trò chuyện đang bận" description="Một thao tác khác đang chạy. Vui lòng thử lại sau vài giây."></x-import>
+    </section>
+
+    <section aria-label="Quá thời gian" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Quá thời gian · F2–F5</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="timeout" compact="{{yes}}" title="Yêu cầu quá thời gian" description="Chưa có thay đổi nào được ghi. Vui lòng thử lại." code="Mã tham chiếu: c3d20b18"></x-import>
+    </section>
+
+    <section aria-label="Không xem được báo giá" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Tạm không xem được · 503 · F3</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="warning" icon="server-off" title="Tạm thời không hiển thị báo giá">Hệ thống chưa ghi được nhật ký cho lần xem này nên không hiện báo giá. Vui lòng thử lại.</x-import>
+    </section>
+
+    <section aria-label="Không tìm thấy trace" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Trace · F4</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.EmptyState" variant="no-results" compact="{{yes}}" title="Không tìm thấy trace" description="Mã trace này không có bản ghi nào. Kiểm tra lại mã hoặc chọn từ danh sách sự kiện."></x-import>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="info" title="Chỉ hiện 200 dòng đầu">Trace này có nhiều bản ghi hơn giới hạn hiển thị của mỗi mục.</x-import>
+    </section>
+
+    <section aria-label="Lỗi khi đổi công tắc" style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font: var(--type-overline); text-transform: uppercase; color: var(--text-secondary);">Đổi công tắc · F5</span>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Button" variant="danger" icon-left="circle-pause" loading="{{yes}}">Đang tắt…</x-import>
+      <x-import component-from-global-scope="AutoPartsAgentDesignSystem_aa8546.Alert" tone="error" title="Không đổi được trạng thái AI">Trạng thái hiện tại giữ nguyên. Tải lại trang để xem trạng thái mới nhất rồi thử lại.</x-import>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { yes: true, five: 5, gap: 12, h20: 20 };
+  }
+}
+</script>
+</body>
+</html>
