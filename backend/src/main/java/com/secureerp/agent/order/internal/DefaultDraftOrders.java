@@ -329,10 +329,14 @@ class DefaultDraftOrders implements DraftOrders, OrderReconciliation {
     public List<UnknownDraftOrder> unknown(SessionIdentity staff) {
         Team team = SalesStaff.teamOf(staff, "reconcile", audit);
         expireUnfinished();
-        return store.unknown(team.value(), MAX_LISTED).stream()
+        List<UnknownDraftOrder> unknown = store.unknown(team.value(), MAX_LISTED).stream()
                 .map(request -> new UnknownDraftOrder(request.id(), request.quoteRef(), request.quoteVersion(),
                         request.idempotencyKey(), request.completedAt(), request.lateErpOrderRef()))
                 .toList();
+        // AUDIT-READS (A-52): best effort, collapsed per minute.
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_LIST_READ, AuditEvent.Resource.DRAFT_ORDER,
+                "UNKNOWN", staff.auditActor()));
+        return unknown;
     }
 
     @Override

@@ -52,9 +52,13 @@ class StaffChatService implements StaffChat {
     @Override
     public List<Chat.ChatMessage> messages(SessionIdentity staff, ConversationId conversation) {
         requireHolder(staff, conversation);
-        return store.messages(conversation, ChatService.MAX_LISTED_MESSAGES).stream()
+        List<Chat.ChatMessage> messages = store.messages(conversation, ChatService.MAX_LISTED_MESSAGES).stream()
                 .map(message -> new Chat.ChatMessage(message.direction().name(), message.text()))
                 .toList();
+        // AUDIT-READS (A-52, owner 2A): best effort, collapsed per minute; never which conversation or any text.
+        audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_CONVERSATION_READ,
+                AuditEvent.Resource.CONVERSATION, "READ", staff.auditActor()));
+        return messages;
     }
 
     @Override

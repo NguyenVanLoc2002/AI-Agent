@@ -21,7 +21,11 @@ public record AuditEvent(Action action, Resource resource, String outcome, Audit
         STAFF_ORDER_DECIDED,
         ORDER_RECONCILED,
         QUOTE_CONFIRMATION,
-        INSPECTOR_READ
+        INSPECTOR_READ,
+        /** AUDIT-READS (A-52, V18): staff read the messages of a conversation they hold; never which one. */
+        STAFF_CONVERSATION_READ,
+        /** AUDIT-READS (A-52, V18): staff read a work list; the outcome names the list (INBOX, UNKNOWN, AWAITING). */
+        STAFF_LIST_READ
     }
 
     /** Kind of resource only, never which one (decision 6A). */

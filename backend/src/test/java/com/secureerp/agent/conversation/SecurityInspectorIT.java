@@ -219,7 +219,8 @@ class SecurityInspectorIT extends ChatEnvironment {
         DemoHttpClient sales = loggedIn("sales-1");
         String handoff = handoffId(sales.get("/api/internal/handoffs").body());
         assertThat(sales.postEmpty("/api/internal/handoffs/" + handoff + "/claim").statusCode()).isEqualTo(200);
-        assertThat(jdbc.queryForObject("select count(*) from audit_event", Integer.class)).isEqualTo(2);
+        // The denials, the inbox read (AUDIT-READS, A-52) and the claim.
+        assertThat(jdbc.queryForObject("select count(*) from audit_event", Integer.class)).isEqualTo(3);
         DemoHttpClient reviewer = loggedIn("secrev-1");
 
         HttpResponse<String> first = reviewer.get(EVENTS + "?limit=1");
@@ -227,6 +228,10 @@ class SecurityInspectorIT extends ChatEnvironment {
         assertThat(first.body()).contains("\"action\":\"HANDOFF_CLAIMED\"").doesNotContain("ACCESS_DENIED");
         Matcher next = Pattern.compile("\"next\":\"([0-9.AK]+)\"").matcher(first.body());
         assertThat(next.find()).as(first.body()).isTrue();
+        HttpResponse<String> listRead = reviewer.get(EVENTS + "?limit=1&before=" + next.group(1));
+        assertThat(listRead.body()).contains("\"action\":\"STAFF_LIST_READ\"").contains("\"outcome\":\"INBOX\"");
+        next = Pattern.compile("\"next\":\"([0-9.AK]+)\"").matcher(listRead.body());
+        assertThat(next.find()).as(listRead.body()).isTrue();
         HttpResponse<String> second = reviewer.get(EVENTS + "?limit=1&before=" + next.group(1));
         assertThat(second.body()).contains("\"action\":\"ACCESS_DENIED\"").contains("\"occurrences\":300")
                 .doesNotContain("HANDOFF_CLAIMED");
@@ -392,8 +397,9 @@ class SecurityInspectorIT extends ChatEnvironment {
         }
         assertThat(handoffStatus(handoff)).isEqualTo("CLAIMED");
         assertThat(conversationStatus(conversation)).isEqualTo("HUMAN_ACTIVE");
+        // AUDIT-READS (A-52): the inbox read before the claim is recorded too.
         assertThat(jdbc.queryForList("select action from audit_event order by id", String.class))
-                .containsExactly("HANDOFF_CLAIMED");
+                .containsExactly("STAFF_LIST_READ", "HANDOFF_CLAIMED");
     }
 
     /**
