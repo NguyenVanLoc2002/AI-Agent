@@ -2,7 +2,7 @@
 
 Cập nhật 23/11/2026. Thiết kế trên canvas Claude Design "AutoParts – Màn hình UX-13" (private, chủ dự án), dùng AutoParts Agent Design System (bản `1795426540-5cc3`). Bản sao trong repo: `docs/design/prototypes/F*.dc.html`.
 
-**Trạng thái:** có trên canvas; chưa chạy thử trong trình duyệt; chưa phê duyệt. Đã qua một vòng review `ux-workflow-reviewer` (advisory, chỉ đọc mã). Là DESIGN PROPOSAL: không thay ADR, `docs/contracts/` hay `docs/security/RBAC_MATRIX.md`.
+**Trạng thái:** có trên canvas; chưa chạy thử trong trình duyệt; **đã phê duyệt 23/11/2026** (owner, sau PR #41/#42; UX-13, bảng nhãn UX-06 và UX-17). Đã qua một vòng review `ux-workflow-reviewer` (advisory, chỉ đọc mã). Là DESIGN PROPOSAL: không thay ADR, `docs/contracts/` hay `docs/security/RBAC_MATRIX.md`.
 
 ## Phạm vi và căn cứ
 

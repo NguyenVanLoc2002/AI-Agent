@@ -1,6 +1,13 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: UX-13 missing screens designed (batch F, docs only), 2026-11-23
+## Current: UX-13 approved (docs only), 2026-11-23
+- Branch `docs/UX-13-approved` from `main` `a4e895a` (PR #42 merged; worktree `../AI-Agent-ux13` reused for this branch, the old local branch deleted). Owner 2026-11-23 ("Tôi đã merge, hãy triển khai theo đề xuất" = 1A).
+- Change: DECISIONS_REQUIRED UX-13, UX-06, UX-17 APPROVED (batch F screens, quote status labels, handoff reason labels in `specs/50`); `specs/50` status, `specs/90` rows, `DESIGN_GUIDE.md` batch F marked approved.
+- Not changed: `.claude/rules/50-frontend-ux.md` still says these screens have no design (rule 70); to be updated only on an explicit owner request.
+- Tests: none (docs only).
+- Next: EP-10 frontend can start (dependency 9–12 + approved wireflow met); open §2a PROPOSED UX13-MSG-TIME, UX13-QUOTE-SOURCE, UX13-CONV-STATE to decide before the screens that need them.
+
+## Previous: UX-13 missing screens designed (batch F, docs only), 2026-11-23 — MERGED (PR #41 `d518cd1`, PR #42 `a4e895a`)
 - Branch `docs/UX-13-missing-screens` from `main` `6ad77ec`. Owner 2026-11-23 ("Đồng ý" = publish F4/F5, then update source).
 - Design: Claude Design canvas "AutoParts – Màn hình UX-13" (private to the owner), built with AutoParts Agent Design System version `1795426540-5cc3`. Seven artboards copied to `docs/design/prototypes/F*.dc.html`: F1 customer chat, waiting for staff, quote states (simulator channel, UX-14); F2 inbox; F3 held conversation; F4 Security Inspector; F5 AI switch. Synthetic data only.
 - Docs: `docs/design/specs/50-batch-f-man-hinh-thieu.md` (spec in the batch E format, gaps against the API, proposed reason labels for UX-17), `specs/90` catalog rows, `DESIGN_GUIDE.md` batch F, DECISIONS_REQUIRED UX-13 (designed, awaiting approval).
