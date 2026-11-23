@@ -302,13 +302,15 @@ class RefusalHandoffIT {
     }
 
     /**
-     * Security review L-1, recorded residual (A-48, OPEN DECISION): a refusal that meets an OPEN handoff
-     * with the same reason (e.g. a blocked confirmation that has not been claimed yet) merges into it with
-     * no follow-up, so resolving that handoff lifts the refusal as well. Staff claimed after the refusal
-     * was committed. This test pins today's behaviour; a decision to close it changes the expected lift.
+     * Intended (A-48(a), owner 2026-11-23, 1A; security review L-1): a refusal that meets an OPEN handoff
+     * with the same reason (e.g. a blocked confirmation not claimed yet) joins it without a follow-up. Staff
+     * claim after the refusal was committed, so resolving that handoff lifts it under the EP-08b rule (A-43
+     * 7A: staff dealt with the conversation). A follow-up would carry the same reason (SALES never see the
+     * internal one, A-43 5A) and only ask staff to resolve twice. Unlike A-43(s), the resolve cannot come
+     * before the refusal's handoff exists.
      */
     @Test
-    void aRefusalMergedIntoAnOpenHandoffWithTheSameReasonIsLiftedByItsResolve() {
+    void aRefusalMergedIntoAnOpenHandoffIsLiftedWhenStaffResolveItAfterTheRefusal() {
         String customer = customer();
         ConversationId conversation = conversation(908, customer, "ACTIVE_BOT");
         handoffs.open(conversation, HandoffReason.QUOTE_NOT_ISSUED, IdentityFixtures.TEAM_1);
