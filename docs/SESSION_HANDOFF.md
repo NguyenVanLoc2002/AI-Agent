@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: ACC-01 SEC-01..07 evidence report (docs only), 2026-11-23
+## Current: SEC03-50 red-team suite 15 → 50 attacks, 2026-11-23
+- Branch `feat/SEC03-50-red-team` from `main` `b8cdb38` (PR #34 merged; local branch deleted). Owner 2026-11-23 ("Tôi đồng ý, hãy triển khai theo đề xuất" = 1A–4A; findings "oke" = 1A, 2A): DECISIONS_REQUIRED A-54.
+- Change (tests and docs only, no production code): `AdversarialChatIT` + 25 fixtures (`moreFixtures`, rejection code and no-leak per value), 4 scenario methods (earlier-turn instruction, redacted history replay, login switch, expiry race), `openFindings` (2, `@Disabled`, A-54); new `AdversarialFlowIT` (4: catalog category/OE instructions, honeytoken in category, malicious answer after retry). ACC-01 report SEC-03 section, SECURITY_TEST_MATRIX header, §2a SEC03-50 (DONE) + SEC03-F1 (OPEN), SEC03-F2 (BLOCKED D-01), SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK, SEC07-403-E2E (PROPOSED).
+- Result: 48/50 VERIFIED; findings SEC03-F1 (Cyrillic look-alike honeytoken typed by the customer reaches the provider) and SEC03-F2 (ERP customer key typed by the customer reaches the provider). One expectation corrected after the run, stricter than written (forged productRef → `TOOL_REJECTED_REPEATED`).
+- Mutations (sources restored sha256): no LINK rule, no quantity cap, no base64 decoding inbound → the intended fixtures red.
+- Tests (VERIFIED 2026-11-23 06:37–06:40 UTC, Java 21.0.12): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1017, failsafe 279 (1 skipped = `AdversarialChatIT.openFindings`, 2 fixtures), sec05-artifact-scan 1, 0 failures; AdversarialChatIT 45, AdversarialFlowIT 4. `git diff --check` exit 0.
+- Reviews (advisory, read only): qa-gatekeeper 0H/4M/4L (applied: D1/D2 assert the poison reached the provider, `ALLOWED_TOOLS` without `UNKNOWN`, G renamed, wording "50 scenarios"); security-auditor: F1 is also an egress hole and covers digit-zero / separated forms (§2a SEC03-F1 widened), missing families → §2a SEC03-GAPS (PROPOSED). NOT RUN: second review round, formatter, CVE scan.
+- Rollback: revert (tests and docs only).
+- Next: (1) owner pushes, the assistant opens the PR; (2) SEC03-F1 (confusable folding in honeytoken matching); SEC03-F2 waits on D-01; EP-10 stays blocked by UX-13.
+
+## Previous: ACC-01 SEC-01..07 evidence report (docs only), 2026-11-23 — MERGED (PR #34, `b8cdb38`)
 - Branch `docs/ACC-01-sec-evidence` from `main` `736f665` (PR #33 merged; local branch deleted). Owner 2026-11-23 (1A). Skill `acceptance-sec`.
 - Evidence run (VERIFIED 2026-11-23 04:42–04:44 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` on `736f665` → exit 0; surefire 1017, failsafe 245, sec05 1 (`canary=present appLog=true findings=0`); SEC01-SUITE200 362 model calls, SEC01-GW200 200 calls.
 - Report `docs/security/ACC-01_SEC_EVIDENCE.md`: SEC-01, -02, -04, -07 VERIFIED within scope; SEC-06 VERIFIED by design bound (not measured); SEC-03 PARTIAL (15/50, image OCR BLOCKED); SEC-05 PARTIAL (7-day logs, APM NOT RUN); within the fixtures no leakage, no duplicate write; does not clear a release gate. qa-gatekeeper review (advisory) applied. SECURITY_TEST_MATRIX header updated; §2a SEC03-50 (PROPOSED).
