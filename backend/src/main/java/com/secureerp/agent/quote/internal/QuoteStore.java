@@ -41,7 +41,8 @@ interface QuoteStore {
      * In its own transaction under the customer and conversation locks: if the reason locks
      * ({@link NotQuotedReason#locksAndRetires()}), retire this customer's ISSUED quote in the conversation
      * that is not newer than {@code now} and revoke its handle (A-33); then write the NOT_QUOTED audit row.
-     * The reason is for staff only (A-14).
+     * A refusal that locks the customer opens the conversation's handoff in the same transaction
+     * (A-43(s)); if that fails, the refusal is still stored alone. The reason is for staff only (A-14).
      */
     void recordNotQuoted(ConversationId conversation, String customerDigest, NotQuotedReason reason, int lineCount,
             Instant now);

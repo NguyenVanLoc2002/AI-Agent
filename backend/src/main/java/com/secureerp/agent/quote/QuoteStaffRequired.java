@@ -4,9 +4,9 @@ import com.secureerp.agent.platform.ConversationId;
 import java.util.Objects;
 
 /**
- * A quote's confirmation needs staff (EP-07; DATA_FLOW §2 steps 3 and 6). Published inside the
- * transaction that changed the quote, so the conversation is locked for the bot and the handoff is
- * recorded atomically with it. The reason is internal (staff only); it never reaches the customer or
+ * A quote needs staff: its confirmation (EP-07; DATA_FLOW §2 steps 3 and 6) or a business refusal that
+ * locks the customer (A-34; A-43(s)). Published inside the transaction that changed the quote or stored
+ * the refusal, so the conversation is locked for the bot and the handoff is recorded atomically with it. The reason is internal (staff only); it never reaches the customer or
  * the model.
  *
  * @param customerDigest digest of the customer the quote belongs to; the listener changes the
@@ -15,6 +15,11 @@ import java.util.Objects;
 public record QuoteStaffRequired(ConversationId conversation, String customerDigest, Reason reason) {
 
     public enum Reason {
+        /**
+         * A quote request was refused for a reason that locks the customer (A-34). Opened with the refusal
+         * (A-43(s), owner 2026-11-23): a staff resolve can then never lift a refusal staff have not seen.
+         */
+        NOT_QUOTED,
         /** The confirmation re-check failed on stock, credit or price availability (BR-38). */
         CONFIRMATION_BLOCKED,
         /** The ERP could not be asked for the re-check. */
