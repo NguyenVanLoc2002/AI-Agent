@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC01-FLAKE-UUID sentinel checks ignore the random turnId, 2026-11-23
+## Current: INSPECTOR-BLOCK-TRACE honeytoken BLOCK in a SECREV trace, 2026-11-23
+- Branch `feat/INSPECTOR-BLOCK-TRACE-honeytoken-trace` from `fix/SEC01-FLAKE-UUID-reply-sentinel` `712f68b` (stacked). Owner 2026-11-23 ("Hãy tiến hành theo đề xuất" = 1A–4A; also: open the PRs that can merge first, keep few local branches): DECISIONS_REQUIRED A-50.
+- Change (tests and docs only): `InspectorBlockTraceIT` on the SEC-01b topology (catalog poisoned with `HT-NAME-A`): turn handed off DLP_EGRESS, provider got the first call only; SECREV trace shows PASS then BLOCK (HONEYTOKEN, HT-NAME-A, `$.toolResults[0].candidates[0].category`), field names within `EgressSuiteFlow200IT.EXPECTED_PROPERTY_NAMES` (now package-visible, content unchanged); no honeytoken value, sentinel, message or identifier. SECURITY_TEST_MATRIX, ADR-012, A-45(aa) updated.
+- Mutations of `DefaultSecurityInspector` (BLOCK rows dropped, honeytoken ID dropped, path changed) → `InspectorBlockTraceIT` exit 1; source restored (sha256).
+- Tests (VERIFIED 2026-11-23 03:25–03:27 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1016, failsafe 240, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). `git diff --check` exit 0.
+- Local branches: the 24 branches already merged into `main` were deleted locally (`git branch -d`, merged only); remote branches untouched.
+- Rollback: drop the branch (tests and docs only).
+- Next: (1) owner pushes the three stacked branches (push is denied to the assistant); the assistant then opens the PRs in order: A-43(s) → main, SEC01-FLAKE-UUID → A-43(s) branch, INSPECTOR-BLOCK-TRACE → SEC01 branch; (2) owner decides REFUSAL-MERGE, TURN-HANDOFF-DEDUP, AUDIT-READS, DLP-OFF (PROPOSED).
+
+## Previous: SEC01-FLAKE-UUID sentinel checks ignore the random turnId, 2026-11-23 — committed `712f68b`, not pushed
 - Branch `fix/SEC01-FLAKE-UUID-reply-sentinel` from `fix/A-43s-refusal-handoff-atomic` `5146442` (stacked: the §2a row lives there). Owner 2026-11-23 ("Tôi đồng ý đề xuất" = 1A commit A-43(s), 2A this issue next, 3A then INSPECTOR-BLOCK-TRACE): DECISIONS_REQUIRED A-49.
 - Change (tests only; security test baseline changed with owner approval, rule 70): new `conversation.ChatBodies.withoutTurnId` (the single `turnId`, strict UUID form, replaced before the check; the rest of the body still checked); used in `EgressSuiteFlow200IT` case 10, `ChatFlowIT` (555, 401), `KillSwitchIT` (401).
 - Tests: `ChatBodiesTest` (3, with the observed `turnId` `ef481555-…401`). Mutations (helper source restored, sha256): strip the whole body → 2 red; accept any non-UUID turnId → the rejection test red.
