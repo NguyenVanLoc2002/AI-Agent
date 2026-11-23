@@ -68,7 +68,7 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
      * (security review M3): a new record component fails here until it is reviewed, even though the production
      * allowlist would accept it.
      */
-    private static final Set<String> EXPECTED_PROPERTY_NAMES = Set.of(
+    static final Set<String> EXPECTED_PROPERTY_NAMES = Set.of(
             "traceId", "systemPromptId", "messages", "context", "toolResults", "tools", "budget",
             "role", "text",
             "maskedVin", "vinRef", "vehicleModel", "partCategory", "requestedQuantity", "verifiedProducts", "quoteHandle",
