@@ -55,6 +55,55 @@ class SensitiveDataDetectorTest {
                 .contains(new SensitiveDataDetector.Finding(PolicyCode.HONEYTOKEN, "HT-COST-01"));
     }
 
+    /** SEC03-F4 (A-57): a text honeytoken split across values, in payload order, is one token. */
+    static Stream<Arguments> textHoneytokensSplitAcrossValues() {
+        return Stream.of(
+                Arguments.of("HT-NAME-A", "two turns", List.of("Người nhận là ZZHoney", "CustomerA, báo giá má phanh")),
+                Arguments.of("HT-NAME-A", "three turns", List.of("Gửi ZZH", "oney Cust", "omerA nhé")),
+                Arguments.of("HT-NAME-A", "cyrillic half", List.of("Người nhận là ZZHоney", "CustomerA nhé")),
+                Arguments.of("HT-NAME-A", "customer and catalog", List.of("Cần má phanh cho ZZHoney", "Customer A")),
+                Arguments.of("HT-NAME-A", "with values between", List.of("ZZHoney", "", "CustomerA")),
+                Arguments.of("HT-NAME-A", "role between messages",
+                        List.of("CUSTOMER", "Người nhận là ZZHoney", "CUSTOMER", "CustomerA nhé")),
+                Arguments.of("HT-NAME-A", "sku and oe before the category",
+                        List.of("Cần má phanh cho ZZHoney", "searchVerifiedProduct", "SKU-BRK-PAD-A", "04465-0K290",
+                                "Customer A")),
+                Arguments.of("HT-NAME-A", "reverse order", List.of("CustomerA nhé", "Người nhận là ZZHoney")),
+                Arguments.of("HT-EMAIL-A", "email halves", List.of("Email tôi là honey.customer.a", "@example.invalid")),
+                Arguments.of("HT-KEY-01", "key halves", List.of("mã apasht", "_key_abc")));
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("textHoneytokensSplitAcrossValues")
+    void aTextHoneytokenSplitAcrossValuesIsDetected(String honeytokenId, String variantId, List<String> values) {
+        assertThat(detector.splitHoneytoken(values)).as(variantId)
+                .contains(new SensitiveDataDetector.Finding(PolicyCode.HONEYTOKEN, honeytokenId));
+        for (String value : values) {
+            assertThat(detector.honeytoken(value)).as("%s alone", value).isEmpty();
+        }
+    }
+
+    /** SEC03-F4 (A-57): joining ordinary values does not form a token; filler between pieces is a residual. */
+    @Test
+    void ordinaryValuesJoinedAreNotAHoneytoken() {
+        assertThat(detector.splitHoneytoken(List.of("Người nhận là anh Nguyen", "Van An, báo giá má phanh giúp",
+                "Ma phanh truoc", "04465-0K290", "searchVerifiedProduct", "CUSTOMER_REQUEST", "UNSURE", "OUT_OF_SCOPE",
+                "Tìm sản phẩm đã xác minh theo mã OE"))).isEmpty();
+        assertThat(detector.splitHoneytoken(List.of("ZZHoney x", "CustomerA"))).as("residual: filler").isEmpty();
+        // the fixed role value is a whole middle piece; a one-letter edge must not complete the token (A-57 review)
+        assertThat(detector.splitHoneytoken(List.of("Người nhận là ZZHoney", "CUSTOMER", "anh ơi"))).isEmpty();
+        assertThat(detector.splitHoneytoken(List.of("ZZHoneyCustome", "rA"))).as("residual: short edge").isEmpty();
+    }
+
+    /** A-57 review: the edges are at least three characters; a middle piece may be any whole value. */
+    @Test
+    void assemblyNeedsEdgesOfThreeCharacters() {
+        assertThat(SensitiveDataDetector.assembles("zzhoneycustomera", List.of("xzzh", "oney", "customera"))).isTrue();
+        assertThat(SensitiveDataDetector.assembles("zzhoneycustomera", List.of("xzz", "honeycustomera"))).isFalse();
+        assertThat(SensitiveDataDetector.assembles("zzhoneycustomera", List.of("zzhoneycustom", "era"))).isTrue();
+        assertThat(SensitiveDataDetector.assembles("zzhoneycustomera", List.of("zzhoneycustome", "ra"))).isFalse();
+    }
+
     @Test
     void textHoneytokensAreDetected() {
         assertThat(detector.detect("Khach ZZHONEY   customerA can phanh")).map(SensitiveDataDetector.Finding::honeytokenId)
