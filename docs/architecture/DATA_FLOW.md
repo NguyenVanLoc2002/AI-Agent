@@ -69,7 +69,7 @@ Trigger (reason code tại `docs/security/THREAT_MODEL.md` §5) → conversation
 |---|---|---|---|
 | LLM provider | WireMock/Fake qua proxy local | gateway + policy | SEC-01 capture kép |
 | Log/console | có | logging policy, không body | SEC-05 |
-| audit_event / egress_record | có | field names, honeytoken ID/policy code, length; không HMAC theo giá trị | SEC-05, T-SEC05-INSPECTOR |
+| audit_event / egress_record | có | field names, honeytoken ID/policy code, length, `direction` (A-59: REQUEST / RESPONSE khi gateway giữ lại câu trả lời); không HMAC theo giá trị | SEC-05, T-SEC05-INSPECTOR |
 | Test artifacts | có | fixture synthetic; scan | SEC-05 |
 | APM/tracing | tắt trong PoC | — | OPEN trước khi bật |
 | Zalo, VIN service, ERP thật | không | MVP | skill `privacy-egress-review` |

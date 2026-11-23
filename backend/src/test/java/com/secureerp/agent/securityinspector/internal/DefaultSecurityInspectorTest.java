@@ -48,7 +48,7 @@ class DefaultSecurityInspectorTest {
         public List<EgressRow> egressOfTrace(String traceId, int limit) {
             List<EgressRow> rows = new ArrayList<>();
             for (int i = 0; i < Math.min(traceRows, limit); i++) {
-                rows.add(new EgressRow("PASS", 1, null, null, null, List.of("messages"), 10, NOW));
+                rows.add(new EgressRow("PASS", 1, null, null, null, List.of("messages"), 10, NOW, "REQUEST"));
             }
             return rows;
         }

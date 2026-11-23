@@ -75,7 +75,7 @@ class DefaultSecurityInspector implements SecurityInspector {
         // AUDIT-FLOOD: one row more than shown tells whether a section was cut.
         List<EgressView> egress = audits.egressOfTrace(traceId, MAX_TRACE_ROWS + 1).stream()
                 .map(row -> new EgressView(row.decision(), row.attempt(), row.policyCode(), row.honeytokenId(),
-                        row.blockedFieldPath(), row.fieldNames(), row.byteLength(), row.occurredAt()))
+                        row.blockedFieldPath(), row.fieldNames(), row.byteLength(), row.occurredAt(), row.direction()))
                 .toList();
         List<ToolView> calls = tools.ofTurn(traceId, MAX_TRACE_ROWS + 1).stream()
                 .map(row -> new ToolView(row.toolName(), row.decision(), row.reasonCode(), row.occurredAt()))

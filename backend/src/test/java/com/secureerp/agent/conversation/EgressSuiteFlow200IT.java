@@ -86,6 +86,8 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
     private final Map<Outcome, Integer> outcomes = new EnumMap<>(Outcome.class);
     private int expectedModelCalls;
     private int expectedGatewayBlocks;
+    /** SEC03-F3-AUDIT (A-59): answers the gateway withheld for a honeytoken (script 10: the price sentinel). */
+    private int expectedWithheldAnswers;
     private int retries;
     private int inboundCount;
 
@@ -110,8 +112,15 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
         assertThat(provider).hasSize(expectedModelCalls + retries);
         assertThat(adapter).hasSameSizeAs(provider);
         assertThat(proxy).hasSameSizeAs(provider);
-        assertThat(count("select count(*) from egress_record where decision = 'PASS'")).isEqualTo(provider.size());
-        assertThat(count("select count(*) from egress_record where decision = 'BLOCK'")).isEqualTo(expectedGatewayBlocks);
+        // A-59: request rows only; a withheld answer is a RESPONSE row of its own.
+        assertThat(count("select count(*) from egress_record where decision = 'PASS' and direction = 'REQUEST'"))
+                .isEqualTo(provider.size());
+        assertThat(count("select count(*) from egress_record where decision = 'BLOCK' and direction = 'REQUEST'"))
+                .isEqualTo(expectedGatewayBlocks);
+        assertThat(count("select count(*) from egress_record where direction = 'RESPONSE' and decision = 'BLOCK' "
+                + "and policy_code = 'HONEYTOKEN' and honeytoken_id = 'HT-PRICE-A' and blocked_field_path = '$.text'"))
+                .isEqualTo(expectedWithheldAnswers).isPositive();
+        assertThat(count("select count(*) from egress_record where direction = 'RESPONSE'")).isEqualTo(expectedWithheldAnswers);
 
         // 0 sentinels, seed prices or typed values at every egress capture.
         for (List<byte[]> capture : List.of(adapter, proxy, provider)) {
@@ -312,6 +321,7 @@ class EgressSuiteFlow200IT extends EgressFlowEnvironment {
                 handedOff(response, conversation, "OUTPUT_REJECTED");
                 assertThat(ChatBodies.withoutTurnId(response.body())).doesNotContain("555");
                 expectCalls(1, before, Outcome.OUTPUT_REJECTED);
+                expectedWithheldAnswers++;
             }
             case 11 -> {
                 script(toolCall("searchVerifiedProduct", "{\"oe\":\"" + OE + "\",\"customerId\":\"SYNTH-CUST-B\"}"),

@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
  * leaving the adapter (not configured, connection refused) still has its row, so rows may exceed
  * requests, never the reverse (third review L1).
  *
+ * <p>SEC03-F3-AUDIT (A-59): {@link Direction#RESPONSE} records a model answer the gateway withheld (SEC03-F3):
+ * always a BLOCK, with the attempt that produced the answer; a request keeps {@link Direction#REQUEST}.
+ *
  * <p>Every string is validated against a narrow format, so a value cannot be smuggled into the
  * audit table by mistake. Defined in {@code audit} so that audit depends on no business module
  * (ARCH-10).
@@ -30,11 +33,18 @@ public record EgressDecisionEvent(
         List<String> fieldNames,
         int byteLength,
         Instant occurredAt,
-        int attempt) {
+        int attempt,
+        Direction direction) {
 
     public enum Decision {
         PASS,
         BLOCK
+    }
+
+    /** What the decision is about: a request to the provider, or the provider's answer (A-59). */
+    public enum Direction {
+        REQUEST,
+        RESPONSE
     }
 
     private static final Pattern TRACE_ID =
@@ -50,6 +60,7 @@ public record EgressDecisionEvent(
     public EgressDecisionEvent {
         require(traceId, TRACE_ID, "traceId");
         Objects.requireNonNull(decision, "decision");
+        Objects.requireNonNull(direction, "direction");
         Objects.requireNonNull(occurredAt, "occurredAt");
         fieldNames = List.copyOf(fieldNames);
         if (fieldNames.size() > MAX_FIELD_NAMES) {
@@ -59,7 +70,16 @@ public record EgressDecisionEvent(
         if (byteLength < 0) {
             throw new IllegalArgumentException("byteLength");
         }
-        if (decision == Decision.PASS) {
+        if (direction == Direction.RESPONSE) {
+            if (decision != Decision.BLOCK || attempt < 1 || attempt > MAX_ATTEMPT) {
+                throw new IllegalArgumentException("invalid audit field: attempt");
+            }
+            require(policyCode, CODE, "policyCode");
+            require(blockedFieldPath, FIELD_PATH, "blockedFieldPath");
+            if (honeytokenId != null) {
+                require(honeytokenId, HONEYTOKEN_ID, "honeytokenId");
+            }
+        } else if (decision == Decision.PASS) {
             if (attempt < 1 || attempt > MAX_ATTEMPT) {
                 throw new IllegalArgumentException("invalid audit field: attempt");
             }

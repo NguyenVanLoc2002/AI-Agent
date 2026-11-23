@@ -11,7 +11,8 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Persists {@link EgressDecisionEvent}s into {@code egress_record} (V2, V3 migrations).
+ * Persists {@link EgressDecisionEvent}s into {@code egress_record} (V2, V3, V14, V19 migrations; V19 adds the
+ * direction, A-59).
  *
  * <p>Invariants the gateway's "no egress without an audit record" guarantee depends on
  * (AI_GATEWAY §6a). Do not change them without changing the gateway:
@@ -47,11 +48,11 @@ class EgressRecordWriter implements EgressAuditLog {
         ownTransaction.executeWithoutResult(status -> jdbc.update("""
                 insert into egress_record
                     (trace_id, decision, attempt, policy_code, honeytoken_id, blocked_field_path, field_names,
-                     byte_length, occurred_at, request_id)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     byte_length, occurred_at, request_id, direction)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 event.traceId(), event.decision().name(), event.attempt(), event.policyCode(), event.honeytokenId(),
                 event.blockedFieldPath(), String.join(",", event.fieldNames()), event.byteLength(),
-                Timestamp.from(event.occurredAt()), TraceIds.current().orElse(null)));
+                Timestamp.from(event.occurredAt()), TraceIds.current().orElse(null), event.direction().name()));
     }
 }

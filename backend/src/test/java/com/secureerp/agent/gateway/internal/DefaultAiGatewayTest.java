@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -88,26 +89,103 @@ class DefaultAiGatewayTest {
     }
 
     /**
-     * SEC03-F3 (A-58): a honeytoken in the answer text or in a tool proposal's arguments withholds the answer; the
-     * provider is called once (no retry) and the log names the honeytoken ID, never the answer.
+     * SEC03-F3 (A-58): a honeytoken in the answer text, a tool proposal's name or arguments, or assembled across them
+     * withholds the answer; the provider is called once (no retry) and the log names the honeytoken ID, never the
+     * answer. SEC03-F3-AUDIT (A-59): one RESPONSE row with the exact structural path of the value.
      */
+    static Stream<Arguments> withheldAnswers() {
+        return Stream.of(
+                Arguments.of("plain text", "{\"text\":\"Khach ZZHoney CustomerA da hoi\"}", "HT-NAME-A", "$.text"),
+                Arguments.of("cyrillic text", "{\"text\":\"Khach ZZH\\u043eney CustomerA da hoi\"}", "HT-NAME-A",
+                        "$.text"),
+                Arguments.of("base64 text", "{\"text\":\"Ma tham chieu: WlpIb25leSBDdXN0b21lckE=\"}", "HT-NAME-A",
+                        "$.text"),
+                Arguments.of("digit token", "{\"text\":\"Gia von 987654321\"}", "HT-COST-01", "$.text"),
+                Arguments.of("tool arguments", "{\"toolProposals\":[{\"name\":\"searchVerifiedProduct\",\"argumentsJson\":"
+                        + "\"{\\\"category\\\":\\\"ZZHoney CustomerA\\\",\\\"vehicleModel\\\":\\\"Vios\\\"}\"}]}",
+                        "HT-NAME-A", "$.toolProposals[0].argumentsJson"),
+                Arguments.of("tool name", "{\"toolProposals\":[{\"name\":\"searchVerifiedProduct\",\"argumentsJson\":"
+                        + "\"{}\"},{\"name\":\"zzHoneyCustomerA\",\"argumentsJson\":\"{}\"}]}", "HT-NAME-A",
+                        "$.toolProposals[1].name"),
+                Arguments.of("across values", "{\"text\":\"Khach ZZHoney\",\"toolProposals\":[{\"name\":"
+                        + "\"customerAsk\",\"argumentsJson\":\"{}\"}]}", "HT-NAME-A", "$"));
+    }
+
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {
-        "{\"text\":\"Khach ZZHoney CustomerA da hoi\"}",
-        "{\"text\":\"Khach ZZH\\u043eney CustomerA da hoi\"}",
-        "{\"text\":\"Ma tham chieu: WlpIb25leSBDdXN0b21lckE=\"}",
-        "{\"text\":\"Gia von 987654321\"}",
-        "{\"toolProposals\":[{\"name\":\"searchVerifiedProduct\",\"argumentsJson\":\"{\\\"category\\\":\\\"ZZHoney CustomerA\\\",\\\"vehicleModel\\\":\\\"Vios\\\"}\"}]}"
-    })
-    void anAnswerCarryingAHoneytokenIsWithheld(String answer, CapturedOutput output) {
+    @MethodSource("withheldAnswers")
+    void anAnswerCarryingAHoneytokenIsWithheld(String name, String answer, String honeytokenId, String path,
+            CapturedOutput output) {
         provider.replies.add(new ProviderReply(200, answer.getBytes(StandardCharsets.UTF_8)));
 
         GatewayResult result = gateway().complete(EgressFixtures.request("Toi can ma phanh truoc"));
 
         assertThat(result).isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
         assertThat(provider.sent).hasSize(1);
-        assertThat(output.getAll()).contains("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId=HT-")
+        assertThat(output.getAll()).contains("gateway.response decision=BLOCK policy=HONEYTOKEN honeytokenId=" + honeytokenId)
                 .doesNotContain("ZZHoney").doesNotContain("CustomerA").doesNotContain("987654321");
+        assertThat(published).hasSize(2);
+        assertThat(((EgressDecisionEvent) published.get(0)).direction()).isEqualTo(EgressDecisionEvent.Direction.REQUEST);
+        EgressDecisionEvent withheld = (EgressDecisionEvent) published.get(1);
+        assertThat(withheld.direction()).isEqualTo(EgressDecisionEvent.Direction.RESPONSE);
+        assertThat(withheld.decision()).isEqualTo(EgressDecisionEvent.Decision.BLOCK);
+        assertThat(withheld.attempt()).isEqualTo(1);
+        assertThat(withheld.policyCode()).isEqualTo("HONEYTOKEN");
+        assertThat(withheld.honeytokenId()).isEqualTo(honeytokenId);
+        assertThat(withheld.blockedFieldPath()).isEqualTo(path);
+        assertThat(withheld.toString()).doesNotContain("ZZHoney").doesNotContain("987654321");
+    }
+
+    /** SEC03-F3-AUDIT (A-59) review: an answer to the retry is recorded with the attempt that produced it. */
+    @Test
+    void aWithheldAnswerToTheRetryCarriesItsAttempt() {
+        provider.replies.add(new ProviderReply(503, new byte[0]));
+        provider.replies.add(new ProviderReply(200, "{\"text\":\"Khach ZZHoney CustomerA\"}".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(gateway().complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
+        assertThat(published).extracting(event -> {
+            EgressDecisionEvent e = (EgressDecisionEvent) event;
+            return e.direction() + ":" + e.decision() + ":" + e.attempt();
+        }).containsExactly("REQUEST:PASS:1", "REQUEST:PASS:2", "RESPONSE:BLOCK:2");
+    }
+
+    /** SEC03-F3-AUDIT (A-59) review: a screen that throws, or names a value that does not exist, is a SCREEN_FAILED row. */
+    @Test
+    void aBrokenScreenIsRecordedAsAScreenFailure() {
+        ResponseScreen throwing = values -> {
+            throw new IllegalStateException("screen down");
+        };
+        ResponseScreen outOfRange = values -> Optional.of(new ResponseScreen.Hit("HT-NAME-A", values.size()));
+        for (ResponseScreen broken : List.of(throwing, outOfRange)) {
+            published.clear();
+            provider.replies.add(new ProviderReply(200, OK_RESPONSE));
+
+            assertThat(new DefaultAiGateway(policy, broken, provider, publisher, clock, killSwitch)
+                    .complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                    .isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
+            EgressDecisionEvent withheld = (EgressDecisionEvent) published.get(1);
+            assertThat(withheld.direction()).isEqualTo(EgressDecisionEvent.Direction.RESPONSE);
+            assertThat(withheld.policyCode()).isEqualTo("SCREEN_FAILED");
+            assertThat(withheld.honeytokenId()).isNull();
+            assertThat(withheld.blockedFieldPath()).isEqualTo("$");
+        }
+    }
+
+    /** SEC03-F3-AUDIT (A-59, 3A): the answer stays withheld when its record cannot be written. */
+    @Test
+    void anAnswerIsWithheldEvenWhenItsRecordFails() {
+        provider.replies.add(new ProviderReply(200, "{\"text\":\"Khach ZZHoney CustomerA\"}".getBytes(StandardCharsets.UTF_8)));
+        EgressAuditLog requestsOnly = event -> {
+            if (event.direction() == EgressDecisionEvent.Direction.RESPONSE) {
+                throw new IllegalStateException("audit down");
+            }
+            published.add(event);
+        };
+
+        assertThat(new DefaultAiGateway(policy, screen, provider, requestsOnly, clock, killSwitch)
+                .complete(EgressFixtures.request("Toi can ma phanh truoc")))
+                .isEqualTo(new GatewayResult.Refused(RefusalReason.OUTPUT_HONEYTOKEN));
+        assertThat(published).hasSize(1);
     }
 
     /** SEC03-F3 (A-58): an ordinary answer and ordinary tool arguments pass the screen unchanged. */

@@ -28,11 +28,12 @@ class JdbcAuditQueries implements AuditQueries {
     @Override
     public List<EgressRow> egressOfTrace(String traceId, int limit) {
         return jdbc.query("select decision, attempt, policy_code, honeytoken_id, blocked_field_path, field_names, "
-                        + "byte_length, occurred_at from egress_record where trace_id = ? or request_id = ? order by id limit ?",
+                        + "byte_length, occurred_at, direction from egress_record where trace_id = ? or request_id = ? "
+                        + "order by id limit ?",
                 (rs, row) -> new EgressRow(rs.getString("decision"), rs.getInt("attempt"), rs.getString("policy_code"),
                         rs.getString("honeytoken_id"), rs.getString("blocked_field_path"),
                         names(rs.getString("field_names")), rs.getInt("byte_length"),
-                        rs.getTimestamp("occurred_at").toInstant()),
+                        rs.getTimestamp("occurred_at").toInstant(), rs.getString("direction")),
                 traceId, traceId, limit);
     }
 

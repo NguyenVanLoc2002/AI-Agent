@@ -94,11 +94,14 @@ class EgressSuiteGw200IT extends FakeProviderEnvironment {
         assertThat(EgressScan.countWithSentinel(provider.stream())).as("provider capture").isZero();
         List<String> auditRows = jdbc.queryForList(
                 "select concat_ws('|', trace_id, decision, policy_code, honeytoken_id, blocked_field_path, field_names)"
-                        + " from egress_record", String.class);
+                        + " from egress_record where direction = 'REQUEST'", String.class);
         // One BLOCK row per refusal, one PASS row per send attempt (retries included): audit = capture.
         assertThat(auditRows).hasSize(counters.blocked + adapter.size());
-        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'PASS'", Integer.class))
-                .isEqualTo(provider.size());
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'PASS' and direction = 'REQUEST'",
+                Integer.class)).isEqualTo(provider.size());
+        // A-59: the scripted answers carry no honeytoken, so no answer is withheld.
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where direction = 'RESPONSE'", Integer.class))
+                .isZero();
         assertThat(auditRows).noneMatch(EgressScan::containsSentinel);
         assertThat(EgressScan.containsSentinel(output.getAll())).as("log output").isFalse();
 
@@ -114,8 +117,8 @@ class EgressSuiteGw200IT extends FakeProviderEnvironment {
         // Every property name of every sent request is allowlisted.
         assertThat(provider).allSatisfy(body -> assertThat(EgressSerializer.structure(body)).isPresent());
 
-        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'BLOCK'", Integer.class))
-                .isEqualTo(counters.blocked);
+        assertThat(jdbc.queryForObject("select count(*) from egress_record where decision = 'BLOCK' and direction = 'REQUEST'",
+                Integer.class)).isEqualTo(counters.blocked);
         assertThat(counters.blocked).isPositive();
         assertThat(counters.passed).isPositive();
         assertThat(counters.inboundBlocked).isPositive();
