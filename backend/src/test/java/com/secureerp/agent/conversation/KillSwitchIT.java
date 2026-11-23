@@ -221,7 +221,8 @@ class KillSwitchIT extends ChatEnvironment {
         HttpResponse<String> answer = send(customer, first, "Tôi cần má phanh cho xe");
 
         assertThat(answer.statusCode()).isEqualTo(200);
-        assertThat(answer.body()).contains("\"handedOff\":true").doesNotContain("Exception").doesNotContain("401")
+        assertThat(ChatBodies.withoutTurnId(answer.body())).contains("\"handedOff\":true").doesNotContain("Exception")
+                .doesNotContain("401")
                 .doesNotContain("at com.");
         assertThat(handoffReason(first, 0)).isEqualTo("PROVIDER_AUTH");
         assertThat(switchEvents("PROVIDER_AUTH", false)).isEqualTo(1);

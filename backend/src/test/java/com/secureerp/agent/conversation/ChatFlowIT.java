@@ -211,7 +211,7 @@ class ChatFlowIT extends ChatEnvironment {
         String priced = createConversation(client);
         script(text("Giá má phanh là 555.444.333 đ"));
         HttpResponse<String> response = send(client, priced, "giá bao nhiêu?");
-        assertThat(response.body()).contains("\"handedOff\":true").doesNotContain("555");
+        assertThat(ChatBodies.withoutTurnId(response.body())).contains("\"handedOff\":true").doesNotContain("555");
         assertThat(handoffReason(priced)).isEqualTo("OUTPUT_REJECTED");
 
         String invented = createConversation(client);
@@ -230,7 +230,7 @@ class ChatFlowIT extends ChatEnvironment {
         providerStatus(401);
         HttpResponse<String> response = send(client, revoked, "Xin chào");
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains("\"handedOff\":true").doesNotContain("401");
+        assertThat(ChatBodies.withoutTurnId(response.body())).contains("\"handedOff\":true").doesNotContain("401");
         assertThat(handoffReason(revoked)).isEqualTo("PROVIDER_AUTH");
         // EP-09a (ADR-013, decision 5A): the 401 opened the provider-auth breaker; only an operator closes it
         // (covered in KillSwitchIT). Closed here so the next case tests a provider outage on its own.

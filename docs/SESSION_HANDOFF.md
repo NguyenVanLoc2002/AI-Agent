@@ -1,6 +1,14 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: A-43(s) refusal and its handoff in one transaction, 2026-11-23
+## Current: SEC01-FLAKE-UUID sentinel checks ignore the random turnId, 2026-11-23
+- Branch `fix/SEC01-FLAKE-UUID-reply-sentinel` from `fix/A-43s-refusal-handoff-atomic` `5146442` (stacked: the §2a row lives there). Owner 2026-11-23 ("Tôi đồng ý đề xuất" = 1A commit A-43(s), 2A this issue next, 3A then INSPECTOR-BLOCK-TRACE): DECISIONS_REQUIRED A-49.
+- Change (tests only; security test baseline changed with owner approval, rule 70): new `conversation.ChatBodies.withoutTurnId` (the single `turnId`, strict UUID form, replaced before the check; the rest of the body still checked); used in `EgressSuiteFlow200IT` case 10, `ChatFlowIT` (555, 401), `KillSwitchIT` (401).
+- Tests: `ChatBodiesTest` (3, with the observed `turnId` `ef481555-…401`). Mutations (helper source restored, sha256): strip the whole body → 2 red; accept any non-UUID turnId → the rejection test red.
+- Tests (VERIFIED 2026-11-23 03:05–03:07 UTC, Java 21.0.12, Docker 28.3.0): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1016, failsafe 239, sec05-artifact-scan 1 (`canary=present appLog=true findings=0`), 0 failures, 0 skipped; SEC01-SUITE200 unchanged (362 model calls). One run proves no flake rate; NOT RUN: repeated runs of the suite. Not committed.
+- Rollback: drop the branch (tests only).
+- Next: (1) owner approves the commit (proposed `test(conversation): ignore the random turnId in sentinel checks`); owner pushes both branches (A-43(s) first); (2) INSPECTOR-BLOCK-TRACE (3A); (3) owner decides REFUSAL-MERGE, TURN-HANDOFF-DEDUP (PROPOSED).
+
+## Previous: A-43(s) refusal and its handoff in one transaction, 2026-11-23 — committed `5146442`, not pushed
 - Branch `fix/A-43s-refusal-handoff-atomic` from `main` `3b1cfc5` (EP-09 merged, PR #25). Picked by `/implement-issue` from IMPLEMENTATION_PLAN §2a (first OPEN row). Owner decisions 2026-11-23 ("Tôi đồng ý với đề xuất" = 1A–4A): DECISIONS_REQUIRED A-48.
 - Change (no migration): `quote.internal.JdbcQuoteStore.recordNotQuoted` publishes `QuoteStaffRequired` (new reason `NOT_QUOTED`) inside the refusal's transaction for refusals that lock the customer (A-34), after the quote locks; `conversation.internal.QuoteStaffRequiredListener` maps it to handoff `QUOTE_NOT_ISSUED` and logs the trigger; when the handoff cannot be opened (`HandoffNotOpened`) the refusal is stored alone (ERROR log, class name only). `ChatService` unchanged.
 - Tests: `RefusalHandoffIT` (7: same transaction; refusal while staff hold → follow-up, no lift; two transactions resolve-first → not lifted, new handoff; non-locking reasons open none here; unbound conversation; real handoff lock timeout → refusal alone, quote retired once, still locked; residual A-48(a) pinned), `QuoteStaffRequiredListenerTest` (2).
