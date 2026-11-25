@@ -1,11 +1,11 @@
 import { expect, type Browser, type Page } from '@playwright/test';
-import { BASE_URL } from './env';
+import { BASE_URL, FAKE_PROVIDER_URL } from './env';
 
 // FE-E2E (A-71) helpers. Synthetic demo users of application-demo.yml only. The password is read from the
 // environment at call time and only typed into the password field or sent in the login form; it never
 // appears in a test name, an assertion message or a file.
 
-export type DemoUser = 'ops-1' | 'sales-1' | 'secrev-1' | 'cust-a';
+export type DemoUser = 'ops-1' | 'sales-1' | 'sales-2' | 'secrev-1' | 'cust-a' | 'cust-c';
 
 export function demoPassword(): string {
   const password = process.env.APAS_DEMO_PASSWORD;
@@ -152,4 +152,43 @@ export async function ensureAiOn(browser: Browser): Promise<void> {
     }
     expect(await readAiSwitch(page), 'AI is on').toBe(true);
   });
+}
+
+/** The per-run token of the Fake provider's test endpoints (playwright.config.ts). */
+function fakeHeaders(): Record<string, string> {
+  const token = process.env.APAS_E2E_FAKE_TOKEN;
+  if (!token) throw new Error('APAS_E2E_FAKE_TOKEN is not set (run through playwright.config.ts)');
+  return { 'X-E2E-Token': token };
+}
+
+/** FE-E2E-FLOWS (A-72): how many calls the Fake provider has received since it started. */
+export async function fakeProviderCalls(): Promise<number> {
+  const response = await fetch(`${FAKE_PROVIDER_URL}/__e2e/calls`, { headers: fakeHeaders(), redirect: 'error' });
+  if (!response.ok) throw new Error(`fake provider: calls ${response.status}`);
+  const body = (await response.json()) as { calls: unknown };
+  if (typeof body.calls !== 'number') throw new Error('fake provider: unreadable call count');
+  return body.calls;
+}
+
+/** FE-E2E-FLOWS (A-72): whether any body the Fake provider received contains `needle` (yes or no only). */
+export async function reachedProvider(needle: string): Promise<boolean> {
+  const response = await fetch(`${FAKE_PROVIDER_URL}/__e2e/contains`, {
+    method: 'POST', headers: { ...fakeHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ needle }), redirect: 'error',
+  });
+  if (!response.ok) throw new Error(`fake provider: contains ${response.status}`);
+  const body = (await response.json()) as { found: unknown };
+  if (typeof body.found !== 'boolean') throw new Error('fake provider: unreadable answer');
+  return body.found;
+}
+
+/** The customer's current conversation, as the chat screen remembers it for the tab (A-68). */
+export async function rememberedConversation(page: Page): Promise<string> {
+  const id = await page.evaluate(() => window.sessionStorage.getItem('apas.chat.conversation'));
+  if (!id) throw new Error('no conversation remembered by the chat screen');
+  return id;
+}
+
+/** The short form the staff inbox shows (`shortConversation`). */
+export function shortConversation(conversationId: string): string {
+  return `…${conversationId.slice(-6)}`;
 }
