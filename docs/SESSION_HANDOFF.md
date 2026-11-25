@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC03-F4-MORE encoded, spelled and interleaved split honeytokens, 2026-11-23
+## Current: UX13-MSG-TIME message `sentAt` in the message reads, 2026-11-23
+- Branch `feat/UX13-MSG-TIME-message-sent-at` from `main` `7d35422` (PR #44 merged). Owner 2026-11-23 ("Hãy triển khai theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-61.
+- Change: `Chat.ChatMessage(direction, text, sentAt)`; `ConversationStore.StoredMessage` reads `created_at`; `ChatService.view` (UTC, cut to whole seconds) shared by `StaffChatService`. Customer and staff `GET …/messages`. No migration, no authorization change. Docs: TOOL_CONTRACTS endpoint line, `specs/50` gap 1 resolved, IMPLEMENTATION_PLAN §2a UX13-MSG-TIME DONE.
+- Tests: `ChatFlowIT.messagesCarryTheirSentTimeInUtcWholeSeconds` (new), `ChatFlowIT.aLinkedCustomerChatsWithTheBot` and `StaffInboxIT` updated. Mutations: no truncation → red (customer and staff), `sentAt` null → 3 red; source restored sha256.
+- Review (advisory, security-auditor, one round): 0H/0M/3L; L2, L3 applied, L1 accepted (A-61).
+- Tests (VERIFIED 2026-11-23 10:46–10:50 UTC, Java 21.0.12, before the review test changes): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1186, failsafe 308 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. Mutation after the review: no truncation → `StaffInboxIT` 1 red (exit 1), source restored sha256. `git diff --check` exit 0.
+- Tests (VERIFIED 2026-11-25 01:55–01:58 UTC, Java 21.0.12, after the review test changes, Docker Desktop restarted): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1186, failsafe 308 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. The 2026-11-23 10:50–11:16 UTC rerun (exit 1) failed because Docker Desktop's engine stopped mid-run, not because of the change. NOT RUN: formatter, CVE scan.
+- Rollback: revert (no migration). The new JSON field is additive; clients with fail-on-unknown would need it.
+- Next: (1) owner pushes and opens the PR; (2) A-18(b) full design-system export (owner) → EP-10a; meanwhile UX13-CONV-STATE (PROPOSED, needs decisions) or a test-only SEC slice (PROPOSED).
+
+## Previous: SEC03-F4-MORE encoded, spelled and interleaved split honeytokens, 2026-11-23 — MERGED (PR #44, `7d35422`)
 - Branch `fix/SEC03-F4-MORE-split-variants` from `main` `6ad77ec` (PR #40 merged); `main` `00f0110` merged in (PR #41–#43, docs only). Owner 2026-11-23 ("Đòng ý đề xuất" = 1A–5A): DECISIONS_REQUIRED A-60.
 - Change: `policy.internal.SensitiveDataDetector.splitHoneytoken`: decoded forms of each value are text and digit pieces, spelled digits are digit pieces, digit tokens assembled order-free (ordered join kept), digit pieces of 3+ digits only, pieces deduplicated. §2a SEC03-F4-MORE DONE.
 - Tests: `SensitiveDataDetectorTest` (+16: split variants, ordinary numbers, 5 ordinary chats with spelled words, a 64 KiB cost check), new `gateway.internal.HoneytokenVocabularyTest` (2), `AdversarialChatIT` split-turn fixtures +2. Mutations: no decoded pieces → 4 red, no spelled pieces → 2 red, no digit assembly → 6 red, one-digit spelled pieces → 3 red; source restored sha256.

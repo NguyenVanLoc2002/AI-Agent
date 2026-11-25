@@ -59,7 +59,7 @@ class StaffChatService implements StaffChat {
             messages = transactions.execute(tx -> {
                 requireStillHolding(staff, conversation);
                 return store.messages(conversation, ChatService.MAX_LISTED_MESSAGES).stream()
-                        .map(message -> new Chat.ChatMessage(message.direction().name(), message.text()))
+                        .map(ChatService::view)
                         .toList();
             });
         } catch (DeniedInTransaction lostTheHandoff) {

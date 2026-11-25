@@ -54,7 +54,8 @@ class ConversationStore {
     record PreviousTurn(UUID turnId, Instant startedAt, Optional<String> botText, boolean handedOff) {
     }
 
-    record StoredMessage(Direction direction, String text) {
+    /** {@code sentAt} is the row's {@code created_at} (UTC). */
+    record StoredMessage(Direction direction, String text, Instant sentAt) {
     }
 
     /** Limits checked at admission (ConversationProperties). */
@@ -274,9 +275,10 @@ class ConversationStore {
      * holding the conversation (both callers check their own access first).
      */
     List<StoredMessage> messages(ConversationId id, int limit) {
-        List<StoredMessage> newestFirst = jdbc.query("select direction, text from message where conversation_id = ? "
+        List<StoredMessage> newestFirst = jdbc.query("select direction, text, created_at from message where conversation_id = ? "
                         + "and direction in ('CUSTOMER', 'BOT', 'STAFF') order by message_id desc limit ?",
-                (rs, row) -> new StoredMessage(Direction.valueOf(rs.getString(1)), rs.getString(2)), id.value(), limit);
+                (rs, row) -> new StoredMessage(Direction.valueOf(rs.getString(1)), rs.getString(2),
+                        rs.getTimestamp(3).toInstant()), id.value(), limit);
         return newestFirst.reversed();
     }
 }

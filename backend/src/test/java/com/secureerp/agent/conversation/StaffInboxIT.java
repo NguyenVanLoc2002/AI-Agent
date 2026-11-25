@@ -6,6 +6,7 @@ import com.secureerp.agent.DemoHttpClient;
 import com.secureerp.agent.erp.internal.MockErpConnector;
 import com.secureerp.agent.erp.internal.MockErpSimulation;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,6 +28,10 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class StaffInboxIT extends ChatEnvironment {
 
     private static final Pattern HANDOFF_ID = Pattern.compile("\"handoffId\":(\\d+)");
+    /** One message of the staff view: direction, text (no quote or backslash in these fixtures), sentAt. */
+    private static final String VIEW_ITEM = "\\{\"direction\":\"(CUSTOMER|BOT|STAFF)\",\"text\":\"[^\"\\\\]*\","
+            + "\"sentAt\":\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\"}";
+    private static final Pattern STAFF_VIEW = Pattern.compile("\\[" + VIEW_ITEM + "(," + VIEW_ITEM + ")*]");
     private static final String FAKE_CONVERSATION = "cv_NoSuchConversationAAAA";
     private static final String QUOTE_OE = "04465-0K290";
 
@@ -102,12 +107,20 @@ class StaffInboxIT extends ChatEnvironment {
 
         // The holder reads and writes; the other team still gets 404.
         assertThat(sales.get(messages).body()).contains("Tôi cần tư vấn má phanh").contains("\"direction\":\"CUSTOMER\"");
+        // UX13-MSG-TIME (A-61): the staff view is the customer's view: direction, text, sentAt (UTC, seconds).
+        assertThat(sales.get(messages).body()).matches(STAFF_VIEW)
+                .doesNotContain("conversationId").doesNotContain("messageId").doesNotContain("turnId");
+        clock.advance(Duration.ofMillis(42_987)); // the staff message is stored at 08:00:42.987
         assertThat(sales.postJson(messages, staffMessage("Chào anh, em là nhân viên tư vấn")).statusCode())
                 .isEqualTo(204);
         assertThat(otherTeam.get(messages).statusCode()).isEqualTo(404);
         assertThat(otherTeam.postJson(messages, staffMessage("x")).statusCode()).isEqualTo(404);
+        // A-61: both readers see the staff message at the same whole second (cut, not rounded).
+        String staffMessageView = "{\"direction\":\"STAFF\",\"text\":\"Chào anh, em là nhân viên tư vấn\","
+                + "\"sentAt\":\"2026-11-19T08:00:42Z\"}";
         assertThat(customer.get("/api/demo/conversations/" + conversation + "/messages").body())
-                .contains("\"direction\":\"STAFF\"").contains("Chào anh, em là nhân viên tư vấn");
+                .contains(staffMessageView);
+        assertThat(sales.get(messages).body()).matches(STAFF_VIEW).contains(staffMessageView);
 
         // The customer's message reaches the staff member; the bot stays silent.
         assertThat(send(customer, conversation, "Em cần 2 bộ").body()).contains("Nhân viên tư vấn đã nhận")

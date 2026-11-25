@@ -23,6 +23,7 @@ import com.secureerp.agent.quote.QuoteCards;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -218,8 +219,14 @@ class ChatService implements Chat {
         ConversationStore.Conversation conversation = owned(identity, id);
         boundCustomer(identity, conversation);
         return store.messages(id, MAX_LISTED_MESSAGES).stream()
-                .map(message -> new Chat.ChatMessage(message.direction().name(), message.text()))
+                .map(ChatService::view)
                 .toList();
+    }
+
+    /** One view of a stored message for the customer and the staff reads (A-61: UTC, whole seconds). */
+    static Chat.ChatMessage view(ConversationStore.StoredMessage message) {
+        return new Chat.ChatMessage(message.direction().name(), message.text(),
+                message.sentAt().truncatedTo(ChronoUnit.SECONDS));
     }
 
     private ConversationStore.Conversation owned(SessionIdentity identity, ConversationId id) {

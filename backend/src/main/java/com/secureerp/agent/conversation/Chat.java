@@ -2,6 +2,7 @@ package com.secureerp.agent.conversation;
 
 import com.secureerp.agent.identity.SessionIdentity;
 import com.secureerp.agent.platform.ConversationId;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,7 +20,11 @@ public interface Chat {
 
     List<ChatMessage> messages(SessionIdentity identity, ConversationId conversation);
 
-    /** A stored customer or bot message as the owner sees it (sanitized or validated text only). */
-    record ChatMessage(String direction, String text) {
+    /**
+     * A stored customer, bot or staff message as the owner (or the staff member holding the conversation) sees it:
+     * sanitized or validated text only. {@code sentAt} is when the message was stored, in UTC and truncated to
+     * whole seconds (UX13-MSG-TIME, A-61); the display time zone is the client's concern. No message ID.
+     */
+    record ChatMessage(String direction, String text, Instant sentAt) {
     }
 }
