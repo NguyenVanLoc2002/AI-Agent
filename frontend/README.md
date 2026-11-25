@@ -34,6 +34,13 @@ Rate limits are not loosened: a full run opens 2 new conversations for `cust-a` 
 
 What a run shows and what it does not: the UI and the API of the switch, the role checks and the session handling of one local backend. It is not SEC-06 evidence (the effect of the switch on the AI path within 1 minute is not measured), and clearing the cookie is not the server's 30 min / 8 h session limit.
 
+## Security headers (FE-CSP, A-73)
+`config/securityHeaders.ts` holds them; `vite.config.ts` applies them.
+- The built bundle (`npm run build`, then `npx vite preview`, `http://127.0.0.1:4173`) is sent with an enforced Content-Security-Policy (`default-src 'none'`; scripts, styles, fonts, images, requests and forms from the own origin only; no `<base>`, no plugins, no framing) and `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` (`same-origin`). No HSTS: the demo runs over plain HTTP on loopback.
+- The dev server (`npm run dev`) sends only `nosniff` and `Referrer-Policy`: Vite's hot reload needs an inline script, so there is no CSP in development.
+- `vite preview` is the demo server only; how the bundle is served in production (and with HTTPS) is §2a FE-DEPLOY.
+- The browser tests fail on any CSP violation (`e2e/fixtures.ts`). A new inline script or style, an external font or a `data:` URL needs a reviewed change of the policy and of `config/securityHeaders.test.ts`.
+
 ## How it talks to the backend
 - Same origin: the Vite dev server forwards `/api` to the backend, so the backend needs no CORS. The HttpOnly session cookie is the only credential; the code never reads or stores it, and nothing goes into `localStorage`/`sessionStorage`.
 - Every state-changing request first reads a fresh CSRF token from `GET /api/auth/csrf`.

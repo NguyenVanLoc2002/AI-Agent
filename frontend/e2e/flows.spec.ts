@@ -1,5 +1,6 @@
 import { request as httpRequest } from 'node:http';
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
+import { expect, expectNoViolations, test, watchCsp, type CspViolation } from './fixtures';
 import { FAKE_PROVIDER_URL } from './env';
 import {
   callApi, ensureAiOn, fakeProviderCalls, reachedProvider, rememberedConversation, setAiSwitchAsOps, shortConversation,
@@ -78,8 +79,12 @@ function restrictedValues(): string[] {
 /** Runs `action` in a new browser context that is closed also when a step fails (review security L3). */
 async function withContext<T>(browser: Browser, action: (page: Page) => Promise<T>): Promise<T> {
   const context = await browser.newContext();
+  const violations: CspViolation[] = [];
   try {
-    return await action(await context.newPage());
+    await watchCsp(context, violations); // FE-CSP (A-73)
+    const result = await action(await context.newPage());
+    await expectNoViolations(context, violations);
+    return result;
   } finally {
     await context.close();
   }

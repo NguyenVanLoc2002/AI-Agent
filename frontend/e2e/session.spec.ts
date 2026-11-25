@@ -1,4 +1,5 @@
-import { expect, test, type Browser, type Cookie } from '@playwright/test';
+import type { Browser, Cookie } from '@playwright/test';
+import { expect, expectNoViolations, test, watchCsp, type CspViolation } from './fixtures';
 import { callApi, demoPassword, ensureAiOn, expectProblem, loginAnswer, readAiSwitchAsOps, signInWithApi, signInWithForm, type ApiAnswer } from './support';
 
 // FE-E2E (A-71) · sign-in, missing session, CSRF and sign-out (ADR-010) through the real backend.
@@ -63,11 +64,15 @@ test('when the session cookie is gone, the switch screen returns to sign-in and 
 /** Replays copied cookies in a fresh browser context and calls the switch API with them. */
 async function withReplayedCookies(browser: Browser, cookies: Cookie[], method: 'GET' | 'POST'): Promise<ApiAnswer> {
   const replay = await browser.newContext();
+  const violations: CspViolation[] = [];
   try {
+    await watchCsp(replay, violations);
     await replay.addCookies(cookies);
     const page = await replay.newPage();
     await page.goto('/');
-    return await callApi(page, method, '/api/ops/kill-switch', method === 'POST' ? { enabled: true } : undefined);
+    const answer = await callApi(page, method, '/api/ops/kill-switch', method === 'POST' ? { enabled: true } : undefined);
+    await expectNoViolations(replay, violations);
+    return answer;
   } finally {
     await replay.close();
   }
