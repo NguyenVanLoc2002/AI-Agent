@@ -1,5 +1,6 @@
 import { expect, type Browser, type Page } from '@playwright/test';
 import { BASE_URL, FAKE_PROVIDER_URL } from './env';
+import { expectNoViolations, watchCsp, type CspViolation } from './fixtures';
 
 // FE-E2E (A-71) helpers. Synthetic demo users of application-demo.yml only. The password is read from the
 // environment at call time and only typed into the password field or sent in the login form; it never
@@ -120,10 +121,14 @@ async function readAiSwitch(page: Page): Promise<boolean> {
 async function asOps<T>(browser: Browser, action: (page: Page) => Promise<T>): Promise<T> {
   // baseURL explicitly: the global teardown passes a plain browser without the test options.
   const context = await browser.newContext({ baseURL: BASE_URL });
+  const violations: CspViolation[] = [];
   try {
+    await watchCsp(context, violations); // FE-CSP (A-73)
     const page = await context.newPage();
     await signInWithApi(page, 'ops-1');
-    return await action(page);
+    const result = await action(page);
+    await expectNoViolations(context, violations);
+    return result;
   } finally {
     await context.close();
   }

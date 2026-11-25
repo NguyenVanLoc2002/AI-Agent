@@ -2,6 +2,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { configDefaults } from 'vitest/config';
+import { BUNDLE_HEADERS, COMMON_HEADERS } from './config/securityHeaders.ts';
 
 // EP-10a (decision 4A): the dev server forwards /api to the backend on the loopback address, so the page
 // and the API share one origin. No CORS on the backend, no change to its security configuration. Both
@@ -18,11 +19,14 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    // FE-CSP (A-73, 5A): no CSP in development, hot reload needs an inline script.
+    headers: { ...COMMON_HEADERS },
     proxy: {
       '/api': { target: backend, changeOrigin: false },
     },
   },
-  preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+  // FE-CSP (A-73, 1A): the built bundle is served with the enforced CSP and the other security headers.
+  preview: { host: '127.0.0.1', port: 4173, strictPort: true, headers: { ...BUNDLE_HEADERS } },
   build: { sourcemap: false },
   test: {
     environment: 'jsdom',

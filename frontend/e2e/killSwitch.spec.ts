@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { ensureAiOn, readAiSwitchAsOps, signInWithForm } from './support';
 
 // FE-E2E (A-71) · F5 · OP-01 AI kill switch (UC-08, FR-012) through the real backend. OPS signs in with the

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { callApi, ensureAiOn, expectProblem, readAiSwitchAsOps, setAiSwitchAsOps, signInWithApi, signInWithForm, type DemoUser } from './support';
 
 // FE-E2E (A-71) · RBAC for the AI switch (A-44, FR-013): the shell hides the switch from other roles, but that
