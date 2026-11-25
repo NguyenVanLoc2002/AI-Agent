@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: UX13-MSG-TIME message `sentAt` in the message reads, 2026-11-23
+## Current: UX13-CONV-STATE customer sees who answers the conversation, 2026-11-25
+- Branch `feat/UX13-CONV-STATE-customer-state` from `main` `c5535a2` (PR #45 merged). Owner 2026-11-25 ("Theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-62.
+- Change: `GET /api/demo/conversations/{id}` → `{"state":"BOT"|"WAITING_STAFF"|"STAFF"}` (`Chat.CustomerState`, `ChatService.state`/`customerState`, `ConversationController.ConversationStateView`); same checks as the customer message read (CUST, owner 404, A-35 403); no reason, team, staff member, audit or migration. Docs: RBAC_MATRIX row + rule, TOOL_CONTRACTS endpoint line, `specs/50` gap 3 resolved, IMPLEMENTATION_PLAN §2a UX13-CONV-STATE DONE.
+- Tests: new `CustomerStateTest` (4), `StaffInboxIT.theCustomerSeesWhoAnswersTheirConversationButNotWhy` + T-RBAC-MATRIX row, `ChatFlowIT` A-35 tests extended. Mutations (source restored sha256): wrong mapping → 2 unit + 1 IT red; role/A-35 checks removed → 2 IT red; A-35 check removed → 2 `ChatFlowIT` red.
+- Tests (VERIFIED 2026-11-25 02:20–02:23 UTC, Java 21.0.12, after the review fixes): `cd backend && ./mvnw -B -o clean verify` → exit 0; surefire 1190, failsafe 309 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
+- Review (advisory, security-auditor, one round): 0H/1M/4L; M1, L3, L4 applied; L1 (state stays `BOT` while the AI is off until the next message hands off) and L2 accepted (A-62).
+- Rollback: revert (no migration, new endpoint only).
+- Next: (1) owner pushes and opens the PR; (2) A-18(b) full design-system export (owner) → EP-10a; the last batch F backend gap, UX13-QUOTE-SOURCE, waits on D-01 (real price source).
+
+## Previous: UX13-MSG-TIME message `sentAt` in the message reads, 2026-11-23 — MERGED (PR #45, `c5535a2`)
 - Branch `feat/UX13-MSG-TIME-message-sent-at` from `main` `7d35422` (PR #44 merged). Owner 2026-11-23 ("Hãy triển khai theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-61.
 - Change: `Chat.ChatMessage(direction, text, sentAt)`; `ConversationStore.StoredMessage` reads `created_at`; `ChatService.view` (UTC, cut to whole seconds) shared by `StaffChatService`. Customer and staff `GET …/messages`. No migration, no authorization change. Docs: TOOL_CONTRACTS endpoint line, `specs/50` gap 1 resolved, IMPLEMENTATION_PLAN §2a UX13-MSG-TIME DONE.
 - Tests: `ChatFlowIT.messagesCarryTheirSentTimeInUtcWholeSeconds` (new), `ChatFlowIT.aLinkedCustomerChatsWithTheBot` and `StaffInboxIT` updated. Mutations: no truncation → red (customer and staff), `sentAt` null → 3 red; source restored sha256.
