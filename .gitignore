@@ -1,2 +1,7 @@
 # Design review screenshots: captured before vendor-name neutralisation; re-capture before committing (A-18)
 docs/design/evidence/
+
+# FE-E2E (A-71): Playwright output (screenshots of failed tests may show synthetic data; never commit)
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

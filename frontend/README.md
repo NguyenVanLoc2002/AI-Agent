@@ -18,6 +18,18 @@ npm run build       # typecheck, then a production bundle in dist/
 npm run ds:verify   # copies in src/design-system/ still match design-system/ (sources.json)
 ```
 
+## Browser tests against the real backend (FE-E2E, A-71)
+Playwright (Chromium only) in `e2e/`, run by hand. They cover OPS sign-in and the AI switch off (with the confirmation) and on, the switch refused (403) to SALES, SECREV and customers in their own browser session, a lost session, sign-out ending the server session, and the generic wrong-password message. Chat, inbox and inspector flows are not covered yet: a local run has no AI provider.
+
+Once per machine: `npx playwright install chromium` (downloads the browser; Playwright 1.65.1 installs Chromium revision 1255). Install dependencies with `npm ci`; do not use `--with-deps` or a custom `PLAYWRIGHT_DOWNLOAD_HOST`.
+
+1. Start PostgreSQL and the backend with profile `local` (root `README.md`, `backend/README.md`), with `APAS_DEMO_PASSWORD` set.
+2. In `frontend/`, with the same `APAS_DEMO_PASSWORD` in the environment (and `APAS_BACKEND_URL` if the backend is not on `http://127.0.0.1:8080`): `npm run e2e`.
+
+The run stops before any browser starts when the password is missing or the backend is not up. Playwright starts its own Vite dev server on `127.0.0.1:5173` and fails if the port is taken (stop `npm run dev` first). Loopback is checked, not that the backend is a local demo: do not point `APAS_BACKEND_URL` at a tunnel to another machine. The tests change the shared AI switch: every test puts it back on, and the global teardown checks once more and fails the run with "the AI switch could not be restored" if it cannot. After an interrupted run (Ctrl+C), sign in as OPS and check the switch. Do not run the tests while someone else uses the same backend. Traces and videos are off; a failed test leaves a screenshot and a page snapshot in `test-results/` (ignored by git, synthetic data only, delete after reading).
+
+What a run shows and what it does not: the UI and the API of the switch, the role checks and the session handling of one local backend. It is not SEC-06 evidence (the effect of the switch on the AI path within 1 minute is not measured), and clearing the cookie is not the server's 30 min / 8 h session limit.
+
 ## How it talks to the backend
 - Same origin: the Vite dev server forwards `/api` to the backend, so the backend needs no CORS. The HttpOnly session cookie is the only credential; the code never reads or stores it, and nothing goes into `localStorage`/`sessionStorage`.
 - Every state-changing request first reads a fresh CSRF token from `GET /api/auth/csrf`.
@@ -31,4 +43,4 @@ npm run ds:verify   # copies in src/design-system/ still match design-system/ (s
 `src/design-system/` holds copies of the components this slice uses from the repo-root `design-system/` (decision 3A), with their source hashes in `sources.json`. Modified copies (each with its reviewed hash `copySha256`): `components/core/Icon.jsx` (A-66: the title is a React `<title>` element, the icon lookup uses own properties only) and `components/ai/AIComposer.jsx` + `.d.ts` (A-68: accessible label, `maxLength`, no send on Enter while an input method is composing). To take a newer design-system version: copy the file, update its hash in `sources.json`, review the diff as product code, run `npm run ds:verify` and the tests.
 
 ## Not covered yet
-Staff order screens (staff decision, reconciliation) need a design first (EP-10e). No browser end-to-end test against the real backend yet; no lint or formatter configured.
+Staff order screens (staff decision, reconciliation) need a design first (EP-10e). Browser tests against the real backend cover only sign-in, sessions and the AI switch (FE-E2E); no lint or formatter configured.
