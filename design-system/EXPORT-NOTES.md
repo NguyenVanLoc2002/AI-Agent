@@ -26,7 +26,7 @@ Không chép được tự động từ artifact; luật tương ứng đã nằ
 ## Lưu ý khi dùng cho frontend
 - `components/bundle.js` là IIFE gắn vào `window.AutoPartsAgentDesignSystem_aa8546`, cần biến toàn cục `React`, và **tự render UI kit demo vào `#root`**, ghi `localStorage` (`ap-route`), gắn `window.PDData/PLData/APData`. Không chèn vào app sản phẩm.
 - Dùng mã nguồn `components/<nhóm>/*.jsx` (đủ từ 25/11/2026, A-18(b) đã đáp ứng), không dùng `bundle.js`. Mã nguồn là DESIGN PROPOSAL: khi đưa vào `frontend/` vẫn qua review như mã của repo.
-- `core/Icon.jsx` ghép prop `title` vào `dangerouslySetInnerHTML` không escape: chỉ truyền chuỗi cố định, không truyền dữ liệu từ người dùng, model hay ERP; khi đưa vào `frontend/` thì sửa thành phần tử `<title>` của React (A-66, việc của EP-10a).
+- `core/Icon.jsx` ghép prop `title` vào `dangerouslySetInnerHTML` không escape: chỉ truyền chuỗi cố định, không truyền dữ liệu từ người dùng, model hay ERP; khi đưa vào `frontend/` thì sửa thành phần tử `<title>` của React (A-66, việc của EP-10a). **Đã sửa trong bản chép `frontend/src/design-system/components/core/Icon.jsx` (EP-10a, A-67)**; file ở đây giữ nguyên bản xuất.
 - `design-system.json` trỏ tới đường dẫn `project/…` không tồn tại và `assetGroups` rỗng: không dùng bản này để đồng bộ ngược lên Claude Design.
 - `components/Cover/` là thẻ ảnh bìa, không phải component.
 
