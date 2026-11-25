@@ -17,7 +17,10 @@ export const SESSION_EXPIRED = 'Phiên làm việc đã hết hạn. Vui lòng �
 /** Message for a failed read or write the screen does not handle in a more specific way. */
 export function failureText(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.kind === 'timeout' || error.kind === 'network') {
+    if (error.kind === 'timeout') {
+      return 'Chưa nhận được phản hồi từ hệ thống. Vui lòng tải lại để kiểm tra.';
+    }
+    if (error.kind === 'network') {
       return 'Không kết nối được máy chủ. Vui lòng kiểm tra kết nối rồi thử lại.';
     }
     if (error.status === 429) {

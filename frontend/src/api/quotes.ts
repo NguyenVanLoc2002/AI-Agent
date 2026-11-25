@@ -52,7 +52,7 @@ export interface Confirmation {
 const isVersion = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 999_999;
 const isText = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
 
-function decodeLine(value: unknown): QuoteLine {
+export function decodeLine(value: unknown): QuoteLine {
   if (isRecord(value) && isText(value.sku, 64) && typeof value.quantity === 'number' && Number.isInteger(value.quantity)
       && value.quantity >= 1 && value.quantity <= 9999 && typeof value.unitPrice === 'string' && AMOUNT.test(value.unitPrice)
       && typeof value.lineTotal === 'string' && AMOUNT.test(value.lineTotal)) {
@@ -87,7 +87,7 @@ export function decodeCard(value: unknown): QuoteCard {
   };
 }
 
-function decodeStatus(value: unknown): QuoteStatus {
+export function decodeStatus(value: unknown): QuoteStatus {
   if (typeof value === 'string' && (QUOTE_STATUSES as readonly string[]).includes(value)) {
     return value as QuoteStatus;
   }

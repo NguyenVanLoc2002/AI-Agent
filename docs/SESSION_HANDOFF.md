@@ -1,7 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: EP-10b customer chat F1 (chat, waiting for staff, quote card, confirmation), 2026-11-25
-- Branch `feat/EP-10b-customer-chat` from `main` `1e662e4` (PR #51 merged). Owner 2026-11-25 ("Hãy triển khai theo đề xuất" = 1A–7A): DECISIONS_REQUIRED A-68. Committed on the branch, not pushed.
+## Current: EP-10c staff inbox F2 and held conversation F3, 2026-11-25
+- Branch `feat/EP-10c-staff-inbox` from `main` `bdcf469` (PR #52 merged). Owner 2026-11-25 ("tôi đồng ý với đề xuất hãy triển khai" = 1A–5A): DECISIONS_REQUIRED A-69. Committed on the branch, not pushed.
+- Change: `frontend/` only: `api/staff.ts`, `app/staffLabels.ts`, `pages/staff/StaffInboxPage.tsx`, `StaffConversationPage.tsx`, `StaffWorkspace.tsx`, `App.tsx` (SALES inbox, sign-out clears the screen first), `app/texts.ts` (timeout copy), `api/quotes.ts` (exports); design-system copies Textarea, EmptyState. Docs: A-69, IMPLEMENTATION_PLAN (row 13, §2a EP-10c DONE, EP-10e and STAFF-MSG-ID PROPOSED), `frontend/README.md`. No backend change.
+- Tests (VERIFIED, 2026-11-25, Node 22.20.0, in `frontend/`): `npm run typecheck` exit 0; `npx vitest run` 8 files / 181 tests exit 0; `npm run build` exit 0; `npm run ds:verify` exit 0 (55 files); `npm audit` 0 vulnerabilities. Mutations (sources restored sha256): 29 checked, all red at the end (2 redundant inner guards red only with the button guard removed; 1 weak test strengthened: warning tone).
+- NOT RUN: browser against the real backend (FE-E2E); screen reader and visual checks; backend tests (unchanged).
+- Review (advisory): security-auditor 0H/2M/4L, ux-workflow-reviewer 0H/5M/11L; fixes and residuals in A-69.
+- Rollback: revert the commit (frontend files and doc lines only).
+- Next: (1) owner pushes and opens the PR; (2) EP-10d (Security Inspector F4, SECREV); PROPOSED EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-E2E, FE-CSP, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK.
+
+## Previous: EP-10b customer chat F1 (chat, waiting for staff, quote card, confirmation), 2026-11-25 — MERGED (PR #52, `bdcf469`)
+- Branch `feat/EP-10b-customer-chat` from `main` `1e662e4` (PR #51 merged). Owner 2026-11-25 ("Hãy triển khai theo đề xuất" = 1A–7A): DECISIONS_REQUIRED A-68.
 - Change: `frontend/` only: `api/chat.ts`, `api/quotes.ts`, `app/conversationMemory.ts` (sessionStorage, per-sign-in epoch), `app/money.ts`, `pages/CustomerChatPage.tsx`, `pages/chat/QuotePanel.tsx`, `App.tsx` (the customer gets the chat), `api/client.ts` (`ApiError.sent`); design-system copies ChatMessage, AIComposer (modified), Skeleton. Docs: A-68, IMPLEMENTATION_PLAN (row 13, §2a EP-10b DONE, CHAT-SYSTEM-TEXT PROPOSED), `frontend/README.md`. No backend change.
 - Tests (VERIFIED, 2026-11-25, Node 22.20.0, in `frontend/`): `npm run typecheck` exit 0; `npx vitest run` 7 files / 137 tests exit 0; `npm run build` exit 0; `npm run ds:verify` exit 0 (51 files); `npm audit` 0 vulnerabilities. Mutations (sources restored sha256): 28 checked, all red at the end (4 survivors exposed weak tests: IME guard, token format, epoch write, sign-in reset; tests added).
 - NOT RUN: browser against the real backend (FE-E2E); screen reader and phone visual checks; backend tests (unchanged).
