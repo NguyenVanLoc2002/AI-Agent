@@ -96,10 +96,14 @@ describe('App', () => {
     expect(window.sessionStorage.length).toBe(0);
   });
 
-  it('gives SECREV a neutral page and no operator or staff screen', async () => {
-    const { backend } = setup({ 'GET /api/auth/session': () => json(200, { role: 'SECREV', customerLinked: false }) });
+  it('gives SECREV the Security Inspector and no operator or staff screen (EP-10d)', async () => {
+    const { backend } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'SECREV', customerLinked: false }),
+    });
+    backend.set('GET /api/demo/security/events?*', () => json(200, { events: [], next: null }));
 
-    expect(await screen.findByText('Màn hình cho tài khoản này chưa có trong bản demo.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sự kiện bảo mật', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sự kiện bảo mật/ })).toBeInTheDocument();
     expect(backend.calls.some((c) => c.path.startsWith('/api/ops/') || c.path.startsWith('/api/internal/'))).toBe(false);
   });
 

@@ -3,17 +3,18 @@ import { currentSession, logout, type Role, type Session } from '../api/session'
 import { Alert, AppHeader, Button, Sidebar, Spinner } from '../design-system';
 import { CustomerChatPage } from '../pages/CustomerChatPage';
 import { KillSwitchPage } from '../pages/KillSwitchPage';
+import { SecurityInspectorPage } from '../pages/inspector/SecurityInspectorPage';
 import { StaffWorkspace } from '../pages/staff/StaffWorkspace';
 import { LoginPage } from '../pages/LoginPage';
 import { conversationMemory } from './conversationMemory';
 import { failureText, referenceText, ROLE_LABELS, SESSION_EXPIRED } from './texts';
 
 // Application root (EP-10a). The screens offered per role are presentation only: every API call is
-// authorized again by the backend, which is the authority (CLAUDE.md, rule 10). Screens of batch F that
-// are not built yet (inspector) show a neutral "not available yet" page. SALES get the inbox (F2/F3, EP-10c). The customer gets the
+// authorized again by the backend, which is the authority (CLAUDE.md, rule 10). OPS get the kill switch (F5,
+// EP-10a), SALES the inbox (F2/F3, EP-10c), SECREV the Security Inspector (F4, EP-10d). The customer gets the
 // chat (F1, EP-10b) without the staff sidebar, laid out for phone width.
 
-type ScreenKey = 'kill-switch' | 'inbox';
+type ScreenKey = 'kill-switch' | 'inbox' | 'inspector';
 
 interface ScreenDef { key: ScreenKey; label: string; icon: string }
 
@@ -21,7 +22,7 @@ const SCREENS_BY_ROLE: Record<Role, ScreenDef[]> = {
   OPS: [{ key: 'kill-switch', label: 'Công tắc AI', icon: 'shield-alert' }],
   CUST: [],
   SALES: [{ key: 'inbox', label: 'Hộp chờ nhân viên', icon: 'users' }],
-  SECREV: [],
+  SECREV: [{ key: 'inspector', label: 'Sự kiện bảo mật', icon: 'shield-check' }],
 };
 
 type Boot =
@@ -113,6 +114,8 @@ function Shell({ session, onSignOut, onUnauthenticated }: { session: Session; on
     ? <KillSwitchPage onUnauthenticated={onUnauthenticated} />
     : current?.key === 'inbox'
       ? <StaffWorkspace onUnauthenticated={onUnauthenticated} />
+    : current?.key === 'inspector'
+      ? <SecurityInspectorPage onUnauthenticated={onUnauthenticated} />
     : session.role === 'CUST'
       ? <CustomerChatPage customerLinked={session.customerLinked} onUnauthenticated={onUnauthenticated} />
       : <NotAvailable />;
