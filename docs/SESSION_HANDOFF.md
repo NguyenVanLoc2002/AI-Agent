@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: A-18(b) full component sources from the design-system artifact, 2026-11-25
+## Current: EP-10a frontend scaffold, login, role shell, F5 AI kill switch, 2026-11-25
+- Branch `feat/EP-10a-frontend-scaffold` from `main` `0e2c72b` (PR #50 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–7A): DECISIONS_REQUIRED A-67. Committed on the branch, not pushed.
+- Change: new `frontend/` (Vite + React 18 + TS strict, npm, exact pins): typed API client (cookie session, fresh CSRF per write, problem → code + trace reference only), login, role shell (presentation only), F5 · OP-01 kill switch (UC-08); 45 design-system files copied with hashes (`sources.json`, `npm run ds:verify`), A-66 `Icon` fix in the copy. Docs: A-67, IMPLEMENTATION_PLAN row 13 + FR-012 + §2a (EP-10b..d OPEN; FE-CSP, FE-E2E, FE-OFF-UNREADABLE PROPOSED), EXPORT-NOTES, `frontend/README.md`. No backend change.
+- Tests (VERIFIED, 2026-11-25 04:43–04:46 UTC, Node 22.20.0, npm 10.9.3, in `frontend/`): `npm ci --ignore-scripts` exit 0; `npm audit` 0 vulnerabilities exit 0; `npm run typecheck` exit 0; `npx vitest run` 5 files / 64 tests exit 0; `npm run build` exit 0; `npm run ds:verify` exit 0 (45 files; fails on an edited copy, passes on CRLF). `git diff --check` exit 0. Mutations (sources restored sha256): 15 checked, 14 red; the surviving one is the redundant in-function double-submit guard (red when the button guard is removed too).
+- NOT RUN: backend tests (unchanged); browser against the real backend (FE-E2E); lint/formatter (none configured); phone-width visual check.
+- Review (advisory): security-auditor 0H/2M/5L, ux-workflow-reviewer 0H/4M/13L; fixes and residuals in A-67.
+- Rollback: delete `frontend/` and revert the doc lines.
+- Next: (1) owner commits/pushes and opens the PR; (2) EP-10b (F1 customer chat), EP-10c (inbox), EP-10d (inspector); PROPOSED FE-E2E, FE-CSP, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK.
+
+## Previous: A-18(b) full component sources from the design-system artifact, 2026-11-25 — MERGED (PR #50, `0e2c72b`)
 - Branch `docs/A-18b-full-export` from `main` `de7f16d` (PR #49 merged). Owner 2026-11-25: read-only check, then option 3 (import + re-check): DECISIONS_REQUIRED A-66. Docs/design files only.
 - Change: 37 `design-system/components/<group>/*.jsx` added verbatim (sha256 = artifact file list; all relative imports resolve; only `react`); EXPORT-NOTES, README export note, DESIGN_GUIDE line, A-18 (b) met.
 - Re-check: everything else identical to the artifact except the repo's README note and the licensed fonts/icons (kept).

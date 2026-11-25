@@ -1,0 +1,233 @@
+{
+  "source": "design-system/ (repo root), export of artifact version 1795580419-737d (A-66)",
+  "copiedOn": "2026-11-25",
+  "hashing": "sha256 of the file with CRLF line endings turned into LF (woff2 files as they are)",
+  "files": [
+    {
+      "path": "assets/fonts/BeVietnamPro-400-latin-ext.woff2",
+      "sha256": "f7a2811e471c2973a1179ce39da3ad6bb8082381aa8d1535ccfcbc3d6d78a052",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-400-latin.woff2",
+      "sha256": "03d1b589cff172e1a670b3573e731d3380bc326f80cf83b0d3504e3188e2e074",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-400-vietnamese.woff2",
+      "sha256": "dc085e2fba3414e5c5bf1e6172f921a9f81c5859946a4ed3d63c1e470d96a9e2",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-500-latin-ext.woff2",
+      "sha256": "947d592eb7676914507ff68fc11fcf2cfdecd6ebaf0fa2af6047f66a63ea7d0f",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-500-latin.woff2",
+      "sha256": "b621f77d35f777023aa11ca524462d511b4b28a813adbc0e9d15a10fc61dfe4e",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-500-vietnamese.woff2",
+      "sha256": "86341610cbe907eecf461c9159c168d5efb52bb1a33963813a08f520555d8e66",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-600-latin-ext.woff2",
+      "sha256": "20cc75daeaaaa0fa8af2b616b2de2b2900f0ce14ae8e9faa47d272cedd93827f",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-600-latin.woff2",
+      "sha256": "9503dec2a7c532c8331e9600bcafea287a4fd208573b8668d85ab8d8de1863c7",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-600-vietnamese.woff2",
+      "sha256": "97658c6f9a384f29a3005c3d96e2a0d1c810192cf68979071c290f5a377a9f99",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-700-latin-ext.woff2",
+      "sha256": "33d57e5bd840b03921568e08d2be1082d453e55f1ba55f421e41a1aa54e12601",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-700-latin.woff2",
+      "sha256": "a193dd87699bd2e18ddf72dc271493ea82a23dad9f5c334d9f2a257b1e05fc30",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/BeVietnamPro-700-vietnamese.woff2",
+      "sha256": "4f58af2d1c3e28a9ba14c51c82db2751d78344b75bdcb34de24a1031ebe59da6",
+      "modified": null
+    },
+    {
+      "path": "assets/fonts/OFL.txt",
+      "sha256": "0bd4db1cda123af9d91794b0f98324b7d7d81aef0fcaf78c433160153f2c6f25",
+      "modified": null
+    },
+    {
+      "path": "assets/icons/LICENSE",
+      "sha256": "1e7290b35280a048667bbf0ebabac1c7fd52a75300e8b2946ac165715997f2bc",
+      "modified": null
+    },
+    {
+      "path": "components/bundle.css",
+      "sha256": "e477265b67960d7704e47fc83659baee29aec9a5389a7bed0540c7afb40ae11b",
+      "modified": null
+    },
+    {
+      "path": "components/core/a11y.jsx",
+      "sha256": "00fff0a2873d5ad96b927471e8acb67093eb5ad20b1aea287ff10be68ae1c852",
+      "modified": null
+    },
+    {
+      "path": "components/core/Button.d.ts",
+      "sha256": "71879603b3b08d856f3492c0dd94d58ff5d8ae0b8b54c6a3bb513d2e6691f5cb",
+      "modified": null
+    },
+    {
+      "path": "components/core/Button.jsx",
+      "sha256": "eaa8ed972e374c2e24cc67b2443967eef191c415d94956f89802b00365ea7110",
+      "modified": null
+    },
+    {
+      "path": "components/core/Icon.d.ts",
+      "sha256": "0b382e13a46c003cb13ff97390f80361720928108cf18309453ae00d89dc73bc",
+      "modified": null
+    },
+    {
+      "path": "components/core/Icon.jsx",
+      "sha256": "9163752ee491ff3117ee78b8d2262a1e634e5be0123a5da7ab55fe8253b9f7d9",
+      "modified": "A-66: <title> as a React element, own-property icon lookup",
+      "copySha256": "2ec896d5d0add9393f7a83a7d1d8301fa967c3354f59f747d42feb17910e259f"
+    },
+    {
+      "path": "components/core/IconButton.d.ts",
+      "sha256": "e7537d811e1a158a755ca44cfebc1d7cb8bd85b304fa2122e45a46829b38edea",
+      "modified": null
+    },
+    {
+      "path": "components/core/IconButton.jsx",
+      "sha256": "9ea7b9991343cd51da9dccbf6655ab15fd19727c3315dd8a60de5b9fcce5a52e",
+      "modified": null
+    },
+    {
+      "path": "components/core/Spinner.d.ts",
+      "sha256": "e7668acc34cd9eab51e1310e22af674a4e6153101586221e30698afa322ada94",
+      "modified": null
+    },
+    {
+      "path": "components/core/Spinner.jsx",
+      "sha256": "860428628c4aa3b54f64bfbf29376b14d1eeefed594c7068081eb582c218eedb",
+      "modified": null
+    },
+    {
+      "path": "components/data/Badge.d.ts",
+      "sha256": "ba938ce0ab2ced4bbc50f62cdcf1cc781c9cc2b4e1b1c0648a764841b0c13b17",
+      "modified": null
+    },
+    {
+      "path": "components/data/Badge.jsx",
+      "sha256": "29100381f677ff36958e501220251202d79e76430f4755c323401cd98f3c4361",
+      "modified": null
+    },
+    {
+      "path": "components/data/DescriptionList.d.ts",
+      "sha256": "2c60e16bef254078f8f528651c53dd11534358c2023cd8a20c44f47c3239e6d6",
+      "modified": null
+    },
+    {
+      "path": "components/data/DescriptionList.jsx",
+      "sha256": "182cb0f502b27cdcf8319cbc3b6f5a6397e5c442416f8f00c922d5601c760921",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Alert.d.ts",
+      "sha256": "919965b0ce658c33cbe947df4d35d4ea64a492966b1705e2e0d6dc57395cbe90",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Alert.jsx",
+      "sha256": "50e99e769a0e1954ba79b6b776216bcb0808cb4736268ea17f6cb5775c5eb5aa",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Dialog.d.ts",
+      "sha256": "79a86a86d2fc52ef53fdf95b6585a72903a3f0bdc317c9af39cd5dea0c7d99fd",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Dialog.jsx",
+      "sha256": "9d4980ff9505bdf2fb4d66e38c3d5a76b271747b1fa5444f1759985b3efea608",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Field.d.ts",
+      "sha256": "e01de39dbe0cd88c570613c89ab151b2d4ee960a5c3764a55c4b535072fff50c",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Field.jsx",
+      "sha256": "2228dbef58d85f250942cb955212295d06e6f0e394a0ad3f74cf2315431ce3f0",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Input.d.ts",
+      "sha256": "f9e950ae00d9e092420b7155397b15885581504acf7eaa8d2fa7af58e5f7165a",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Input.jsx",
+      "sha256": "7b055e2654716476cb0c0a544e57222b244cdafcf2224e94388e37c83a7709ff",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Switch.d.ts",
+      "sha256": "b40c3e898402bd620641d86f86605948df76455d2e3791359d4c182b48d64b7e",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Switch.jsx",
+      "sha256": "d1a2645d78a0178fb3682b3cea6d055e3b29fe025093bdb26647af9ecc339417",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/AppHeader.d.ts",
+      "sha256": "e3afe3bc3c1ebd1d62662db8fa6098454a1dce3c7c954dc8b88b27757ba9f6e8",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/AppHeader.jsx",
+      "sha256": "87729380f322e68fb3f5d7f8f4654c9516bd9ea1fa308cf664545b116506f7fd",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Breadcrumb.d.ts",
+      "sha256": "accee715eb72600315790a3480521736a3633e2d020e379b8fa006f229bde061",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Breadcrumb.jsx",
+      "sha256": "fdd33dba3f31592d56ba141f3b9f60faa7a82247223ee9cfacd3c788036b3320",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Sidebar.d.ts",
+      "sha256": "2240a3cf9941c7de45e6a26f48e373f6c739b9a1426313ff4b878a4cc75798dd",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Sidebar.jsx",
+      "sha256": "87f152a3bcc9612a232529570cc37e82986b6e792450df2755b6b19b0f24e3df",
+      "modified": null
+    },
+    {
+      "path": "tokens.css",
+      "sha256": "528dfa7db1577e335bc6b2ce2147a8145447fb79963a4a2fb7c382c66e8e0002",
+      "modified": null
+    }
+  ]
+}
