@@ -158,7 +158,7 @@ Artboard: `F1-SendStates.dc.html` (390×1060) và `F6-StaffStates.dc.html` (1440
 
 ## Khoảng trống so với backend (chưa giải quyết)
 
-1. **Thời gian tin nhắn:** `GET …/messages` không trả thời điểm, nên giờ trên artboard F1/F3 chỉ để minh họa. Muốn hiện giờ phải mở rộng contract.
+1. **Thời gian tin nhắn:** ~~`GET …/messages` không trả thời điểm~~ **Đã giải quyết 2026-11-23 (UX13-MSG-TIME, A-61):** mỗi tin có `sentAt` (ISO-8601 UTC, cắt tới giây) ở cả API khách và nhân viên; giao diện đổi sang giờ hiển thị.
 2. **Nguồn gốc giá:** `QuoteCardView` không có nguồn hay thời điểm đồng bộ, nên thẻ ghi "Giá do hệ thống lập" thay vì "Đã xác minh từ ERP" (writing rule: không ghi "đã xác minh" khi không có mốc thời gian).
 3. **Trạng thái hội thoại phía khách:** API khách không trả `ACTIVE_BOT` / `HANDOFF_PENDING` / `HUMAN_ACTIVE`; giao diện chỉ suy ra từ `handedOff` của lượt gần nhất. Khi mở lại một hội thoại đang chờ, banner CH-02 chưa có nguồn dữ liệu.
 4. **Nhãn lý do chuyển nhân viên:** bảng ánh xạ tiếng Việt dưới đây là đề xuất (UX-17), cần duyệt. Bảng phủ toàn bộ `HandoffReason` (16 giá trị trong `HandoffView.reasonCode`); model chỉ được yêu cầu 3 trong số đó qua `requestHandoff`.

@@ -10,6 +10,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -18,6 +19,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * EP-04 chat flow over HTTP: UC-01 (AC-01.1–01.3), T-UC01-DEDUP, T-HTTP-01, T-UC02-VIN (no model call),
@@ -26,6 +29,8 @@ import org.junit.jupiter.api.Test;
 class ChatFlowIT extends ChatEnvironment {
 
     private static final String OE = "04465-0K290";
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final String UTC_SECONDS = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z";
 
     private static <T> List<T> parallel(int threads, Callable<T> call) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -60,8 +65,36 @@ class ChatFlowIT extends ChatEnvironment {
         assertThat(providerBodies()).hasSize(1);
         assertThat(providerBodies().getFirst()).contains("Xin chào");
         assertThat(client.get("/api/demo/conversations/" + conversation + "/messages").body())
-                .contains("{\"direction\":\"CUSTOMER\",\"text\":\"Xin chào\"}")
-                .contains("{\"direction\":\"BOT\",\"text\":\"" + DEFAULT_ANSWER + "\"}");
+                .contains("{\"direction\":\"CUSTOMER\",\"text\":\"Xin chào\",\"sentAt\":\"")
+                .contains("{\"direction\":\"BOT\",\"text\":\"" + DEFAULT_ANSWER + "\",\"sentAt\":\"");
+    }
+
+    /**
+     * UX13-MSG-TIME (A-61): every message carries {@code sentAt}, an ISO-8601 UTC instant truncated to whole
+     * seconds, oldest first; the view has exactly direction, text and sentAt (no message, turn or event ID).
+     */
+    @Test
+    void messagesCarryTheirSentTimeInUtcWholeSeconds() {
+        DemoHttpClient client = loggedIn("cust-a");
+        String conversation = createConversation(client);
+        clock.set(START.plusMillis(987)); // a fraction of a second is cut, not rounded
+        assertThat(send(client, conversation, "Xin chào").statusCode()).isEqualTo(200);
+        clock.advance(Duration.ofSeconds(90));
+        assertThat(send(client, conversation, "Cảm ơn").statusCode()).isEqualTo(200);
+
+        HttpResponse<String> response = client.get("/api/demo/conversations/" + conversation + "/messages");
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        JsonNode messages = JSON.readTree(response.body());
+        List<String> sentAt = new ArrayList<>();
+        for (JsonNode message : messages) {
+            assertThat(message.properties()).extracting(Map.Entry::getKey)
+                    .containsExactly("direction", "text", "sentAt");
+            sentAt.add(message.get("sentAt").asText());
+        }
+        assertThat(sentAt).allMatch(value -> value.matches(UTC_SECONDS)).containsExactly(
+                "2026-11-19T08:00:00Z", "2026-11-19T08:00:00Z", "2026-11-19T08:01:30Z", "2026-11-19T08:01:30Z");
+        assertThat(messages).extracting(message -> message.get("text").asText())
+                .containsExactly("Xin chào", DEFAULT_ANSWER, "Cảm ơn", DEFAULT_ANSWER);
     }
 
     @Test
