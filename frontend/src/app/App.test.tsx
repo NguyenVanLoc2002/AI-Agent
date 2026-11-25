@@ -67,13 +67,33 @@ describe('App', () => {
     expect(screen.getByRole('alert').parentElement).toHaveFocus();
   });
 
-  it('gives roles without a screen yet a neutral page and never calls the operator API', async () => {
-    const { backend } = setup({ 'GET /api/auth/session': () => json(200, { role: 'CUST', customerLinked: true }) });
+  it('gives a customer the chat without the staff sidebar and never calls the operator API', async () => {
+    const { backend } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'CUST', customerLinked: true }),
+      'POST /api/demo/conversations': () => json(201, { conversationId: 'cv_AAAAAAAAAAAAAAAAAAAAAA' }),
+    });
 
-    expect(await screen.findByText('Màn hình cho tài khoản này chưa có trong bản demo.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Tư vấn phụ tùng' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Nội dung tin nhắn')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).not.toBeInTheDocument();
     expect(screen.queryByText('Công tắc AI')).not.toBeInTheDocument();
-    expect(backend.calls.some((c) => c.path.startsWith('/api/ops/'))).toBe(false);
+    expect(backend.calls.some((c) => c.path.startsWith('/api/ops/') || c.path.startsWith('/api/internal/'))).toBe(false);
+  });
+
+  it('forgets the remembered conversation when the customer signs out', async () => {
+    window.sessionStorage.setItem('apas.chat.conversation', 'cv_AAAAAAAAAAAAAAAAAAAAAA');
+    window.sessionStorage.setItem('apas.chat.quote', 'BG-ABCDEFGH');
+    const { user } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'CUST', customerLinked: true }),
+      'GET /api/demo/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA/messages': () => json(200, []),
+      'GET /api/demo/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA': () => json(200, { state: 'BOT' }),
+      'GET /api/demo/quotes/BG-ABCDEFGH': () => problem(404, 'NOT_FOUND'),
+      'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+
+    expect(await screen.findByText('Bạn đã đăng xuất.')).toBeInTheDocument();
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it('does not offer the AI switch to SALES or SECREV', async () => {
@@ -135,5 +155,42 @@ describe('App', () => {
 
     expect(await screen.findByText(/Chưa xác nhận được việc đăng xuất với máy chủ/)).toBeInTheDocument();
     expect(screen.queryByText('Bạn đã đăng xuất.')).not.toBeInTheDocument();
+  });
+
+  it('forgets what an earlier user left in this tab when someone signs in (M-1)', async () => {
+    window.sessionStorage.setItem('apas.chat.conversation', 'cv_AAAAAAAAAAAAAAAAAAAAAA');
+    window.sessionStorage.setItem('apas.chat.quote', 'BG-ABCDEFGH');
+    const { backend, user } = setup({
+      'GET /api/auth/session': () => problem(401, 'UNAUTHENTICATED'),
+      'POST /api/auth/login': () => json(200, { role: 'CUST', customerLinked: true }),
+      'POST /api/demo/conversations': () => json(201, { conversationId: 'cv_BBBBBBBBBBBBBBBBBBBBBB' }),
+    });
+    await signIn(user, 'demo-cust-b');
+    await screen.findByLabelText('Nội dung tin nhắn');
+
+    expect(backend.calls.some((c) => c.path.includes('cv_AAAA') || c.path.includes('BG-ABCDEFGH'))).toBe(false);
+    expect(window.sessionStorage.getItem('apas.chat.quote')).toBeNull();
+  });
+
+  it("does not carry the last customer's conversation into the next sign-in after the session expired (M-1)", async () => {
+    window.sessionStorage.setItem('apas.chat.conversation', 'cv_AAAAAAAAAAAAAAAAAAAAAA');
+    window.sessionStorage.setItem('apas.chat.quote', 'BG-ABCDEFGH');
+    const { backend, user } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'CUST', customerLinked: true }),
+      'GET /api/demo/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA/messages': () => problem(401, 'UNAUTHENTICATED'),
+      'GET /api/demo/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA': () => problem(401, 'UNAUTHENTICATED'),
+    });
+    expect(await screen.findByText('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.')).toBeInTheDocument();
+    expect(window.sessionStorage.length).toBe(0);
+
+    backend.set('POST /api/auth/login', () => json(200, { role: 'CUST', customerLinked: true }));
+    backend.set('POST /api/demo/conversations', () => json(201, { conversationId: 'cv_BBBBBBBBBBBBBBBBBBBBBB' }));
+    const touchesOld = () => backend.calls.filter((c) => c.path.includes('cv_AAAA') || c.path.includes('BG-ABCDEFGH')).length;
+    const before = touchesOld();
+    await signIn(user, 'demo-cust-b');
+    await screen.findByLabelText('Nội dung tin nhắn');
+
+    expect(touchesOld()).toBe(before);
+    expect(window.sessionStorage.getItem('apas.chat.conversation')).toBe('cv_BBBBBBBBBBBBBBBBBBBBBB');
   });
 });
