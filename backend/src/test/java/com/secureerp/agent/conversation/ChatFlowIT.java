@@ -364,6 +364,9 @@ class ChatFlowIT extends ChatEnvironment {
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.body()).contains("\"code\":\"CUSTOMER_NOT_LINKED\"");
         assertThat(client.get("/api/demo/conversations/" + conversation + "/messages").statusCode()).isEqualTo(403);
+        HttpResponse<String> state = client.get("/api/demo/conversations/" + conversation); // A-62 keeps A-35
+        assertThat(state.statusCode()).isEqualTo(403);
+        assertThat(state.body()).contains("\"code\":\"CUSTOMER_NOT_LINKED\"").doesNotContain("state");
         assertThat(providerBodies()).isEmpty();
         assertThat(jdbc.queryForObject("select count(*) from message", Integer.class)).isZero();
     }
@@ -379,6 +382,7 @@ class ChatFlowIT extends ChatEnvironment {
             HttpResponse<String> response = send(client, conversation, "Xin chào");
             assertThat(response.statusCode()).isEqualTo(403);
             assertThat(response.body()).contains("\"code\":\"CUSTOMER_NOT_LINKED\"");
+            assertThat(client.get("/api/demo/conversations/" + conversation).statusCode()).isEqualTo(403); // A-62
             assertThat(providerBodies()).isEmpty();
         } finally {
             jdbc.update("update customer_link set revoked_at = null where provider_user_hash = ?",

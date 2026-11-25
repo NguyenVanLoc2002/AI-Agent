@@ -20,11 +20,25 @@ public interface Chat {
 
     List<ChatMessage> messages(SessionIdentity identity, ConversationId conversation);
 
+    /** Who answers the conversation now, as the owning customer may see it (UX13-CONV-STATE, A-62). */
+    CustomerState state(SessionIdentity identity, ConversationId conversation);
+
     /**
      * A stored customer, bot or staff message as the owner (or the staff member holding the conversation) sees it:
      * sanitized or validated text only. {@code sentAt} is when the message was stored, in UTC and truncated to
      * whole seconds (UX13-MSG-TIME, A-61); the display time zone is the client's concern. No message ID.
      */
     record ChatMessage(String direction, String text, Instant sentAt) {
+    }
+
+    /**
+     * The customer-visible state of a conversation (A-62): {@code BOT} the assistant answers,
+     * {@code WAITING_STAFF} handed off and waiting for a staff member, {@code STAFF} a staff member took it.
+     * Never the handoff reason (A-14), the team or the staff member.
+     */
+    enum CustomerState {
+        BOT,
+        WAITING_STAFF,
+        STAFF
     }
 }

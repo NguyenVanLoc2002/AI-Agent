@@ -59,6 +59,14 @@ class StaffInboxIT extends ChatEnvironment {
                 conversation);
     }
 
+    /**
+     * The per-request trace ID and {@code instance} (the caller's own request path, echoed back) are the only parts
+     * of an error body allowed to differ.
+     */
+    private static String withoutRequestEcho(String body) {
+        return body.replaceAll("\"traceId\":\"[^\"]*\"", "").replaceAll("\"instance\":\"[^\"]*\"", "");
+    }
+
     private static String staffMessage(String text) {
         return "{\"text\":\"" + text + "\"}";
     }
@@ -494,6 +502,44 @@ class StaffInboxIT extends ChatEnvironment {
     }
 
     /**
+     * UX13-CONV-STATE (A-62): a customer who opens their conversation again sees who answers it now (CH-02
+     * banner) through every transition, and nothing else: never the reason (A-14), team or staff member.
+     */
+    @Test
+    void theCustomerSeesWhoAnswersTheirConversationButNotWhy() {
+        DemoHttpClient customer = loggedIn("cust-a");
+        String fresh = createConversation(customer);
+        assertThat(customer.get("/api/demo/conversations/" + fresh).body()).isEqualTo("{\"state\":\"BOT\"}");
+
+        String conversation = handedOff(customer);
+        String path = "/api/demo/conversations/" + conversation;
+        HttpResponse<String> waiting = loggedIn("cust-a").get(path); // a new session: the conversation reopened
+        assertThat(waiting.statusCode()).as(waiting.body()).isEqualTo(200);
+        assertThat(waiting.body()).isEqualTo("{\"state\":\"WAITING_STAFF\"}");
+        assertThat(waiting.body()).doesNotContain("PROVIDER_ERROR").doesNotContain("HANDOFF_PENDING")
+                .doesNotContain("team").doesNotContain("reason");
+
+        // Someone else's conversation looks missing, a malformed ID too; staff are not customers.
+        HttpResponse<String> missing = customer.get("/api/demo/conversations/" + FAKE_CONVERSATION);
+        assertThat(missing.statusCode()).isEqualTo(404);
+        for (HttpResponse<String> notYours : List.of(loggedIn("cust-b").get(path),
+                customer.get("/api/demo/conversations/not-a-conversation"))) {
+            assertThat(notYours.statusCode()).isEqualTo(404);
+            assertThat(withoutRequestEcho(notYours.body())).isEqualTo(withoutRequestEcho(missing.body()));
+        }
+        assertThat(loggedIn("sales-1").get(path).statusCode()).isEqualTo(403);
+
+        DemoHttpClient sales = loggedIn("sales-1");
+        String id = handoffId(sales.get("/api/internal/handoffs").body());
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + id + "/claim").statusCode()).isEqualTo(200);
+        assertThat(customer.get(path).body()).isEqualTo("{\"state\":\"STAFF\"}");
+
+        assertThat(sales.postEmpty("/api/internal/handoffs/" + id + "/resolve").statusCode()).isEqualTo(200);
+        assertThat(customer.get(path).body()).isEqualTo("{\"state\":\"BOT\"}");
+        assertThat(status(conversation)).isEqualTo("ACTIVE_BOT");
+    }
+
+    /**
      * T-RBAC-MATRIX: every endpoint against every role. A function outside the role is 403, a resource
      * that is not the caller's (here: one that does not exist) is 404, an anonymous caller is 401.
      */
@@ -508,6 +554,7 @@ class StaffInboxIT extends ChatEnvironment {
         String confirm = "{\"version\":1,\"confirmationToken\":\"qc_AAAAAAAAAAAAAAAAAAAAAA\"}";
         List<Call> matrix = List.of(
                 new Call("POST", "/api/demo/conversations", "", 201, 403),
+                new Call("GET", "/api/demo/conversations/" + FAKE_CONVERSATION, null, 404, 403), // A-62
                 new Call("GET", "/api/demo/conversations/" + FAKE_CONVERSATION + "/messages", null, 404, 403),
                 new Call("POST", "/api/demo/conversations/" + FAKE_CONVERSATION + "/messages",
                         "{\"clientEventId\":\"7b0e0c7e-2f3a-4f6f-9d0a-000000000001\",\"text\":\"x\"}", 404, 403),

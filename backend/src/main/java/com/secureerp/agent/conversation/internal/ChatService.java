@@ -223,6 +223,22 @@ class ChatService implements Chat {
                 .toList();
     }
 
+    @Override
+    public Chat.CustomerState state(SessionIdentity identity, ConversationId id) {
+        ConversationStore.Conversation conversation = owned(identity, id);
+        boundCustomer(identity, conversation);
+        return customerState(conversation.status());
+    }
+
+    /** A-62: the stored status as the customer sees it; one value per status, nothing else. */
+    static Chat.CustomerState customerState(ConversationStore.Status status) {
+        return switch (status) {
+            case ACTIVE_BOT -> Chat.CustomerState.BOT;
+            case HANDOFF_PENDING -> Chat.CustomerState.WAITING_STAFF;
+            case HUMAN_ACTIVE -> Chat.CustomerState.STAFF;
+        };
+    }
+
     /** One view of a stored message for the customer and the staff reads (A-61: UTC, whole seconds). */
     static Chat.ChatMessage view(ConversationStore.StoredMessage message) {
         return new Chat.ChatMessage(message.direction().name(), message.text(),

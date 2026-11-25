@@ -59,6 +59,12 @@ class ConversationController {
                 turn.card().map(QuoteCardView::of).orElse(null));
     }
 
+    /** UX13-CONV-STATE (A-62): the state of the session customer's own conversation; 404 for any other. */
+    @GetMapping("/{conversationId}")
+    ConversationStateView state(@PathVariable String conversationId) {
+        return new ConversationStateView(chat.state(session(), conversation(conversationId)));
+    }
+
     @GetMapping("/{conversationId}/messages")
     List<Chat.ChatMessage> messages(@PathVariable String conversationId) {
         return chat.messages(session(), conversation(conversationId));
@@ -82,6 +88,10 @@ class ConversationController {
     }
 
     record ConversationView(String conversationId) {
+    }
+
+    /** Only the customer-visible state: no reason, team, staff member or internal status (A-62, A-14). */
+    record ConversationStateView(Chat.CustomerState state) {
     }
 
     record TurnView(String turnId, String reply, boolean handedOff, boolean duplicate, QuoteCardView quoteCard) {
