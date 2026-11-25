@@ -96,13 +96,45 @@ describe('App', () => {
     expect(window.sessionStorage.length).toBe(0);
   });
 
-  it('does not offer the AI switch to SALES or SECREV', async () => {
-    for (const role of ['SALES', 'SECREV']) {
-      const { backend, view } = setup({ 'GET /api/auth/session': () => json(200, { role, customerLinked: false }) });
-      expect(await screen.findByText('Màn hình cho tài khoản này chưa có trong bản demo.')).toBeInTheDocument();
-      expect(backend.calls.some((c) => c.path.startsWith('/api/ops/'))).toBe(false);
-      view.unmount();
-    }
+  it('gives SECREV a neutral page and no operator or staff screen', async () => {
+    const { backend } = setup({ 'GET /api/auth/session': () => json(200, { role: 'SECREV', customerLinked: false }) });
+
+    expect(await screen.findByText('Màn hình cho tài khoản này chưa có trong bản demo.')).toBeInTheDocument();
+    expect(backend.calls.some((c) => c.path.startsWith('/api/ops/') || c.path.startsWith('/api/internal/'))).toBe(false);
+  });
+
+  it('removes prices from the screen before the logout answer arrives (EP-10c security L-2)', async () => {
+    let answer: (r: Response) => void = () => {};
+    const { user } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'SALES', customerLinked: false }),
+      'GET /api/internal/handoffs': () => json(200, [{ handoffId: 7, conversationId: 'cv_AAAAAAAAAAAAAAAAAAAAAA', reasonCode: 'CUSTOMER_REQUEST', status: 'CLAIMED', openedAt: '2020-01-02T08:00:00Z', mine: true, followUpReasonCode: null }]),
+      'GET /api/internal/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA/messages': () => json(200, []),
+      'GET /api/internal/conversations/cv_AAAAAAAAAAAAAAAAAAAAAA/quote': () => json(200, {
+        quoteRef: 'BG-ABCDEFGH', version: 1, status: 'ISSUED', currency: 'VND', validUntil: '2099-01-01T00:00:00Z', total: '2500000',
+        lines: [{ sku: 'SKU-BRK-PAD-A', quantity: 2, unitPrice: '1250000', lineTotal: '2500000' }], notes: [],
+      }),
+      'POST /api/auth/logout': () => new Promise<Response>((resolve) => { answer = resolve; }),
+    });
+    await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
+    expect(await screen.findByText('2 × 1.250.000 ₫')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    expect(await screen.findByText('Đang đăng xuất…')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('₫');
+    answer(new Response(null, { status: 204 }));
+    expect(await screen.findByText('Bạn đã đăng xuất.')).toBeInTheDocument();
+  });
+
+  it('gives SALES the staff inbox and never the AI switch', async () => {
+    const { backend } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'SALES', customerLinked: false }),
+      'GET /api/internal/handoffs': () => json(200, []),
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Hộp chờ nhân viên' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeInTheDocument();
+    expect(screen.queryByText('Công tắc AI')).not.toBeInTheDocument();
+    expect(backend.calls.some((c) => c.path.startsWith('/api/ops/') || c.path.startsWith('/api/demo/'))).toBe(false);
   });
 
   it('fails closed on a session it cannot read', async () => {

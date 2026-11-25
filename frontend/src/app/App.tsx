@@ -3,28 +3,30 @@ import { currentSession, logout, type Role, type Session } from '../api/session'
 import { Alert, AppHeader, Button, Sidebar, Spinner } from '../design-system';
 import { CustomerChatPage } from '../pages/CustomerChatPage';
 import { KillSwitchPage } from '../pages/KillSwitchPage';
+import { StaffWorkspace } from '../pages/staff/StaffWorkspace';
 import { LoginPage } from '../pages/LoginPage';
 import { conversationMemory } from './conversationMemory';
 import { failureText, referenceText, ROLE_LABELS, SESSION_EXPIRED } from './texts';
 
 // Application root (EP-10a). The screens offered per role are presentation only: every API call is
 // authorized again by the backend, which is the authority (CLAUDE.md, rule 10). Screens of batch F that
-// are not built yet (inbox, inspector) show a neutral "not available yet" page. The customer gets the
+// are not built yet (inspector) show a neutral "not available yet" page. SALES get the inbox (F2/F3, EP-10c). The customer gets the
 // chat (F1, EP-10b) without the staff sidebar, laid out for phone width.
 
-type ScreenKey = 'kill-switch';
+type ScreenKey = 'kill-switch' | 'inbox';
 
 interface ScreenDef { key: ScreenKey; label: string; icon: string }
 
 const SCREENS_BY_ROLE: Record<Role, ScreenDef[]> = {
   OPS: [{ key: 'kill-switch', label: 'Công tắc AI', icon: 'shield-alert' }],
   CUST: [],
-  SALES: [],
+  SALES: [{ key: 'inbox', label: 'Hộp chờ nhân viên', icon: 'users' }],
   SECREV: [],
 };
 
 type Boot =
   | { phase: 'checking' }
+  | { phase: 'signing-out' }
   | { phase: 'error'; error: unknown }
   | { phase: 'anonymous'; notice: string | null }
   | { phase: 'signed-in'; session: Session };
@@ -51,6 +53,8 @@ export function App() {
 
   const signOut = useCallback(async () => {
     conversationMemory.reset();
+    // Nothing of the signed-in screens (prices, messages) stays visible while the logout answer is awaited.
+    setBoot({ phase: 'signing-out' });
     let notice = 'Bạn đã đăng xuất.';
     try {
       await logout();
@@ -64,6 +68,12 @@ export function App() {
   }, []);
 
   switch (boot.phase) {
+    case 'signing-out':
+      return (
+        <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', color: 'var(--text-secondary)' }}>
+          <Spinner label="Đang đăng xuất" /> Đang đăng xuất…
+        </main>
+      );
     case 'checking':
       return (
         <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', color: 'var(--text-secondary)' }}>
@@ -101,6 +111,8 @@ function Shell({ session, onSignOut, onUnauthenticated }: { session: Session; on
   const signOutButton = <Button variant="ghost" size="sm" iconLeft="log-out" onClick={onSignOut}>Đăng xuất</Button>;
   const content = current?.key === 'kill-switch'
     ? <KillSwitchPage onUnauthenticated={onUnauthenticated} />
+    : current?.key === 'inbox'
+      ? <StaffWorkspace onUnauthenticated={onUnauthenticated} />
     : session.role === 'CUST'
       ? <CustomerChatPage customerLinked={session.customerLinked} onUnauthenticated={onUnauthenticated} />
       : <NotAvailable />;
