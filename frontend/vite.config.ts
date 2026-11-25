@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 
 // EP-10a (decision 4A): the dev server forwards /api to the backend on the loopback address, so the page
 // and the API share one origin. No CORS on the backend, no change to its security configuration. Both
@@ -30,5 +31,7 @@ export default defineConfig({
     // Dates on screen use the viewer's time zone; tests pin it so the expected text is stable.
     env: { TZ: 'UTC' },
     restoreMocks: true,
+    // Browser tests against the real backend run with Playwright (`npm run e2e`, FE-E2E), not with Vitest.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });
