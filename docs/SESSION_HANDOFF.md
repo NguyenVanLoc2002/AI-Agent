@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: UX13-CONV-STATE customer sees who answers the conversation, 2026-11-25
+## Current: SEC07-403-E2E provider 403 end to end with the log checked, 2026-11-25
+- Branch `feat/SEC07-403-E2E-provider-forbidden` from `main` `81386bb` (PR #46 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-63. Tests only.
+- Change: `KillSwitchIT.aRevokedKeyOpensTheBreakerUntilAnOperatorClosesIt` parameterized over 401 and 403 with a provider error body marker and a captured-log check; `ChatEnvironment.providerStatus(int, String)`. Docs: `ACC-01_SEC_EVIDENCE.md` SEC-07, IMPLEMENTATION_PLAN §2a DONE.
+- Mutations (source restored sha256): 403 not an auth failure → 1 red; provider body logged → 2 red; stack trace logged → 2 red; exception name on the breaker-open turn → 2 red.
+- Tests (VERIFIED): `cd backend && ./mvnw -B -o clean verify` (2026-11-25 03:23–03:26 UTC, Java 21.0.12, after the review fixes) → exit 0; surefire 1190, failsafe 310 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan.
+- Review (advisory, qa-gatekeeper, one round): 0H/2M/5L; M1, M2, L6 applied (whole-run log scan, wider exception check, run recorded); L3 recorded (no key is sent, so the credential checks cannot fail).
+- Rollback: revert (tests and docs only).
+- Next: (1) owner pushes and opens the PR; (2) A-18(b) export → EP-10a; PROPOSED SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK; build checks (Spotless ratchet, OSV-Scanner) as their own issue.
+
+## Previous: UX13-CONV-STATE customer sees who answers the conversation, 2026-11-25 — MERGED (PR #46, `81386bb`)
 - Branch `feat/UX13-CONV-STATE-customer-state` from `main` `c5535a2` (PR #45 merged). Owner 2026-11-25 ("Theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-62.
 - Change: `GET /api/demo/conversations/{id}` → `{"state":"BOT"|"WAITING_STAFF"|"STAFF"}` (`Chat.CustomerState`, `ChatService.state`/`customerState`, `ConversationController.ConversationStateView`); same checks as the customer message read (CUST, owner 404, A-35 403); no reason, team, staff member, audit or migration. Docs: RBAC_MATRIX row + rule, TOOL_CONTRACTS endpoint line, `specs/50` gap 3 resolved, IMPLEMENTATION_PLAN §2a UX13-CONV-STATE DONE.
 - Tests: new `CustomerStateTest` (4), `StaffInboxIT.theCustomerSeesWhoAnswersTheirConversationButNotWhy` + T-RBAC-MATRIX row, `ChatFlowIT` A-35 tests extended. Mutations (source restored sha256): wrong mapping → 2 unit + 1 IT red; role/A-35 checks removed → 2 IT red; A-35 check removed → 2 `ChatFlowIT` red.

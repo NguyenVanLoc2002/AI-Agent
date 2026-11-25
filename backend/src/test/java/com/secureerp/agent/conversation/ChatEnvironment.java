@@ -123,6 +123,12 @@ public abstract class ChatEnvironment extends DemoWebEnvironment {
         PROVIDER.stubFor(post(urlEqualTo(COMPLETE_PATH)).willReturn(aResponse().withStatus(status)));
     }
 
+    /** As {@link #providerStatus(int)}, with an error body (to prove the body never reaches a log or a reply). */
+    protected static void providerStatus(int status, String body) {
+        PROVIDER.resetMappings();
+        PROVIDER.stubFor(post(urlEqualTo(COMPLETE_PATH)).willReturn(aResponse().withStatus(status).withBody(body)));
+    }
+
     protected static String text(String text) {
         return "{\"text\":\"" + text + "\"}";
     }
