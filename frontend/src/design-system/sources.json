@@ -227,6 +227,16 @@
       "modified": null
     },
     {
+      "path": "components/forms/Select.d.ts",
+      "sha256": "8767245d02f3c6f7ba2ee0161f449208df50b756ceb7b08d547b5564e3be2061",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Select.jsx",
+      "sha256": "de4d27ceae2c8250c91882c5abd0b10f987e675cf6813f7fb42a27a933589b23",
+      "modified": null
+    },
+    {
       "path": "components/forms/Switch.d.ts",
       "sha256": "b40c3e898402bd620641d86f86605948df76455d2e3791359d4c182b48d64b7e",
       "modified": null

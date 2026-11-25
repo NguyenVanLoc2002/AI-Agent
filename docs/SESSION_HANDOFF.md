@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: EP-10c staff inbox F2 and held conversation F3, 2026-11-25
+## Current: EP-10d Security Inspector F4, 2026-11-25
+- Branch `feat/EP-10d-security-inspector` from `feat/EP-10c-staff-inbox` `f8d1530` (EP-10c pushed, PR not merged yet; both change `App.tsx`; rebase onto `main` after the EP-10c merge). Owner 2026-11-25 ("theo đề xuất, hãy triển khai" = 1A–7A): DECISIONS_REQUIRED A-70. Committed on the branch, not pushed.
+- Change: `frontend/` only: `api/inspector.ts` (events + trace client, fail-closed decoders), `app/inspectorLabels.ts`, `pages/inspector/SecurityInspectorPage.tsx`, `App.tsx` (SECREV sidebar "Sự kiện bảo mật"), `test/fakeBackend.ts` (query-string routes by opt-in `?*`); design-system copy Select (unchanged). Docs: A-70, IMPLEMENTATION_PLAN (row 13, §2a EP-10d DONE, FR-011), `frontend/README.md`. No backend change.
+- Tests (VERIFIED, 2026-11-25 08:34 UTC, Node 22.20.0, in `frontend/`): `npm run typecheck` exit 0; `npx vitest run` 11 files / 219 tests exit 0; `npm run build` exit 0; `npm run ds:verify` exit 0 (57 files); `npm audit` exit 0 (0 vulnerabilities); `git diff --check` exit 0. Mutations (sources restored, sha256 checked): 47 checked, all red at the end (3 survivors exposed weak tests: from = to, the inner customer-pseudonym guard, RESPONSE + PASS with a finding; tests added).
+- NOT RUN: browser against the real backend (FE-E2E); screen reader and visual checks; backend tests (unchanged).
+- Review (advisory): security-auditor 0H/0M/6L, ux-workflow-reviewer 1H/7M/7L; fixes and residuals in A-70.
+- Rollback: revert the commit (frontend files and doc lines only).
+- Next: (1) owner pushes and opens the PR (base `feat/EP-10c-staff-inbox` until EP-10c merges, then `main`); (2) PROPOSED EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-E2E, FE-CSP, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED (ACC-01 results not served).
+
+## Previous: EP-10c staff inbox F2 and held conversation F3, 2026-11-25 — pushed, PR not merged at the time
 - Branch `feat/EP-10c-staff-inbox` from `main` `bdcf469` (PR #52 merged). Owner 2026-11-25 ("tôi đồng ý với đề xuất hãy triển khai" = 1A–5A): DECISIONS_REQUIRED A-69. Committed on the branch, not pushed.
 - Change: `frontend/` only: `api/staff.ts`, `app/staffLabels.ts`, `pages/staff/StaffInboxPage.tsx`, `StaffConversationPage.tsx`, `StaffWorkspace.tsx`, `App.tsx` (SALES inbox, sign-out clears the screen first), `app/texts.ts` (timeout copy), `api/quotes.ts` (exports); design-system copies Textarea, EmptyState. Docs: A-69, IMPLEMENTATION_PLAN (row 13, §2a EP-10c DONE, EP-10e and STAFF-MSG-ID PROPOSED), `frontend/README.md`. No backend change.
 - Tests (VERIFIED, 2026-11-25, Node 22.20.0, in `frontend/`): `npm run typecheck` exit 0; `npx vitest run` 8 files / 181 tests exit 0; `npm run build` exit 0; `npm run ds:verify` exit 0 (55 files); `npm audit` 0 vulnerabilities. Mutations (sources restored sha256): 29 checked, all red at the end (2 redundant inner guards red only with the button guard removed; 1 weak test strengthened: warning tone).

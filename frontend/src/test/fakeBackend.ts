@@ -52,7 +52,11 @@ export function fakeBackend(routes: Record<string, Handler>) {
       credentials: init?.credentials,
     };
     calls.push(call);
-    const handler = all[`${call.method} ${call.path}`];
+    // An exact route wins. A route registered as "METHOD /path?*" opts in to any query string on that path
+    // (the test then checks the query itself); without the opt-in a query string is a different route.
+    const query = call.path.indexOf('?');
+    const handler = all[`${call.method} ${call.path}`]
+      ?? (query >= 0 ? all[`${call.method} ${call.path.slice(0, query)}?*`] : undefined);
     if (!handler) {
       return problem(404, 'NOT_FOUND');
     }

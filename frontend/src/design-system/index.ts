@@ -7,6 +7,7 @@ export { Button } from './components/core/Button';
 export { IconButton } from './components/core/IconButton';
 export { Switch } from './components/forms/Switch';
 export { Input } from './components/forms/Input';
+export { Select } from './components/forms/Select';
 export { Textarea } from './components/forms/Textarea';
 export { EmptyState } from './components/feedback/EmptyState';
 export { Alert } from './components/feedback/Alert';
