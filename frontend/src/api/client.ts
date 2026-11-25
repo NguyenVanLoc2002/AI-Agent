@@ -20,14 +20,21 @@ export class ApiError extends Error {
   readonly status: number | null;
   readonly code: string | null;
   readonly traceId: string | null;
+  /**
+   * False when the request itself was never sent (the CSRF token read before a write failed), so the
+   * screen may say "not sent" instead of "outcome unknown" (EP-10b review L-3).
+   */
+  readonly sent: boolean;
 
-  constructor(kind: ApiErrorKind, status: number | null = null, code: string | null = null, traceId: string | null = null) {
+  constructor(kind: ApiErrorKind, status: number | null = null, code: string | null = null, traceId: string | null = null,
+      sent = true) {
     super(`api ${kind}${status === null ? '' : ` ${status}`}`);
     this.name = 'ApiError';
     this.kind = kind;
     this.status = status;
     this.code = code;
     this.traceId = traceId;
+    this.sent = sent;
   }
 
   /** The session is missing or expired: the app returns to the login page. */
@@ -70,7 +77,15 @@ export async function request(path: string, options: RequestOptions = {}): Promi
     body = new URLSearchParams(options.form).toString();
   }
   if (method !== 'GET') {
-    const csrf = await fetchCsrf(options.timeoutMs);
+    let csrf: Csrf;
+    try {
+      csrf = await fetchCsrf(options.timeoutMs);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw new ApiError(error.kind, error.status, error.code, error.traceId, false);
+      }
+      throw error;
+    }
     headers[csrf.headerName] = csrf.token;
   }
   const response = await send(path, { method, headers, body }, options.timeoutMs);

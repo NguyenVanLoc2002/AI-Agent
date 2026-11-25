@@ -74,6 +74,28 @@
       "modified": null
     },
     {
+      "path": "components/ai/AIComposer.d.ts",
+      "sha256": "4f74cec2796cdb0d404fb239ba68b79255d658e10198bd6684f5426005aa1403",
+      "modified": "A-68: accessible label, maxLength, no send while an IME is composing",
+      "copySha256": "2ed6258b14648b4da5d749059a5c60d1f5d70e68dd0df6c843dab6cd34366828"
+    },
+    {
+      "path": "components/ai/AIComposer.jsx",
+      "sha256": "5fd8144a113efd7c1eac22af0d6809508a463d52f93d2c9bf275ff6b585d1c76",
+      "modified": "A-68: accessible label, maxLength, no send while an IME is composing",
+      "copySha256": "1e4ef8c21f2857be831b19dcb6e9b920ddc2ac2787b17a03c2dc34bad59b26d5"
+    },
+    {
+      "path": "components/ai/ChatMessage.d.ts",
+      "sha256": "ebeb49f0b53ef57a186db594dbbaa62a333dccd00e9baec3e0d1f84fb9aaec2c",
+      "modified": null
+    },
+    {
+      "path": "components/ai/ChatMessage.jsx",
+      "sha256": "2774a43ed21c219a857f162cc3f79b7aaa94f0c732e24923972e330cc1d97412",
+      "modified": null
+    },
+    {
       "path": "components/bundle.css",
       "sha256": "e477265b67960d7704e47fc83659baee29aec9a5389a7bed0540c7afb40ae11b",
       "modified": null
@@ -162,6 +184,16 @@
     {
       "path": "components/feedback/Dialog.jsx",
       "sha256": "9d4980ff9505bdf2fb4d66e38c3d5a76b271747b1fa5444f1759985b3efea608",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Skeleton.d.ts",
+      "sha256": "ff0a8df5c1148d09a0a5b2228a45747b1712806c1b3fd2029ac9f8b5621d5fb4",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Skeleton.jsx",
+      "sha256": "6abe6e3610e61909ebc48d74212ac0448e0626ef657fbdf543828d8287bc27d4",
       "modified": null
     },
     {

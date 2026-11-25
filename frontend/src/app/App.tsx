@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { currentSession, logout, type Role, type Session } from '../api/session';
 import { Alert, AppHeader, Button, Sidebar, Spinner } from '../design-system';
+import { CustomerChatPage } from '../pages/CustomerChatPage';
 import { KillSwitchPage } from '../pages/KillSwitchPage';
 import { LoginPage } from '../pages/LoginPage';
+import { conversationMemory } from './conversationMemory';
 import { failureText, referenceText, ROLE_LABELS, SESSION_EXPIRED } from './texts';
 
 // Application root (EP-10a). The screens offered per role are presentation only: every API call is
 // authorized again by the backend, which is the authority (CLAUDE.md, rule 10). Screens of batch F that
-// are not built yet (chat, inbox, inspector) show a neutral "not available yet" page.
+// are not built yet (inbox, inspector) show a neutral "not available yet" page. The customer gets the
+// chat (F1, EP-10b) without the staff sidebar, laid out for phone width.
 
 type ScreenKey = 'kill-switch';
 
@@ -41,9 +44,13 @@ export function App() {
 
   useEffect(() => { void check(); }, [check]);
 
-  const expired = useCallback(() => setBoot({ phase: 'anonymous', notice: SESSION_EXPIRED }), []);
+  const expired = useCallback(() => {
+    conversationMemory.reset();
+    setBoot({ phase: 'anonymous', notice: SESSION_EXPIRED });
+  }, []);
 
   const signOut = useCallback(async () => {
+    conversationMemory.reset();
     let notice = 'Bạn đã đăng xuất.';
     try {
       await logout();
@@ -51,6 +58,8 @@ export function App() {
       // The server session may still exist until it times out; the screen leaves it either way and says so.
       notice = 'Chưa xác nhận được việc đăng xuất với máy chủ. Phiên có thể còn hiệu lực tới khi hết hạn. Nếu dùng máy chung, hãy đóng trình duyệt.';
     }
+    // Again after the logout answer: a page answer that arrived meanwhile is from an old epoch anyway.
+    conversationMemory.reset();
     setBoot({ phase: 'anonymous', notice });
   }, []);
 
@@ -72,7 +81,11 @@ export function App() {
         </main>
       );
     case 'anonymous':
-      return <LoginPage notice={boot.notice} onLoggedIn={(session) => setBoot({ phase: 'signed-in', session })} />;
+      return <LoginPage notice={boot.notice} onLoggedIn={(session) => {
+        // A new sign-in never inherits what an earlier user of this tab left behind (review M-1).
+        conversationMemory.reset();
+        setBoot({ phase: 'signed-in', session });
+      }} />;
     case 'signed-in':
       return <Shell session={boot.session} onSignOut={() => void signOut()} onUnauthenticated={expired} />;
   }
@@ -88,7 +101,9 @@ function Shell({ session, onSignOut, onUnauthenticated }: { session: Session; on
   const signOutButton = <Button variant="ghost" size="sm" iconLeft="log-out" onClick={onSignOut}>Đăng xuất</Button>;
   const content = current?.key === 'kill-switch'
     ? <KillSwitchPage onUnauthenticated={onUnauthenticated} />
-    : <NotAvailable />;
+    : session.role === 'CUST'
+      ? <CustomerChatPage customerLinked={session.customerLinked} onUnauthenticated={onUnauthenticated} />
+      : <NotAvailable />;
 
   if (screens.length === 0) {
     // Customer-facing and other roles without a screen yet: no sidebar, works at phone width.
