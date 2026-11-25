@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC02-QUOTABLE cross-customer attempts by a quotable attacker, 2026-11-25
+## Current: SEC04-PRINCIPALS confirmations from two application instances, 2026-11-25
+- Branch `feat/SEC04-PRINCIPALS-two-instances` from `main` `b3d5a76` (PR #48 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-65. Tests only.
+- Change: new `QuoteConfirmationTwoInstancesIT` (second Spring context on the same PostgreSQL; positive control; 10 sessions of the owner 5/5 → 1 request, 1 ERP call over both, 1 ACCEPTED; unknown on instance 1 never re-sent from instance 2). Docs: ACC-01 SEC-04, IMPLEMENTATION_PLAN §2a (SEC04-PRINCIPALS DONE, SEC04-OVERLAP PROPOSED).
+- Mutations (author-run, sources restored sha256): per-instance confirm guard (with a widened window) → race red, single-instance green; per-instance dispatch guard → race and unknown red, single-instance green. A `static` mutant survives (one JVM).
+- Tests (VERIFIED): `cd backend && ./mvnw -B -o clean verify` (2026-11-25 04:06–04:09 UTC, Maven on JDK 25.0.5) → exit 0; surefire 1190, failsafe 314 (1 skipped: SEC03-F2), sec05-artifact-scan 1. `git diff --check` exit 0. NOT RUN: formatter, CVE scan, separate JVMs.
+- Review (advisory, qa-gatekeeper, one round): 0H/3M/5L; M1 → SEC04-OVERLAP PROPOSED, M2/M3 wording, L4–L7 applied.
+- Rollback: revert (tests and docs only).
+- Next: (1) owner commits/pushes and opens the PR; (2) A-18(b) export → EP-10a; PROPOSED SEC04-OVERLAP, SEC06-WALLCLOCK; BUILD-CHECKS as its own issue.
+
+## Previous: SEC02-QUOTABLE cross-customer attempts by a quotable attacker, 2026-11-25 — MERGED (PR #48, `b3d5a76`)
 - Branch `feat/SEC02-QUOTABLE-quotable-attacker` from `main` `cb115ac` (PR #47 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-64. Tests only.
 - Change: new `CrossCustomerQuotableIT` (B quotable through `MockErpSimulation`, B price 777666555, positive control, the 20 attempts of `CrossCustomerIT`, quote-table checks); `CrossCustomerIT` unchanged. Docs: `ACC-01_SEC_EVIDENCE.md` SEC-02, IMPLEMENTATION_PLAN §2a DONE.
 - Mutations (author-run, sources restored sha256): every customer priced as A → red; B left credit-blocked → red (positive control); productRef resolved across conversations → red at a leak assertion. 4 of 6 phrasings gave B its own card.
