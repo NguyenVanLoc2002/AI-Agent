@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC04-PRINCIPALS confirmations from two application instances, 2026-11-25
+## Current: A-18(b) full component sources from the design-system artifact, 2026-11-25
+- Branch `docs/A-18b-full-export` from `main` `de7f16d` (PR #49 merged). Owner 2026-11-25: read-only check, then option 3 (import + re-check): DECISIONS_REQUIRED A-66. Docs/design files only.
+- Change: 37 `design-system/components/<group>/*.jsx` added verbatim (sha256 = artifact file list; all relative imports resolve; only `react`); EXPORT-NOTES, README export note, DESIGN_GUIDE line, A-18 (b) met.
+- Re-check: everything else identical to the artifact except the repo's README note and the licensed fonts/icons (kept).
+- Finding: `core/Icon.jsx` unescaped `title` in `dangerouslySetInnerHTML` → fix in EP-10a.
+- Tests: NOT RUN (no code built from `design-system/`); `git diff --check` run before commit.
+- Rollback: revert (adds files and doc lines only).
+- Next: (1) owner pushes and opens the PR; (2) EP-10a frontend scaffold (plan + owner decisions first: toolchain, which screens, how `design-system/` sources are consumed); PROPOSED SEC04-OVERLAP, SEC06-WALLCLOCK.
+
+## Previous: SEC04-PRINCIPALS confirmations from two application instances, 2026-11-25 — MERGED (PR #49, `de7f16d`)
 - Branch `feat/SEC04-PRINCIPALS-two-instances` from `main` `b3d5a76` (PR #48 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-65. Tests only.
 - Change: new `QuoteConfirmationTwoInstancesIT` (second Spring context on the same PostgreSQL; positive control; 10 sessions of the owner 5/5 → 1 request, 1 ERP call over both, 1 ACCEPTED; unknown on instance 1 never re-sent from instance 2). Docs: ACC-01 SEC-04, IMPLEMENTATION_PLAN §2a (SEC04-PRINCIPALS DONE, SEC04-OVERLAP PROPOSED).
 - Mutations (author-run, sources restored sha256): per-instance confirm guard (with a widened window) → race red, single-instance green; per-instance dispatch guard → race and unknown red, single-instance green. A `static` mutant survives (one JVM).

@@ -34,7 +34,7 @@ Không gian làm việc cho **nhân viên** bán phụ tùng: tra cứu phụ t�
 | Audit | Mọi thao tác ghi và mọi lần thao tác thay người khác | ADR-012 |
 
 ## Giao diện
-- Dùng component trong `design-system/components/` (kiểu trong `components/index.d.ts`). Bản xuất hiện **chưa import được** vào app React (bundle IIFE tự render demo) — xem `design-system/EXPORT-NOTES.md`; cần mã nguồn `.jsx` trước khi dựng `frontend/`.
+- Dùng component trong `design-system/components/` (kiểu trong `components/index.d.ts`). Không dùng `components/bundle.js` (IIFE tự render demo); dùng mã nguồn `components/<nhóm>/*.jsx`, đủ từ 25/11/2026 (A-18(b), A-66) — xem `design-system/EXPORT-NOTES.md`.
 - Token: `design-system/tokens.json` / `tokens.css`. Không hard-code màu, cỡ chữ, khoảng cách.
 - Font Be Vietnam Pro (`design-system/assets/fonts/`). Icon chỉ Lucide 0.460.0 (`assets/icons/`).
 - Toàn bộ chữ trên giao diện bằng tiếng Việt, kiểu đặt dấu mới (Hủy, Xóa, Khóa).
