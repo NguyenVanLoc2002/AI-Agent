@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: SEC07-403-E2E provider 403 end to end with the log checked, 2026-11-25
+## Current: SEC02-QUOTABLE cross-customer attempts by a quotable attacker, 2026-11-25
+- Branch `feat/SEC02-QUOTABLE-quotable-attacker` from `main` `cb115ac` (PR #47 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-64. Tests only.
+- Change: new `CrossCustomerQuotableIT` (B quotable through `MockErpSimulation`, B price 777666555, positive control, the 20 attempts of `CrossCustomerIT`, quote-table checks); `CrossCustomerIT` unchanged. Docs: `ACC-01_SEC_EVIDENCE.md` SEC-02, IMPLEMENTATION_PLAN §2a DONE.
+- Mutations (author-run, sources restored sha256): every customer priced as A → red; B left credit-blocked → red (positive control); productRef resolved across conversations → red at a leak assertion. 4 of 6 phrasings gave B its own card.
+- Tests (VERIFIED): `cd backend && ./mvnw -B -o clean verify` (2026-11-25 03:41–03:44 UTC, Java 21.0.12, after the review fixes) → exit 0; surefire 1190, failsafe 311 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. `git diff --check` exit 0. NOT RUN: formatter, CVE scan, a mutation storing B's quote under A's digest.
+- Review (advisory, qa-gatekeeper, one round): 0H/2M/4L; M1 (a mutation biting at a leak assertion), M2 (A's digest differs from B's), L4 applied.
+- Rollback: revert (tests and docs only).
+- Next: (1) owner pushes and opens the PR; (2) A-18(b) export → EP-10a; PROPOSED SEC04-PRINCIPALS, SEC06-WALLCLOCK; BUILD-CHECKS as its own issue.
+
+## Previous: SEC07-403-E2E provider 403 end to end with the log checked, 2026-11-25 — MERGED (PR #47, `cb115ac`)
 - Branch `feat/SEC07-403-E2E-provider-forbidden` from `main` `81386bb` (PR #46 merged). Owner 2026-11-25 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-63. Tests only.
 - Change: `KillSwitchIT.aRevokedKeyOpensTheBreakerUntilAnOperatorClosesIt` parameterized over 401 and 403 with a provider error body marker and a captured-log check; `ChatEnvironment.providerStatus(int, String)`. Docs: `ACC-01_SEC_EVIDENCE.md` SEC-07, IMPLEMENTATION_PLAN §2a DONE.
 - Mutations (source restored sha256): 403 not an auth failure → 1 red; provider body logged → 2 red; stack trace logged → 2 red; exception name on the breaker-open turn → 2 red.
