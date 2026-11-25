@@ -14,6 +14,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -28,6 +30,10 @@ class KillSwitchIT extends ChatEnvironment {
     private static final String SWITCH = "/api/ops/kill-switch";
     private static final String OFF = "{\"enabled\":false}";
     private static final String ON = "{\"enabled\":true}";
+    /** A provider error body with a marker: it must reach neither a reply nor a log (A-63). */
+    private static final String PROVIDER_ERROR_SENTINEL = "ZZPROVIDER-ERR-7Q4";
+    private static final String PROVIDER_ERROR_BODY = "{\"error\":{\"type\":\"permission_error\",\"message\":\""
+            + PROVIDER_ERROR_SENTINEL + " this key is not allowed\"}}";
 
     private String handoffReason(String conversation, int index) {
         return jdbc.queryForList("select reason_code from handoff where conversation_id = ? order by handoff_id",
@@ -274,26 +280,32 @@ class KillSwitchIT extends ChatEnvironment {
     }
 
     /**
-     * T-SEC07 (AC-08.2, decision 5A): the provider rejects the key. The turn hands off (PROVIDER_AUTH) with a
-     * safe answer, the breaker opens, no later turn reaches the provider and nothing is written for an order;
-     * only an operator closes the breaker.
+     * T-SEC07 (AC-08.2, decision 5A; 403 end to end: SEC07-403-E2E, A-63): the provider rejects the key with 401
+     * or 403. The turn hands off (PROVIDER_AUTH) with a safe answer, the breaker opens, no later turn reaches the
+     * provider and nothing is written for an order; only an operator closes the breaker. The log of the run
+     * carries the status classification only: no stack trace, exception name, provider error body or credential
+     * header (the PoC sends no key to the Fake provider, so no key value can be checked here).
      */
-    @Test
-    void aRevokedKeyOpensTheBreakerUntilAnOperatorClosesIt(CapturedOutput output) {
+    @ParameterizedTest(name = "provider answers {0}")
+    @ValueSource(ints = {401, 403})
+    void aRevokedKeyOpensTheBreakerUntilAnOperatorClosesIt(int status, CapturedOutput output) {
         DemoHttpClient customer = loggedIn("cust-a");
         String first = createConversation(customer);
-        providerStatus(401);
+        providerStatus(status, PROVIDER_ERROR_BODY);
 
         HttpResponse<String> answer = send(customer, first, "Tôi cần má phanh cho xe");
 
         assertThat(answer.statusCode()).isEqualTo(200);
         assertThat(ChatBodies.withoutTurnId(answer.body())).contains("\"handedOff\":true").doesNotContain("Exception")
-                .doesNotContain("401")
-                .doesNotContain("at com.");
+                .doesNotContain(String.valueOf(status))
+                .doesNotContain("at com.")
+                .doesNotContain(PROVIDER_ERROR_SENTINEL);
         assertThat(handoffReason(first, 0)).isEqualTo("PROVIDER_AUTH");
         assertThat(switchEvents("PROVIDER_AUTH", false)).isEqualTo(1);
         int calls = providerBodies().size();
-        assertThat(calls).as("401 is not retried").isEqualTo(1);
+        assertThat(calls).as("%s is not retried", status).isEqualTo(1);
+        // A-63 (3A): the gateway line is there (positive control); the raw-content scan runs over the whole run below.
+        assertThat(output.getAll()).contains("gateway.provider status=" + status + " attempt=1");
 
         script(); // the provider would answer again, but the breaker stays open
         String second = createConversation(customer);
@@ -310,5 +322,14 @@ class KillSwitchIT extends ChatEnvironment {
         String third = createConversation(customer);
         assertThat(send(customer, third, "xin chào").body()).contains(DEFAULT_ANSWER);
         assertThat(output.getAll()).doesNotContain("usr_").contains("platform.kill_switch changed");
+        // A-63 (QA review M1, M2): the whole run (failing turn, breaker-open turn, OPS close, next turn) carries
+        // no provider error body, stack frame, exception name in any form, or credential header.
+        assertThat(output.getAll()).doesNotContain(PROVIDER_ERROR_SENTINEL)
+                .doesNotContain("\tat ")
+                .doesNotContain("Caused by")
+                .doesNotContain("Exception")
+                .doesNotContainPattern("[A-Za-z]+Error\\b")
+                .doesNotContainIgnoringCase("authorization")
+                .doesNotContainIgnoringCase("bearer");
     }
 }

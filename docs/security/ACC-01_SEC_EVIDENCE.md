@@ -23,7 +23,7 @@
 | SEC-04 | **VERIFIED** (scope below) | Mock ERP, PostgreSQL |
 | SEC-05 | **PARTIAL**: build/test artefacts VERIFIED, 7-day logs and APM NOT RUN | one `clean verify` |
 | SEC-06 | **VERIFIED by design bound, not measured** | cache ≤ 30 s shown on the test clock; one instance; no wall-clock measurement across instances |
-| SEC-07 | **VERIFIED** (scope below) | Fake provider; 401 end to end, 401 and 403 at gateway unit level; one instance |
+| SEC-07 | **VERIFIED** (scope below) | Fake provider; 401 and 403 end to end with the log of the run checked (SEC07-403-E2E, 2026-11-25, A-63); one instance |
 
 **Release gate:** within the stated fixtures, no leakage and no duplicate write was found in this run. **ACC-01 does not clear a release gate:** NOT RUN is not a pass (skill `acceptance-sec`), and SEC-03 has 1 open finding (SEC03-F2) and no image path, SEC-05 lacks the 7-day log and APM scan, and SEC-06 has no wall-clock measurement. Nothing in this report is evidence about a real ERP, a real model provider, production network egress or provider retention (D-01..D-03, ADR-004, ADR-016).
 
@@ -83,14 +83,15 @@
 ## SEC-07 — key revocation
 
 - **Status:** VERIFIED within scope (ADR-013).
-- **Tests:** `DefaultAiGatewayTest` (401 and 403 open the breaker, unit level); `KillSwitchIT` (401 end to end → handoff `PROVIDER_AUTH`, no retry, no stack or code in the answer, breaker stored once, later turns 0 provider calls; a 401 after a quote was issued → no card, no draft order, quote unchanged; only OPS closes the breaker); `JdbcKillSwitchIT`.
-- **Limits:** "no stack or code" is checked in the HTTP answer; logs are checked for pseudonyms only. "No partial order write" means no `draft_order_request` and no confirmation row; a confirmation itself calls no provider.
-- **NOT RUN:** 403 end to end; revoking a real key in a secret store; other instances may still call for up to 30 s after the breaker opens.
+- **Tests:** `DefaultAiGatewayTest` (401 and 403 open the breaker, unit level); `KillSwitchIT` (401 and 403 end to end, one parameterized test since SEC07-403-E2E, A-63 → handoff `PROVIDER_AUTH`, no retry, no stack or code in the answer, breaker stored once, later turns 0 provider calls; a 401 after a quote was issued → no card, no draft order, quote unchanged; only OPS closes the breaker); `JdbcKillSwitchIT`.
+- **Log check (A-63, 2026-11-25):** the captured output contains the classification line `gateway.provider status=<401|403> attempt=1` (positive control); over the whole run (failing turn, breaker-open turn, OPS close, next turn) it has no stack frame, no `Caused by`, no `Exception` in any form, no `…Error` class name, no `Authorization`/`Bearer`, and not the marker placed in the provider's error body; the answer carries neither the status nor the marker. Mutations (run by the author, not independently re-run): 403 not treated as an auth failure → 1 red; provider body logged → 2 red; stack trace logged → 2 red; exception name logged on the breaker-open turn → 2 red. Run: `cd backend && ./mvnw -B -o clean verify` (2026-11-25 03:23–03:26 UTC, Java 21.0.12, after the review fixes) → exit 0; surefire 1190, failsafe 310 (1 skipped: SEC03-F2), sec05-artifact-scan 1, 0 failures. The `Authorization`/`Bearer` checks cannot fail today (no key is sent) and are not evidence about a credential header.
+- **Limits:** the PoC sends no key to the Fake provider, so no key value can appear or be checked; the status code itself is logged on purpose (classification, A-63 3A). "No partial order write" means no `draft_order_request` and no confirmation row; a confirmation itself calls no provider.
+- **NOT RUN:** revoking a real key in a secret store; other instances may still call for up to 30 s after the breaker opens.
 
 ## Follow-ups
 
 - **DONE (IMPLEMENTATION_PLAN §2a SEC03-50, A-54):** 48/50; findings SEC03-F1 (DONE 2026-11-23, A-55 → 49/50), SEC03-F2 (BLOCKED, D-01); SEC03-GAPS DONE (A-56) with findings SEC03-F3 (DONE, A-58), SEC03-F4 (DONE, A-57); SEC03-F1-MONEY PROPOSED.
-- **PROPOSED (IMPLEMENTATION_PLAN §2a, QA review):** SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK, SEC07-403-E2E.
+- **PROPOSED (IMPLEMENTATION_PLAN §2a, QA review):** SEC02-QUOTABLE, SEC04-PRINCIPALS, SEC06-WALLCLOCK. **DONE:** SEC07-403-E2E (2026-11-25, A-63).
 - **Review:** qa-gatekeeper (advisory, 2026-11-23): corrections applied (SEC-06 wording, SEC-02 limit, SEC-04/SEC-01/SEC-07 scope, release gate); counts confirmed against annotations where comparable.
 - **BLOCKED:** SEC-03 image OCR (no upload path); SEC-DASH stays blocked by EP-10 (UX-13).
 - Decision IDs: A-40, A-41, A-44, A-45, A-46, A-47, A-50, A-51, A-52, A-53, A-54, A-55, A-56, A-57, A-58, A-59, A-60; ADR-004, ADR-009, ADR-013, ADR-016.
