@@ -19,3 +19,16 @@ export { Skeleton } from './components/feedback/Skeleton';
 export { DescriptionList } from './components/data/DescriptionList';
 export { Sidebar } from './components/navigation/Sidebar';
 export { AppHeader } from './components/navigation/AppHeader';
+// FE-UI-P1 (A-80): foundation for the app shell and the staff pages. `Checkbox` is copied only because DataTable
+// imports it (FE-UI-D10); it is not exported until a page needs it on its own.
+export { Field } from './components/forms/Field';
+export { Breadcrumb } from './components/navigation/Breadcrumb';
+export { PageHeader } from './components/navigation/PageHeader';
+export { Tabs } from './components/navigation/Tabs';
+export { Toast, ToastViewport } from './components/feedback/Toast';
+export { Tooltip } from './components/feedback/Tooltip';
+export { Card } from './components/data/Card';
+export { Tag } from './components/data/Tag';
+export { DataTable } from './components/data/DataTable';
+export type { DataTableColumn, DataTableProps } from './components/data/DataTable';
+export type { TabItem } from './components/navigation/Tabs';

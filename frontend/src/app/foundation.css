@@ -1,0 +1,107 @@
+/*
+ * FE-UI-P1 (A-80, FE-UI-D03): layout foundation for the app shell and pages, built only from design tokens
+ * (design-system/tokens.css). No colour, size or spacing literal: foundation.test.ts rejects them, except the
+ * breakpoint widths (CSS variables are not allowed inside @media) and the 1px of the visually-hidden pattern.
+ * Breakpoints: src/app/breakpoints.ts (FE-UI-D08). The shell (P2) is the first consumer of the media queries.
+ */
+
+:root {
+  --bp-customer-min: 390px;
+  --bp-staff-min: 1024px;
+  --bp-panel-push: 1280px;
+  --bp-wide: 1440px;
+}
+
+/* Hidden on screen, read by screen readers (captions, live-region text). */
+.ap-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* "Bỏ qua tới nội dung chính": invisible until focused by keyboard (WCAG 2.4.1). */
+.ap-skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: var(--type-button);
+  box-shadow: var(--shadow-md);
+  transform: translateY(calc(-100% - var(--space-4)));
+}
+.ap-skip-link:focus-visible {
+  transform: none;
+}
+
+/* Visible focus for the skip link and app-level focusable elements that are not design-system components
+   (WCAG 2.4.7, 2.4.11, 1.4.11). A solid --border-focus outline, not the faint --focus-ring halo (A-80 review H1). */
+.ap-skip-link:focus-visible,
+.ap-focusable:focus-visible {
+  outline: var(--border-width-strong) solid var(--border-focus);
+  outline-offset: var(--border-width-default);
+}
+
+/* Windows high contrast / forced colours drop box-shadow, so the design-system focus halo disappears there.
+   A system-colour outline (overriding the components' inline outline:none) keeps focus visible. Normal mode is
+   unchanged. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: var(--border-width-strong) solid Highlight !important;
+  }
+}
+
+/* Page body inside the staff shell: gutter 32 (tokens.json space-8, "Page gutter (28–32)"), section gaps 24. */
+.ap-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Customer layout (F1, 390 px artboards): narrow gutter, no sidebar. */
+.ap-page--customer {
+  padding: var(--space-6) var(--space-4);
+}
+
+/* Vertical stack with the design-system stack gap (12–16). */
+.ap-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.ap-stack--tight {
+  gap: var(--space-3);
+}
+
+/* Row of controls that wraps (control gap 8). */
+.ap-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Horizontal scroll inside a region, never on the page (tables at 1024, R-1024 review note). */
+.ap-scroll-x {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* No media query yet: the designed responsive behaviour (sidebar collapse and overlay panels below 1280) belongs to
+   the shell (P2). Staff widths below 1024 have no artboard (PROPOSED, FE-UI-D08); wide content scrolls inside
+   .ap-scroll-x regions there. */
