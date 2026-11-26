@@ -10,7 +10,7 @@ Tài liệu cùng thư mục: `DECISIONS.md` (quyết định + quy tắc dùng 
 ## 1. Hiện trạng (khảo sát 2026-11-26)
 
 ### 1.1 Frontend đã có (`frontend/`)
-- React 18.3.1 + TypeScript + Vite 8, Vitest + Testing Library + axe-core, Playwright với backend thật (A-71..A-75). Không router, không thư viện state, không CSS riêng: layout bằng `style={{}}` dùng token.
+- React 18.3.1 (từ FE-REACT19, 2026-11-26: React 19.3.1) + TypeScript + Vite 8, Vitest + Testing Library + axe-core, Playwright với backend thật (A-71..A-75). Không router, không thư viện state, không CSS riêng: layout bằng `style={{}}` dùng token.
 - Màn hình đã làm (batch F, đã duyệt 23/11/2026): F1 CH-01..04 chat khách (EP-10b), F2 HO-01 + F3 HO-02 hộp chờ/hội thoại (EP-10c), F4 SI-01 Security Inspector (EP-10d), F5 OP-01 công tắc AI (EP-10a), đăng nhập + khung theo vai trò (EP-10a).
 - Dùng lại được: `api/client.ts` (CSRF, problem+json → `code` + `traceId`), `app/texts.ts` (`failureText`, `referenceText`), `app/money.ts`, `app/staffLabels.ts` (16 `HandoffReason`, nhãn quote UX-06), `app/inspectorLabels.ts`, `test/fakeBackend.ts`, toàn bộ `e2e/`.
 - Design system trong app: 20 trên 41 component đã chép vào `frontend/src/design-system/` (hash ở `sources.json`, `npm run ds:verify`); 2 bản đã sửa có review (`Icon.jsx` A-66, `AIComposer.jsx` A-68). Danh sách đủ: `SCREEN_INVENTORY.md` §3.
