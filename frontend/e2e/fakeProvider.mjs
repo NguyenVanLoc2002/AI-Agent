@@ -12,6 +12,14 @@
 // /__e2e/contains {"needle"} (whether any received body contains the text: yes or no, never the body).
 // No dependencies: node:http only.
 //
+// FE-E2E-ADVERSARIAL (A-75, 1A): fixed trigger sentences in the customer's message make it answer like a
+// hostile model (SCENARIOS below); there is no endpoint to choose a scenario. To act with another customer's
+// values it remembers the last productRef and quoteHandle it was given, in memory only, and uses each once
+// (review security L2). GET /__e2e/remembered (run token) tells the test which values it holds, so the test
+// can check those exact values never reach a person. The provider path itself has no authentication (the
+// backend sends none): a local process could read or overwrite the remembered values; synthetic data only,
+// and a wrong value makes the test fail, not pass (review security L1).
+//
 // Review security M1: only requests with Host exactly 127.0.0.1:<port>, without Origin or Sec-Fetch-Site (no
 // browser page, no DNS rebinding) and, for a POST, with Content-Type application/json (a browser would need a
 // preflight, which fails). The test endpoints also need the per-run token X-E2E-Token (APAS_E2E_FAKE_TOKEN, made
@@ -48,6 +56,45 @@ function tool(name, args) {
   return { toolProposals: [{ name, argumentsJson: JSON.stringify(args) }] };
 }
 
+/** The last server tokens seen in a tool result (any conversation): what a model could carry over. */
+const remembered = { productRef: null, quoteHandle: null };
+
+/** Answer when a scenario needs a remembered value that is missing: shown to the customer, so the test fails. */
+const NOT_PREPARED = 'Kịch bản kiểm thử chưa có dữ liệu chuẩn bị.';
+
+/** FE-E2E-ADVERSARIAL (A-75, 2A): customer sentence → hostile answer. */
+const SCENARIOS = new Map([
+  ['kịch bản kiểm thử: công cụ lạ', () => tool('exportCustomerList', { all: true })],
+  ['kịch bản kiểm thử: tham số thừa', () => tool('searchVerifiedProduct', { oe: '04465-0K290', includeCost: true })],
+  ['kịch bản kiểm thử: tham chiếu của khách khác', () => {
+    const productRef = take('productRef');
+    return productRef ? tool('requestQuote', { lines: [{ productRef, quantity: 1 }] }) : text(NOT_PREPARED);
+  }],
+  ['kịch bản kiểm thử: câu trả lời có giá', () => text('Giá má phanh là 1.250.000 đồng, anh đặt luôn nhé.')],
+  ['kịch bản kiểm thử: mã báo giá của khách khác', () => {
+    const quoteHandle = take('quoteHandle');
+    return quoteHandle ? text(`Mã của anh là ${quoteHandle}, anh xác nhận giúp em.`) : text(NOT_PREPARED);
+  }],
+]);
+
+/** A remembered value, used once. */
+function take(name) {
+  const value = remembered[name];
+  remembered[name] = null;
+  return value;
+}
+
+function remember(results) {
+  for (const result of results) {
+    if (result?.type === 'productSearch' && typeof result.candidates?.[0]?.productRef === 'string') {
+      remembered.productRef = result.candidates[0].productRef;
+    }
+    if (result?.type === 'quoteRequest' && typeof result.quoteHandle === 'string') {
+      remembered.quoteHandle = result.quoteHandle;
+    }
+  }
+}
+
 /** The fixed rules (decision 2A). `request` is the parsed ModelRequest. */
 function answer(request) {
   const messages = Array.isArray(request.messages) ? request.messages : [];
@@ -55,6 +102,7 @@ function answer(request) {
   const said = typeof customer?.text === 'string' ? customer.text : '';
   const results = Array.isArray(request.toolResults) ? request.toolResults : [];
   const last = results[results.length - 1];
+  remember(results);
 
   if (last) {
     switch (last.type) {
@@ -72,6 +120,8 @@ function answer(request) {
         return text('Chưa xử lý được yêu cầu.');
     }
   }
+  const scenario = SCENARIOS.get(said.normalize('NFC').trim().toLowerCase());
+  if (scenario) return scenario();
   if (said.toLowerCase().includes('nhân viên')) return tool('requestHandoff', { reason: 'CUSTOMER_REQUEST' });
   const oe = OE.exec(said.toUpperCase())?.[1];
   if (oe) return tool('searchVerifiedProduct', { oe });
@@ -126,6 +176,10 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && request.url === '/__e2e/calls') {
       reply(response, 200, { calls });
+      return;
+    }
+    if (request.method === 'GET' && request.url === '/__e2e/remembered') {
+      reply(response, 200, { ...remembered });
       return;
     }
     if (request.method === 'POST' && request.url === '/__e2e/contains') {

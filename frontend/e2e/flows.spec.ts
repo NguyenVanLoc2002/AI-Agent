@@ -1,10 +1,10 @@
 import { request as httpRequest } from 'node:http';
-import type { Browser, Page } from '@playwright/test';
-import { expect, expectNoViolations, test, watchCsp, type CspViolation } from './fixtures';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { FAKE_PROVIDER_URL } from './env';
 import {
-  callApi, ensureAiOn, fakeProviderCalls, reachedProvider, rememberedConversation, setAiSwitchAsOps, shortConversation,
-  signInWithForm, type DemoUser,
+  callApi, customerChat, ensureAiOn, fakeProviderCalls, inboxLoaded, reachedProvider, rememberedConversation, resolveHeld,
+  sendAsCustomer, setAiSwitchAsOps, shortConversation, signInWithForm, withContext,
 } from './support';
 
 // FE-E2E-FLOWS (A-72) · the main screens through the real backend, with the Fake provider of
@@ -41,18 +41,6 @@ test.beforeAll(async ({ browser }) => {
 });
 test.afterEach(async ({ browser }) => { await ensureAiOn(browser); });
 
-async function customerChat(page: Page, user: DemoUser): Promise<void> {
-  await signInWithForm(page, user);
-  await expect(page.getByRole('heading', { name: 'Tư vấn phụ tùng', level: 1 })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Nội dung tin nhắn' })).toBeEditable();
-}
-
-async function sendAsCustomer(page: Page, text: string): Promise<void> {
-  await page.getByRole('textbox', { name: 'Nội dung tin nhắn' }).fill(text);
-  await page.getByRole('button', { name: 'Gửi' }).click();
-  await expect(page.getByRole('list', { name: 'Tin nhắn' }).getByText(text).last()).toBeVisible();
-}
-
 /** An amount as plain digits and grouped by ".", ",", a space and a no-break space (review security M2). */
 function amountForms(digits: string): string[] {
   const grouped = (separator: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
@@ -74,32 +62,6 @@ async function cardAmounts(page: Page): Promise<string[]> {
 /** Values that must never reach the model (rule 10): customer-visible references, amounts, IDs, user names. */
 function restrictedValues(): string[] {
   return [seen.quoteRef, seen.confirmationToken, ...seen.amounts, ...seen.conversations, 'cust-a', 'cust-c'].filter((v) => v.length >= 4);
-}
-
-/** Runs `action` in a new browser context that is closed also when a step fails (review security L3). */
-async function withContext<T>(browser: Browser, action: (page: Page) => Promise<T>): Promise<T> {
-  const context = await browser.newContext();
-  const violations: CspViolation[] = [];
-  try {
-    await watchCsp(context, violations); // FE-CSP (A-73)
-    const result = await action(await context.newPage());
-    await expectNoViolations(context, violations);
-    return result;
-  } finally {
-    await context.close();
-  }
-}
-
-/** The staff inbox has loaded: rows or the empty state (review QA 6). */
-async function inboxLoaded(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Hộp chờ nhân viên', level: 1 })).toBeVisible();
-  await expect(page.getByText('Yêu cầu chuyển nhân viên của nhóm').or(page.getByText('Chưa có yêu cầu nào'))).toBeAttached();
-}
-
-async function resolveHeld(staff: Page): Promise<void> {
-  await staff.getByRole('button', { name: 'Hoàn tất và mở lại AI' }).click();
-  await staff.getByRole('alertdialog', { name: 'Hoàn tất và mở lại trợ lý AI?' }).getByRole('button', { name: 'Hoàn tất và mở lại AI' }).click();
-  await expect(staff.getByText('Đã hoàn tất.').first()).toBeVisible();
 }
 
 /** Raw HTTP to the Fake provider, to send headers fetch would not (Host). Answers the status only. */
