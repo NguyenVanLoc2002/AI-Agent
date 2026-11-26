@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.firewall.RequestRejectedHandler;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy;
 
 /**
  * ADR-010 (ACCEPTED; A-06 APPROVED): form login with synthetic demo users, session cookie (HttpOnly,
@@ -58,9 +63,49 @@ class SecurityConfiguration {
     static final String LOGOUT_URL = "/api/auth/logout";
     static final String SESSION_COOKIE = "JSESSIONID";
 
+    /**
+     * FE-CSP (A-73) and FE-DEPLOY (A-74, 5A: {@code worker-src 'none'}): the same policy as
+     * {@code frontend/config/securityHeaders.ts}, sent with every response (pages, assets, API answers, errors).
+     */
+    static final String CONTENT_SECURITY_POLICY = String.join("; ",
+            "default-src 'none'", "script-src 'self'", "style-src 'self'", "font-src 'self'", "img-src 'self'",
+            "connect-src 'self'", "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'",
+            "object-src 'none'", "worker-src 'none'");
+    static final String PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+    /** HSTS (4A): one year, no subdomains, no preload; Spring Security sends it on HTTPS requests only. */
+    static final long HSTS_MAX_AGE_SECONDS = 31_536_000L;
+
+    /** The policy, with {@code upgrade-insecure-requests} when the server runs with TLS (profile {@code tls}, 4A). */
+    static String contentSecurityPolicy(boolean upgradeInsecureRequests) {
+        return upgradeInsecureRequests ? CONTENT_SECURITY_POLICY + "; upgrade-insecure-requests" : CONTENT_SECURITY_POLICY;
+    }
+
+    /**
+     * FE-DEPLOY review security M1 / QA 7: a request the firewall rejects (encoded or traversal paths, {@code ;})
+     * never reaches the header writer of the chain, so its 400 answer gets the same headers here, and the sanitized
+     * problem shape. Requests Tomcat itself rejects (a malformed request line) never reach Spring (ADR-015).
+     */
+    @Bean
+    RequestRejectedHandler requestRejectedHandler(
+            @Value("${apas.web.upgrade-insecure-requests:false}") boolean upgradeInsecureRequests) {
+        return (request, response, rejected) -> {
+            log.info("request_rejected");
+            response.setHeader("Content-Security-Policy", contentSecurityPolicy(upgradeInsecureRequests));
+            response.setHeader("X-Content-Type-Options", "nosniff");
+            response.setHeader("X-Frame-Options", "DENY");
+            response.setHeader("Referrer-Policy", "no-referrer");
+            response.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
+            response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+            response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+            response.setHeader("Cache-Control", "no-store");
+            ProblemResponses.write(request, response, ErrorCode.MALFORMED_REQUEST);
+        };
+    }
+
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, SessionIdentities identities, IdentityProperties properties,
-            Clock clock, AuditTrail audit) throws Exception {
+            Clock clock, AuditTrail audit,
+            @Value("${apas.web.upgrade-insecure-requests:false}") boolean upgradeInsecureRequests) throws Exception {
         // EP-09d (owner approval 2026-11-20, A-47): URL-level refusals are audited; the answers do not change.
         UrlDenialAudit denials = new UrlDenialAudit(audit, identities);
         SessionLimitsFilter limits =
@@ -70,6 +115,8 @@ class SecurityConfiguration {
                         .requestMatchers("/actuator/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, CSRF_URL).permitAll()
                         .requestMatchers(LOGIN_URL).permitAll()
+                        // FE-DEPLOY (owner approval 2026-11-25, A-74 decision 3A): the built frontend, GET only.
+                        .requestMatchers(FrontendPaths.GET).permitAll()
                         // EP-08 (owner approval 2026-11-19, A-41(m)): staff endpoints are SALES only at the
                         // URL level as well; the services still check the role, the team and the resource.
                         .requestMatchers("/api/internal/**").hasRole(Role.SALES.name())
@@ -100,6 +147,17 @@ class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(fixation -> fixation.newSession()))
                 .requestCache(cache -> cache.disable())
+                // FE-DEPLOY (A-74, 3A): security headers on every response. Spring Security's defaults stay on:
+                // nosniff, X-Frame-Options DENY, Cache-Control no-store (index.html, API answers; the hashed
+                // assets set their own, StaticResourceConfiguration), HSTS on HTTPS requests only.
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy(upgradeInsecureRequests)))
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+                        .permissionsPolicyHeader(permissions -> permissions.policy(PERMISSIONS_POLICY))
+                        .crossOriginOpenerPolicy(coop -> coop.policy(CrossOriginOpenerPolicy.SAME_ORIGIN))
+                        .crossOriginResourcePolicy(corp -> corp.policy(CrossOriginResourcePolicy.SAME_ORIGIN))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .maxAgeInSeconds(HSTS_MAX_AGE_SECONDS).includeSubDomains(false).preload(false)))
                 .httpBasic(basic -> basic.disable())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> {

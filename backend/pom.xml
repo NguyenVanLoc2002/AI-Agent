@@ -26,6 +26,8 @@
         <spring-modulith.version>2.1.2</spring-modulith.version>
         <archunit.version>1.5.1</archunit.version>
         <wiremock.version>3.13.1</wiremock.version>
+        <!-- FE-DEPLOY (A-74, review architecture M2): where the built frontend is; override with -Dfrontend.dist=... -->
+        <frontend.dist>${project.basedir}/../frontend/dist</frontend.dist>
     </properties>
 
     <dependencyManagement>
@@ -204,4 +206,122 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- FE-DEPLOY (A-74, review architecture M1 / security L3): the default build never ships a frontend, also
+             after an earlier -Pwith-frontend build without "clean". Deactivated when another profile is given. -->
+        <profile>
+            <id>no-frontend</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>remove-frontend</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete dir="${project.build.outputDirectory}/static" quiet="true"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- FE-DEPLOY (A-74, decision 2A): put the built frontend into the jar, served from classpath:/static/.
+             Release order: cd ../frontend && npm ci && npm run build, then ./mvnw -Pwith-frontend clean package.
+             The build fails when ${frontend.dist}/index.html is missing, or when dist holds anything but index.html
+             and assets/ or a source map (review security L2: a later public/ file or .map would be served).
+             The previous copy is removed first, so old hashed assets never pile up (review architecture M1). -->
+        <profile>
+            <id>with-frontend</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <!-- maven-enforcer's requireFilesExist reports a path with ".." as missing (it compares the
+                             canonical path), so plain Ant checks are used. -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>frontend-dist-checked</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <fail message="Build the frontend first: cd ../frontend &amp;&amp; npm ci &amp;&amp; npm run build">
+                                            <condition>
+                                                <not>
+                                                    <available file="${frontend.dist}/index.html"/>
+                                                </not>
+                                            </condition>
+                                        </fail>
+                                        <fail message="frontend/dist holds a source map or a file outside index.html and assets/: not shipped (ADR-015)">
+                                            <condition>
+                                                <resourcecount when="greater" count="0">
+                                                    <fileset dir="${frontend.dist}">
+                                                        <include name="**/*"/>
+                                                        <exclude name="index.html"/>
+                                                        <exclude name="assets/*.js"/>
+                                                        <exclude name="assets/*.css"/>
+                                                        <exclude name="assets/*.woff2"/>
+                                                    </fileset>
+                                                </resourcecount>
+                                            </condition>
+                                        </fail>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>remove-previous-frontend</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete dir="${project.build.outputDirectory}/static" quiet="true"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-frontend-dist</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${frontend.dist}</directory>
+                                            <filtering>false</filtering>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

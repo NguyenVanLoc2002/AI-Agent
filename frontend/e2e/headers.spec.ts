@@ -1,7 +1,11 @@
+import { CONTENT_SECURITY_POLICY } from '../config/securityHeaders';
+import { CSP, EXPECTED } from './expectedHeaders';
 import { expect, test } from './fixtures';
 
-// FE-CSP (A-73) · the served bundle (`vite preview`, 1A) sends the enforced CSP and the other headers (2A, 3A)
-// with the page and its assets, and the browser applies the policy: the controls below are blocked and reported.
+// FE-CSP (A-73) · the served bundle sends the enforced CSP and the other headers (2A, 3A) with the page and its
+// assets, and the browser applies the policy: the controls below are blocked and reported. FE-DEPLOY (A-74): the
+// bundle is served by the backend, which sends the same headers with every answer (API and errors too) and the
+// cache rules of 3A; `vite preview`'s headers are checked by config/securityHeaders.test.ts.
 // Framing is checked in framing.spec.ts (it needs its own browser launch options).
 
 /** The asset URLs the page loads: script, stylesheet and one font named in the stylesheet. */
@@ -15,42 +19,45 @@ async function assetPaths(html: string, css: (path: string) => Promise<string>):
   return [script ?? '', sheet ?? '', font ?? ''];
 }
 
-/**
- * The values the served bundle must send, all written out here and not read from config/securityHeaders.ts: a test
- * that compared the server with the same object would pass whatever the object said (mutation CM1, review QA).
- */
-const EXPECTED: Record<string, string> = {
-  'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; "
-    + "connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
-  'x-content-type-options': 'nosniff',
-  'referrer-policy': 'no-referrer',
-  'x-frame-options': 'DENY',
-  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-  'cross-origin-opener-policy': 'same-origin',
-  'cross-origin-resource-policy': 'same-origin',
-};
+test('the backend and `vite preview` send the same policy (review architecture M3)', async ({ request }) => {
+  // Not a self-comparison: one value is the backend's answer, the other the config of `vite preview`.
+  expect((await request.get('/')).headers()['content-security-policy']).toBe(CONTENT_SECURITY_POLICY);
+  expect(CONTENT_SECURITY_POLICY).toBe(CSP);
+});
 
-test('the page and its assets carry the security headers', async ({ request }) => {
+test('the page and its assets carry the security headers', async ({ request, baseURL }) => {
   const page = await request.get('/');
   expect(page.status()).toBe(200);
   const html = await page.text();
   // No inline script or style that the policy would have to allow.
   expect(html).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>|<style|\sstyle=/);
 
-  // Also a path that does not exist (the preview's fallback answer), review QA.
-  const paths = ['/', ...await assetPaths(html, async (path) => (await request.get(path)).text()), '/__no-such-page__'];
-  for (const path of paths) {
+  // Also a path that does not exist (a refusal: it needs a session), review QA.
+  const assets = await assetPaths(html, async (path) => (await request.get(path)).text());
+  for (const path of ['/', ...assets, '/__no-such-page__']) {
     const response = await request.get(path);
     expect(response.status(), path).toBeLessThan(500);
+    // Review QA 9: answered at that path, not after a redirect.
+    expect(response.url(), path).toBe(new URL(path, baseURL).toString());
     const headers = response.headers();
     for (const [name, value] of Object.entries(EXPECTED)) {
       expect(headers[name], `${name} on ${path}`).toBe(value);
     }
+    // FE-DEPLOY (A-74, 3A): hashed assets are cached for a year; the page and everything else is never stored.
+    const cache = headers['cache-control'] ?? '';
+    if (assets.includes(path)) {
+      expect(cache, `cache-control on ${path}`).toMatch(/max-age=31536000/);
+      expect(cache, `cache-control on ${path}`).toMatch(/immutable/);
+    } else {
+      expect(cache, `cache-control on ${path}`).toMatch(/no-store/);
+    }
+    // HSTS only over HTTPS (tls.spec.ts).
+    expect(headers['strict-transport-security'], path).toBeUndefined();
   }
 });
 
-test('the backend itself sends nosniff on API answers (6A: no backend change)', async () => {
-  // Straight to the backend, not through the preview server, which adds nosniff to every answer itself (review QA).
+test('the backend itself sends nosniff and a JSON type on API answers', async () => {
+  // The backend serves the page too now (A-74), so these are its own answers.
   const backend = process.env.APAS_BACKEND_URL ?? 'http://127.0.0.1:8080';
   // Review security M1: script-src 'self' also trusts every same-origin /api path, so no API answer, including
   // the error ones, may be something a browser would run: nosniff and a JSON content type on each.

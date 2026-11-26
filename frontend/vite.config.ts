@@ -27,7 +27,10 @@ export default defineConfig({
   },
   // FE-CSP (A-73, 1A): the built bundle is served with the enforced CSP and the other security headers.
   preview: { host: '127.0.0.1', port: 4173, strictPort: true, headers: { ...BUNDLE_HEADERS } },
-  build: { sourcemap: false },
+  // FE-DEPLOY (A-74, review architecture L1): written out, because the backend opens exactly /assets/** without a
+  // session (identity.FrontendPaths) and caches it (platform.internal.StaticResourceConfiguration).
+  base: '/',
+  build: { sourcemap: false, assetsDir: 'assets' },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

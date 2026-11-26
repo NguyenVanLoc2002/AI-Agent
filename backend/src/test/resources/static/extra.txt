@@ -1,0 +1,1 @@
+FE-DEPLOY fixture outside the mapped paths: must never be served (A-74 review security L2).
