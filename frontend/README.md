@@ -58,7 +58,7 @@ The browser will warn about the self-signed certificate; a real deployment needs
 - `vite preview` is for a quick local look at the bundle only; the deployed app is served by the backend (above).
 - The browser tests fail on any CSP violation (`e2e/fixtures.ts`). A new inline script or style, an external font or a `data:` URL needs a reviewed change of the policy and of `config/securityHeaders.test.ts`.
 
-## Routes and shell (FE-UI-P2, A-80/A-83)
+## Routes and shell (FE-UI-P2, A-80/A-84)
 Hash routes with `react-router-dom` 7.18.5 `HashRouter` (`src/app/routes.ts`): `#/hop-cho` (SALES), `#/cong-tac-ai` (OPS), `#/su-kien-bao-mat` (SECREV), `#/chat` (customer); `#/` goes to the role's screen. Hash routes need no server change: the backend serves only `/`, `/index.html` and `/assets/**` (A-74). No conversation or order ID is ever in the address (the held conversation opens in memory from the inbox). Another role's screen opened by its address shows "Bạn không có quyền xem trang này" without calling that screen's API; an unknown address shows "Không tìm thấy trang". This is presentation only: the backend authorizes every call. The staff shell (`src/app/shells.tsx`) follows the batch F artboards (sidebar group, breadcrumb group › screen, page box 1192/28/32/20); below 1280 px the sidebar starts collapsed. Shared states: `PageState` (F6), toasts only with fixed texts (`src/app/toast.tsx`), a render-error boundary per screen.
 
 ## Mock backend for development (FE-UI-P2, A-80 D05)

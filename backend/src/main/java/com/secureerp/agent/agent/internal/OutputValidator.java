@@ -127,19 +127,68 @@ final class OutputValidator {
     // ("đã được bên em duyệt").
     private static final String ORDER_VERB = "(duyệt|duyet|phê duyệt|phe duyet|xác nhận|xac nhan|tạo|tao|đặt|dat|chốt|chot"
             + "|lên|len|ghi nhận|ghi nhan|hoàn tất|hoan tat|xử lý|xử lí|xu ly|xu li|giao|thanh toán|thanh toan)(?!\\p{L})";
+    // A-83 review security M2: also "hệ thống", "quản lý", "admin", "kế toán".
     private static final String ORDER_AGENT = "((bên em|ben em|bên mình|ben minh|nhân viên|nhan vien|cửa hàng|cua hang|shop"
-            + "|chúng tôi|chung toi|chúng em|chung em|em)\\s+)?";
+            + "|chúng tôi|chung toi|chúng em|chung em|hệ thống|he thong|quản lý|quan ly|admin|kế toán|ke toan|em)\\s+)?";
     private static final String NOT_AN_ORDER = "(?!\\s*(giản|gian|vị|vi|giá|gia|lẻ|le|độc|doc|thuần|thuan|điệu|dieu|sơ|so)"
             + "(?!\\p{L}))";
     private static final String NOT_DONE = "(?!(\\s+(hàng|hang))?(\\s+(của|cua)(\\s+\\p{L}+){1,2})?\\s+((chưa|chua|sẽ|se"
             + "|đang|dang)\\s+(được|duoc|chờ|cho|đợi|doi|" + ORDER_VERB + ")|(chờ|đợi)(?!\\p{L})"
             + "|(cho|doi)\\s+(duyệt|duyet|xử lý|xu ly|xu li|nhân viên|nhan vien|xác nhận|xac nhan)(?!\\p{L})))";
     private static final String QUESTION = "(?!(\\s+\\p{L}+)?\\s*,?\\s*(chưa|chua)(\\s+(ạ|a|nhỉ|nhi|vậy|vay))?\\s*\\?)";
+    // OUTPUT-ORDER-CLAIM-REST (A-83, 3A): up to 60 characters between "đơn" and "đã" in the same sentence (was 30).
     private static final String ORDER_SUBJECT = "(?<!(nếu|neu|khi|lúc|luc|để)\\s)(?<!\\p{L})(đơn|don)(?!\\p{L})" + NOT_AN_ORDER
-            + NOT_DONE + "[^.!?\\n]{0,30}?(?<!\\p{L})";
+            + NOT_DONE + "[^.!?\\n]{0,60}?(?<!\\p{L})";
+    /**
+     * A-83 (4A): "đã" and the typos that keep the "đ" ("Đả duyệt đơn"); "dạ" has no "đ", so it is never one of them.
+     * Not "đa" in "tối đa" ("Mỗi đơn tối đa giao 10 sản phẩm", review security L1).
+     */
+    private static final String DA_TYPO = "(?<!(tối|toi)\\s)(đã|đả|đá|đà|đạ|đa)";
+    private static final String DA = "(" + DA_TYPO + "|da)";
+    /** A-83 (1A): the verbs of a claim without "đơn"; not "ghi nhận", as "Em đã ghi nhận ạ" means "noted". */
+    private static final String BARE_CLAIM_VERB = "(duyệt|duyet|phê duyệt|phe duyet|xác nhận|xac nhan|tạo|tao|đặt|dat"
+            + "|chốt|chot|lên|len|hoàn tất|hoan tat|xử lý|xử lí|xu ly|xu li|giao|thanh toán|thanh toan)(?!\\p{L})";
+    /**
+     * A-83 (1A, review QA H2, security H2): a sentence starts at the start of the text, after . ! ? : ; or a line
+     * break, and may begin with symbols (markdown, a bullet, a number, an emoji).
+     */
+    private static final String SENTENCE_START = "(?:^|[.!?:;\\n\\r])[^\\p{L}]*+";
+    /**
+     * A-83 (1A, review QA H1, security H1): up to five words after the verb up to the end of the clause, none of them
+     * an object that makes it no order ("báo giá", "thông tin", "lại", "yêu cầu"…), a negation, a question or a
+     * condition. The clause ends at anything that is not a letter, a digit or "?", or at the end of the text.
+     */
+    private static final String BARE_TAIL = "(\\s+(?!(báo|bao|thông|thong|lại|lai|yêu|yeu|tin|mã|ma|phụ|phu|xe|giá|gia|câu"
+            + "|cau|lịch|lich|chưa|chua|không|khong|thì|thi|nếu|neu|khi|sau|để)(?!\\p{L}))\\p{L}+){0,5}"
+            + "\\s*+([^\\p{L}\\d?\\s]|$)";
+    /**
+     * A-83 (1A): a claim without "đơn" ("Đã được duyệt rồi anh nhé"): at the start of a sentence, after "Dạ,"/"Vâng,"/
+     * "Dạ anh," and "em"/"bên em"/"hệ thống"…, "đã (được)" or "được" and a verb ending the clause (see BARE_TAIL).
+     * "Báo giá đã được tạo" (a subject first), "Đã tạo báo giá cho anh" (a safe object) and "Đã xác nhận chưa?" are no
+     * claim. Plain "da" is left to the copy without diacritics, which needs a word before it ("Da xac nhan nhe").
+     */
+    private static final String BARE_CLAIM = SENTENCE_START
+            + "(((dạ|vâng|vang|ok|okay|oke|ạ)(?!\\p{L})[\\s,]+|(anh|chị|chi|bạn|ban)\\s*,\\s*)){0,3}"
+            + ORDER_AGENT + "(" + DA_TYPO + "\\s+((được|duoc)\\s+" + ORDER_AGENT + ")?|(được|duoc)\\s+" + ORDER_AGENT + ")"
+            + BARE_CLAIM_VERB + BARE_TAIL;
+    /** A-83 (2A, review security M1): "này/đó/hôm qua…", up to three words after "của", "đã được" before "ok". */
+    private static final String DONE_WORD_SUBJECT = "(\\s+(hàng|hang))?(\\s+(này|nay|đó|đấy|kia|hôm qua|hom qua|hôm nay"
+            + "|hom nay|lúc nãy|luc nay|vừa rồi|vua roi))?(\\s+(của|cua)(\\s+\\p{L}+){1,3})?(\\s+(đã|da|cũng|cung|được"
+            + "|duoc)){0,2}";
+    /**
+     * A-83 (2A): "Xong đơn rồi", "Đơn OK rồi": "xong/ok" right before "đơn", or right after "đơn (hàng) (này) (của X)
+     * (đã được)"; not after a condition, not "ổn định", "ok thì", a question ("Đơn ok không?", "Xong đơn chưa?") or
+     * "Ok đơn của anh sẽ được duyệt" (review security M4).
+     */
+    private static final String DONE_WORD_CLAIM = "((?<!(nếu|neu|khi|lúc|luc|để)\\s)(?<!\\p{L})(xong|ok|oke|okay)\\s+(đơn|don)"
+            + "(?!\\p{L})" + NOT_AN_ORDER + NOT_DONE + QUESTION + ")"
+            + "|((?<!(nếu|neu|khi|lúc|luc|để)\\s)(?<!\\p{L})(đơn|don)(?!\\p{L})" + NOT_AN_ORDER + DONE_WORD_SUBJECT
+            + "\\s+(ok|oke|okay|xong|ổn)(?!\\p{L})"
+            + "(?!\\s+(định|dinh|không|khong|chưa|chua|thì|thi)(?!\\p{L}))" + QUESTION + ")";
     private static final Pattern ORDER_CLAIM = Pattern.compile(
-            "(?iu)((?<!\\p{L})(đã|da|được|duoc)\\s+" + ORDER_VERB + "\\s+(đơn|don|order)(?!\\p{L})" + QUESTION + ")"
-                    + "|(" + ORDER_SUBJECT + "(đã|da)\\s+((được|duoc)\\s+" + ORDER_AGENT + ")?" + ORDER_VERB + QUESTION + ")"
+            "(?iu)((?<!\\p{L})(" + DA + "|được|duoc)\\s+" + ORDER_VERB + "\\s+(đơn|don|order)(?!\\p{L})" + QUESTION + ")"
+                    + "|(" + ORDER_SUBJECT + DA + "\\s+((được|duoc)\\s+" + ORDER_AGENT + ")?" + ORDER_VERB + QUESTION + ")"
+                    + "|(" + BARE_CLAIM + ")|" + DONE_WORD_CLAIM
                     + "|(" + ORDER_SUBJECT + "(được|duoc)\\s+" + ORDER_AGENT + ORDER_VERB + "\\s+(rồi|roi|xong)(?!\\p{L}))"
                     + "|((?<!(sẽ|nếu|khi|để|cần|thể)\\s)(?<!\\p{L})(đặt|dat|tạo|tao|lên|len)\\s+(hàng|hang|đơn|don)\\s+"
                     + "((đã|da)\\s+)?(thành công|thanh cong)(?!\\p{L}))"
@@ -178,14 +227,36 @@ final class OutputValidator {
     // A-82 (3A): the same shapes and verbs as ORDER_CLAIM, still without "dat" (A-78), "da" after a word.
     private static final String A_ORDER_VERB = "(duyet|phe duyet|xac nhan|tao|chot|len|ghi nhan|hoan tat|xu ly|xu li|giao"
             + "|thanh toan)(?![a-z])";
-    private static final String A_ORDER_AGENT = "((ben em|ben minh|nhan vien|cua hang|shop|chung toi|chung em|em)\\s+)?";
+    private static final String A_ORDER_AGENT = "((ben em|ben minh|nhan vien|cua hang|shop|chung toi|chung em|he thong"
+            + "|quan ly|admin|ke toan|em)\\s+)?";
     private static final String A_NOT_DONE = "(?!(\\s+hang)?(\\s+cua(\\s+[a-z]+){1,2})?\\s+((chua|se|dang)\\s+(duoc|cho|doi|"
             + A_ORDER_VERB + ")|(cho|doi)\\s+(duyet|xu ly|xu li|nhan vien|xac nhan)(?![a-z])))";
     private static final String A_QUESTION = "(?!(\\s+[a-z]+)?\\s*,?\\s*chua(\\s+(a|nhi|vay))?\\s*\\?)";
+    private static final String A_NOT_AN_ORDER = "(?!\\s*(gian|vi|gia|le|doc|thuan|dieu|so)(?![a-z]))";
     private static final String A_ORDER_SUBJECT = "(?<!(neu|khi|luc|de)\\s)(?<![a-z])don(?![a-z])"
-            + "(?!\\s*(gian|vi|gia|le|doc|thuan|dieu|so)(?![a-z]))" + A_NOT_DONE + "[^.!?\\n]{0,30}?(?<![a-z])";
+            + A_NOT_AN_ORDER + A_NOT_DONE + "[^.!?\\n]{0,60}?(?<![a-z])";
+    private static final String A_BARE_CLAIM_VERB = "(duyet|phe duyet|xac nhan|tao|chot|len|hoan tat|xu ly|xu li|giao"
+            + "|thanh toan)(?![a-z])";
+    // A-83 (1A) on the copy: "da" still needs a word before it ("Dạ, xác nhận nhé" is no claim), "duoc" does not.
+    private static final String A_DA_AFTER_WORD = "(?<=[a-z][,\\s]|[a-z],\\s)da";
+    private static final String A_BARE_TAIL = "(\\s+(?!(bao|thong|lai|yeu|tin|ma|phu|xe|gia|cau|lich|chua|khong|thi|neu"
+            + "|khi|sau|de)(?![a-z]))[a-z]+){0,5}\\s*+([^a-z\\d?\\s]|$)";
+    private static final String A_BARE_CLAIM = SENTENCE_START
+            + "(((da|vang|ok|okay|oke|a)(?![a-z])[\\s,]+|(anh|chi|ban)\\s*,\\s*)){0,3}"
+            + A_ORDER_AGENT + "(" + A_DA_AFTER_WORD + "\\s+(duoc\\s+" + A_ORDER_AGENT + ")?|(" + A_DA_AFTER_WORD
+            + "\\s+)?duoc\\s+" + A_ORDER_AGENT + ")" + A_BARE_CLAIM_VERB + A_BARE_TAIL;
+    // A-83 (2A) on the copy, without "ổn" ("on" is also ôn, ơn).
+    private static final String A_DONE_WORD_CLAIM = "((?<!(neu|khi|luc|de)\\s)(?<![a-z])(xong|ok|oke|okay)\\s+don(?![a-z])"
+            + A_NOT_AN_ORDER + A_NOT_DONE + A_QUESTION + ")"
+            + "|((?<!(neu|khi|luc|de)\\s)(?<![a-z])don(?![a-z])" + A_NOT_AN_ORDER + "(\\s+hang)?(\\s+(nay|do|day|kia"
+            + "|hom qua|hom nay|luc nay|vua roi))?(\\s+cua(\\s+[a-z]+){1,3})?(\\s+(da|cung|duoc)){0,2}"
+            + "\\s+(ok|oke|okay|xong)(?![a-z])(?!\\s+(khong|chua|thi)(?![a-z]))" + A_QUESTION + ")";
     private static final Pattern STRIPPED_ORDER_CLAIM = Pattern.compile(
-            "(?i)(((?<=[a-z] )da|(?<![a-z])duoc)\\s+" + A_ORDER_VERB + "\\s+(don|order)(?![a-z])" + A_QUESTION + ")"
+            "(?i)(" + A_BARE_CLAIM + ")|" + A_DONE_WORD_CLAIM
+                    // A-83 review security L1: "toi da" stays a claim on the copy ("tối đa" and "tôi đã" look the same
+                    // there; "Tôi đã duỵêt đơn" must stay blocked), so "Mỗi đơn tối đa giao 10" is an accepted false
+                    // positive.
+                    + "|(((?<=[a-z] )da|(?<![a-z])duoc)\\s+" + A_ORDER_VERB + "\\s+(don|order)(?![a-z])" + A_QUESTION + ")"
                     + "|(" + A_ORDER_SUBJECT + "da\\s+(duoc\\s+" + A_ORDER_AGENT + ")?" + A_ORDER_VERB + A_QUESTION + ")"
                     + "|(" + A_ORDER_SUBJECT + "duoc\\s+" + A_ORDER_AGENT + A_ORDER_VERB + "\\s+(roi|xong)(?![a-z]))"
                     + "|((?<!(se|neu|khi|de|can|the)\\s)(?<![a-z])(dat|tao|len)\\s+(hang|don)\\s+(da\\s+)?thanh cong"

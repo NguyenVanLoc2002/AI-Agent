@@ -1,6 +1,6 @@
 # P2 · Quality gate — bằng chứng
 
-> 2026-11-26 · issue FE-UI-P2 · quyết định A-83 (`../DECISIONS.md` D15–D20) · worktree `D:/Project_Private/AI-Agent-fe`, nhánh `feat/FE-UI-P2-app-shell` từ `main` `9ced1ca`, rebase lên `d846ab6` (PR #66, không đổi frontend; gate chạy lại sau rebase: typecheck 0, vitest 294 passed, build + verify-no-mocks 0, ds:verify 73) · chủ dự án duyệt và commit 2026-11-26.
+> 2026-11-26 · issue FE-UI-P2 · quyết định A-84 (`../DECISIONS.md` D15–D20) · worktree `D:/Project_Private/AI-Agent-fe`, nhánh `feat/FE-UI-P2-app-shell` từ `main` `9ced1ca`, rebase lên `d846ab6` (PR #66, không đổi frontend; gate chạy lại sau rebase: typecheck 0, vitest 294 passed, build + verify-no-mocks 0, ds:verify 73) · chủ dự án duyệt và commit 2026-11-26.
 > Môi trường: Windows 11, Node 22.20.0, npm 10.9.3, React 18.3.1, react-router-dom 7.18.5, Vitest 5.1.1, Playwright 1.65.1 (Chromium 1255).
 
 ## 1. Phạm vi đã làm

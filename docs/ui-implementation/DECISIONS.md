@@ -8,7 +8,7 @@
 | 1 | 2026-11-26 | "Tôi phê duyệt các lựa chọn sau: **1A 2B 3A 4A 5A 6A 7A 8A**" kèm phần "Decision clarification" D01–D08 | FE-UI-D01..D08 |
 | 2 | 2026-11-26 | "theo Phương án A đề xuất hết cho tôi" (trả lời 4 câu hỏi preflight) | FE-UI-D09, D10, D12, D13 |
 | 3 | 2026-11-26 | "theo đề xuất của bạn" (sau quality gate P1) | FE-UI-Q01 = A, commit P1, W-BIZ nhóm 0 (A-81) |
-| 4 | 2026-11-26 | "UX-09 chọn (a), bắt đầu P2 đi, tôi đã merge phần vừa rồi" (PR #65 merged) | UX-09 = (a); bắt đầu P2 (A-83) |
+| 4 | 2026-11-26 | "UX-09 chọn (a), bắt đầu P2 đi, tôi đã merge phần vừa rồi" (PR #65 merged) | UX-09 = (a); bắt đầu P2 (A-84) |
 
 ## Quyết định
 | ID | Quyết định | Trạng thái | Hệ quả / ràng buộc |

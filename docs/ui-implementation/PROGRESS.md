@@ -9,7 +9,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 |---|---|---|---|---|
 | P0 Chốt điều kiện | XONG | 2026-11-26 | 2026-11-26 | A-80, `DECISIONS.md` |
 | P1 Design System | XONG (duyệt + commit `0bac97f`) | 2026-11-26 | 2026-11-26 | `evidence/P1-quality-gate.md`, A-81 |
-| P2 App Layout | XONG (duyệt + commit) | 2026-11-26 | 2026-11-26 | `evidence/P2-quality-gate.md`, A-83 |
+| P2 App Layout | XONG (duyệt + commit) | 2026-11-26 | 2026-11-26 | `evidence/P2-quality-gate.md`, A-84 |
 | P3 Batch F vào khung | Chưa bắt đầu | — | — | — |
 | P4 Đơn hàng NV (EP-10e) | GATED (thiết kế) | — | — | — |
 | P5 Batch A–E | BLOCKED (UX-xx, contract) | — | — | — |
@@ -81,7 +81,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 
 ## W-BIZ · Xung đột A–E (song song)
 - [x] W-BIZ-T01 Nhóm 0: UX-16, UX-07, UX-18, UX-05 (A-81)
-- [x] W-BIZ-T01b UX-09 = (a) "chưa gồm VAT" (A-83)
+- [x] W-BIZ-T01b UX-09 = (a) "chưa gồm VAT" (A-84)
 - [ ] W-BIZ-T02 UX-15 + UC tra cứu phía NV
 - [ ] W-BIZ-T03 Contract nháp nhóm A
 - [~] FE-UI-Q01 Vòng focus: A-81 chọn A, brief đã viết; chờ Claude Design xuất bản mới
