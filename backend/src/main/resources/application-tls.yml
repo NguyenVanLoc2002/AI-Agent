@@ -1,0 +1,14 @@
+# Profile "tls" (FE-DEPLOY, A-74 decision 4A): HTTPS for a local run, e.g. --spring.profiles.active=local,tls.
+# The keystore is NOT in the repository: create a self-signed PKCS12 keystore with the JDK's keytool outside the
+# repository (frontend/README.md) and point APAS_TLS_KEYSTORE / APAS_TLS_KEYSTORE_PASSWORD at it. Without them the
+# server does not start. Spring Security then sends HSTS (one year, no subdomains, no preload) on every answer.
+server:
+  ssl:
+    enabled: true
+    key-store: ${APAS_TLS_KEYSTORE}
+    key-store-password: ${APAS_TLS_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+
+apas:
+  web:
+    upgrade-insecure-requests: true

@@ -17,7 +17,7 @@ describe('security headers of the served bundle', () => {
   });
 
   it('denies everything else, framing, <base> and plugins', () => {
-    for (const name of ['default-src', 'base-uri', 'frame-ancestors', 'object-src']) {
+    for (const name of ['default-src', 'base-uri', 'frame-ancestors', 'object-src', 'worker-src']) {
       expect(csp.get(name), name).toEqual(["'none'"]);
     }
   });
@@ -25,7 +25,7 @@ describe('security headers of the served bundle', () => {
   it('has no unsafe source, wildcard, scheme source or extra directive', () => {
     expect(CONTENT_SECURITY_POLICY).not.toMatch(/unsafe-|\*|data:|blob:|https?:|'strict-dynamic'|nonce-|sha\d+-/);
     expect([...csp.keys()].sort()).toEqual(
-      ['base-uri', 'connect-src', 'default-src', 'font-src', 'form-action', 'frame-ancestors', 'img-src', 'object-src', 'script-src', 'style-src'],
+      ['base-uri', 'connect-src', 'default-src', 'font-src', 'form-action', 'frame-ancestors', 'img-src', 'object-src', 'script-src', 'style-src', 'worker-src'],
     );
   });
 

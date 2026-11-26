@@ -11,6 +11,14 @@ spring:
       local: demo
   main:
     banner-mode: off
+  # FE-DEPLOY (A-74, 1A): the built frontend is served from classpath:/static/ only (copied into the jar by the
+  # Maven profile with-frontend; the default build removes it, so its jar serves no frontend). The default mapping
+  # of every static file is off (review security L2): platform.internal.StaticResourceConfiguration maps only /,
+  # /index.html and /assets/**. Which of them open without a session: identity.FrontendPaths.
+  web:
+    resources:
+      add-mappings: false
+      static-locations: classpath:/static/
   datasource:
     url: ${APP_DB_URL}
     username: ${APP_DB_USERNAME}
@@ -90,6 +98,9 @@ logging:
 # configured by default, so every gateway call fails closed with PROVIDER_UNAVAILABLE until a local
 # Fake provider is set via APAS_GATEWAY_PROVIDER_BASE_URL. Never put credentials here.
 apas:
+  # FE-DEPLOY (A-74, 4A): CSP upgrade-insecure-requests only when the server runs with TLS (profile tls).
+  web:
+    upgrade-insecure-requests: false
   gateway:
     provider:
       base-url: ${APAS_GATEWAY_PROVIDER_BASE_URL:}

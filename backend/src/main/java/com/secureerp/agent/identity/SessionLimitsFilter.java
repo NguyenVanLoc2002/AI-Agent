@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -24,6 +25,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * login, so they are testable and do not depend on the servlet container (which also enforces the idle
  * timeout as a backstop). An ended session is invalidated and the request gets 401 with a sanitized
  * code; the client returns to the login page.
+ *
+ * <p>FE-DEPLOY (A-74, review security L1): a GET of the built frontend ({@link FrontendPaths}) with an ended
+ * session does not get the 401 problem answer: the session is invalidated and the page is served anonymously, so
+ * a reload after the idle timeout shows the app, which then reads its session (401) and asks to sign in again.
+ * Every page or asset load counts as activity for the idle timeout.
  *
  * <p>Not a Spring bean on purpose: a {@code Filter} bean would also be registered as a servlet filter
  * and run twice. It is added to the security filter chain only.
@@ -36,11 +42,17 @@ class SessionLimitsFilter extends OncePerRequestFilter {
     static final String LAST_SEEN = SessionLimitsFilter.class.getName() + ".lastSeen";
 
     private final Clock clock;
+    private final RequestMatcher frontend;
     private final Duration idleTimeout;
     private final Duration absoluteTimeout;
 
     SessionLimitsFilter(Clock clock, Duration idleTimeout, Duration absoluteTimeout) {
+        this(clock, idleTimeout, absoluteTimeout, FrontendPaths.GET);
+    }
+
+    SessionLimitsFilter(Clock clock, Duration idleTimeout, Duration absoluteTimeout, RequestMatcher frontend) {
         this.clock = clock;
+        this.frontend = frontend;
         this.idleTimeout = idleTimeout;
         this.absoluteTimeout = absoluteTimeout;
     }
@@ -71,7 +83,11 @@ class SessionLimitsFilter extends OncePerRequestFilter {
                 session.invalidate();
                 SecurityContextHolder.clearContext();
                 log.info("session_expired kind={}", expired);
-                ProblemResponses.write(request, response, ErrorCode.UNAUTHENTICATED);
+                if (frontend.matches(request)) {
+                    chain.doFilter(request, response);
+                } else {
+                    ProblemResponses.write(request, response, ErrorCode.UNAUTHENTICATED);
+                }
                 return;
             }
             session.setAttribute(LAST_SEEN, now);

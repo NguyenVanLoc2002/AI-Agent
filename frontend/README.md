@@ -25,20 +25,35 @@ The AI answers come from the Fake provider `e2e/fakeProvider.mjs` (Node, no depe
 
 Once per machine: `npx playwright install chromium` (downloads the browser; Playwright 1.65.1 installs Chromium revision 1255). Install dependencies with `npm ci`; do not use `--with-deps` or a custom `PLAYWRIGHT_DOWNLOAD_HOST`.
 
-1. Start PostgreSQL and the backend with profile `local` (root `README.md`, `backend/README.md`), with `APAS_DEMO_PASSWORD` set and `APAS_GATEWAY_PROVIDER_BASE_URL=http://127.0.0.1:18090` (without it the chat tests fail: the AI hands every message to staff).
-2. In `frontend/`, with the same `APAS_DEMO_PASSWORD` in the environment (and `APAS_BACKEND_URL` if the backend is not on `http://127.0.0.1:8080`): `npm run e2e`.
+The tests run against the deployed form of the app (FE-DEPLOY, A-74): the backend serving the built bundle.
 
-The run stops before any browser starts when the password is missing or the backend is not up. Playwright builds the app (`npm run build`), serves the bundle with `vite preview` on `127.0.0.1:4173` (it forwards `/api` like the dev server) and starts the Fake provider on `127.0.0.1:18090`; it fails if a port is taken. The tests use the built bundle, not the dev server: the dev server runs React StrictMode effects twice, which reads a quote twice after a reload and can leave the screen with an outdated confirmation token. Loopback is checked, not that the backend is a local demo: do not point `APAS_BACKEND_URL` at a tunnel to another machine. The tests change the shared AI switch: every test puts it back on, and the global teardown checks once more and fails the run with "the AI switch could not be restored" if it cannot. After an interrupted run (Ctrl+C), sign in as OPS and check the switch. Do not run the tests while someone else uses the same backend. Traces and videos are off; a failed test leaves a screenshot and a page snapshot in `test-results/` (ignored by git, synthetic data only, delete after reading).
+1. In `frontend/`: `npm ci && npm run build`. In `backend/`: `./mvnw -Pwith-frontend -DskipTests clean package` (copies `frontend/dist` into the jar; fails without `dist/index.html`, or when `dist` holds a source map or any file but `index.html` and `assets/`). A build without `-Pwith-frontend` removes the frontend again. Stop running backends first on Windows (they lock the jar).
+2. Start PostgreSQL and that backend with profile `local` (root `README.md`, `backend/README.md`), with `APAS_DEMO_PASSWORD` set and `APAS_GATEWAY_PROVIDER_BASE_URL=http://127.0.0.1:18090` (without it the chat tests fail: the AI hands every message to staff).
+3. HTTPS project (optional, see below): start a second backend from the same jar with profiles `local,tls` on another port, and set `APAS_BACKEND_TLS_URL` (e.g. `https://127.0.0.1:18443`; use the IP, not `localhost`, so a browser never pins HSTS on every localhost port). Without it the project `chromium-tls` is NOT RUN and the run says so; set `APAS_E2E_REQUIRE_TLS=1` for a run meant as evidence, and the run stops instead.
+4. In `frontend/`, with the same `APAS_DEMO_PASSWORD` in the environment (and `APAS_BACKEND_URL` if the backend is not on `http://127.0.0.1:8080`): `npm run e2e`.
+
+The run stops before any browser starts when the password is missing, the backend is not up, or the backend serves another `index.html` than `frontend/dist` has now (build and package again). Playwright starts only the Fake provider on `127.0.0.1:18090`; it fails if the port is taken. The tests use the built bundle, not the dev server: the dev server runs React StrictMode effects twice, which reads a quote twice after a reload and can leave the screen with an outdated confirmation token. Loopback is checked, not that the backend is a local demo: do not point `APAS_BACKEND_URL` at a tunnel to another machine. The tests change the shared AI switch: every test puts it back on, and the global teardown checks once more and fails the run with "the AI switch could not be restored" if it cannot. After an interrupted run (Ctrl+C), sign in as OPS and check the switch. Do not run the tests while someone else uses the same backend. Traces and videos are off; a failed test leaves a screenshot and a page snapshot in `test-results/` (ignored by git, synthetic data only, delete after reading).
 
 Rate limits are not loosened: a full run opens 2 new conversations for `cust-a` and 2 for `cust-c` (every customer sign-in opens one), and the backend allows 5 per customer per hour. To run more than twice an hour, recreate the local database (`docker compose down -v`, then up again) and restart the backend. Runs leave draft orders and resolved or open handoffs in the database (synthetic data).
 
 What a run shows and what it does not: the UI and the API of the switch, the role checks and the session handling of one local backend. It is not SEC-06 evidence (the effect of the switch on the AI path within 1 minute is not measured), and clearing the cookie is not the server's 30 min / 8 h session limit.
 
-## Security headers (FE-CSP, A-73)
-`config/securityHeaders.ts` holds them; `vite.config.ts` applies them.
+## Security headers (FE-CSP, A-73; FE-DEPLOY, A-74)
+The deployed app is served by the backend (`identity.SecurityConfiguration`): the same Content-Security-Policy and headers on every answer (pages, assets, API answers, errors), `Cache-Control: no-store` except for `/assets/**` (hashed names, cached for a year, `immutable`). With profile `tls` it also sends HSTS (one year) and the CSP `upgrade-insecure-requests`. A local HTTPS keystore is made with the JDK, outside the repository, never committed:
+
+```sh
+keytool -genkeypair -alias apas-local -keyalg EC -groupname secp256r1 -validity 30 -dname "CN=localhost" \
+  -ext "SAN=dns:localhost,ip:127.0.0.1" -storetype PKCS12 -keystore <outside-the-repo>/apas-local.p12
+export APAS_TLS_KEYSTORE=<outside-the-repo>/apas-local.p12 APAS_TLS_KEYSTORE_PASSWORD=<the password keytool asked for>
+java -jar target/secure-erp-agent-0.1.0-SNAPSHOT.jar --spring.profiles.active=local,tls
+```
+
+The browser will warn about the self-signed certificate; a real deployment needs a real certificate, and behind a TLS-ending proxy HSTS needs `server.forward-headers-strategy` with trusted proxies (§2a FE-PROD-EDGE). Requests Tomcat rejects itself (e.g. an encoded `/` in the path) never reach Spring and get no security headers. The policy text exists twice and must stay equal: `config/securityHeaders.ts` (for `vite preview`) and `SecurityConfiguration.CONTENT_SECURITY_POLICY` (backend); each side has tests with the literal value.
+
+`config/securityHeaders.ts` holds the headers of `vite preview`; `vite.config.ts` applies them.
 - The built bundle (`npm run build`, then `npx vite preview`, `http://127.0.0.1:4173`) is sent with an enforced Content-Security-Policy (`default-src 'none'`; scripts, styles, fonts, images, requests and forms from the own origin only; no `<base>`, no plugins, no framing) and `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` (`same-origin`). No HSTS: the demo runs over plain HTTP on loopback.
 - The dev server (`npm run dev`) sends only `nosniff` and `Referrer-Policy`: Vite's hot reload needs an inline script, so there is no CSP in development.
-- `vite preview` is the demo server only; how the bundle is served in production (and with HTTPS) is §2a FE-DEPLOY.
+- `vite preview` is for a quick local look at the bundle only; the deployed app is served by the backend (above).
 - The browser tests fail on any CSP violation (`e2e/fixtures.ts`). A new inline script or style, an external font or a `data:` URL needs a reviewed change of the policy and of `config/securityHeaders.test.ts`.
 
 ## How it talks to the backend
