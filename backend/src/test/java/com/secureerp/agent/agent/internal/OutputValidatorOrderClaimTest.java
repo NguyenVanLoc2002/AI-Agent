@@ -11,7 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * OUTPUT-ORDER-CLAIM-MORE (A-80). The model must never say that an order was approved, created or handled: only staff
+ * OUTPUT-ORDER-CLAIM-MORE (A-82). The model must never say that an order was approved, created or handled: only staff
  * and the backend do that (CLAUDE.md). The rule only knew the claim with nothing between "đơn" and the verb and a few
  * verbs. It now allows up to 30 characters between them in the same sentence (1A), knows more verbs (2A) and applies
  * both to the copy without diacritics (3A). Only the words right after "đơn" or the verb make it no claim: a negation,

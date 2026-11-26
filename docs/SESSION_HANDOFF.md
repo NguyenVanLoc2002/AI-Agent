@@ -1,14 +1,28 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
 ## Current: OUTPUT-ORDER-CLAIM-MORE order claims with words between, new verbs and English variants, 2026-11-26
-- Branch `fix/OUTPUT-ORDER-CLAIM-MORE-validator` from `main` `c4edc3b` (OUTPUT-PRICE-WORD-BOUNDARY PR #64 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-80.
-- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (ORDER_CLAIM, STRIPPED_ORDER_CLAIM); new `OutputValidatorOrderClaimTest.java`. Docs: A-80, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ORDER-CLAIM-REST PROPOSED).
+- Branch `fix/OUTPUT-ORDER-CLAIM-MORE-validator` from `main` `c4edc3b` (OUTPUT-PRICE-WORD-BOUNDARY PR #64 merged); `main` `9ced1ca` (FE-UI-P1 PR #65) merged in to resolve the conflicts in the shared docs, decision renumbered A-80 → A-82 (PR #65 took A-80, A-81). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-82.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (ORDER_CLAIM, STRIPPED_ORDER_CLAIM); new `OutputValidatorOrderClaimTest.java`. Docs: A-82, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ORDER-CLAIM-REST PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 35 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1715, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 08:49–08:53 UTC).
-- NOT RUN: E2E (no frontend change); CI. Gaps and accepted false positives listed in A-80.
+- NOT RUN: E2E (no frontend change); CI. Gaps and accepted false positives listed in A-82.
 - Note: a verify stopped part way (low memory) can leave an empty `target/*.jar`; the next `repackage` then fails with "Unable to find main class" until the jar files are deleted.
-- Review (advisory): security-auditor 2H/2M/2L, qa-gatekeeper 2H/5M/3L; fixes and residuals in A-80.
+- Review (advisory): security-auditor 2H/2M/2L, qa-gatekeeper 2H/5M/3L; fixes and residuals in A-82.
 - Rollback: revert the commit; no migration, no data change.
 - Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-REST, OUTPUT-ENGLISH-MONEY, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: FE-UI-P1 design-system foundation for the frontend roadmap, 2026-11-26 — merged (PR #65)
+- Scope: frontend roadmap `docs/ui-implementation/` (plan, screen/component inventory, progress, phases P0–P6, decisions, conflict matrix W-BIZ) and phase P1 only: Toast, PageHeader, Tabs, Tag, Card, Tooltip, DataTable (+ Checkbox as its dependency), breakpoints, token-only CSS foundation. No router, shell, batch F migration, batch G or A–E; no API, business rule, permission or mock.
+- Isolation: worktree `D:/Project_Private/AI-Agent-fe`, branch `feat/FE-UI-P1-design-system` from `origin/main` `c4edc3b` (upstream unset). The main folder and its backend branch were not touched. Committed after owner approval (A-81): `0bac97f` (P1), then a docs commit for A-81. Not pushed.
+- Decisions: A-80 (owner 2026-11-26: "1A 2B 3A 4A 5A 6A 7A 8A" + clarifications; preflight "theo Phương án A đề xuất hết cho tôi"); details FE-UI-D01..D14 in `docs/ui-implementation/DECISIONS.md`. D11 (Tooltip) and D14 (DataTable) are modified copies decided within P1 for WCAG; owner may overrule. OPEN FE-UI-Q01: design-system focus ring too faint (~1.3:1), token unchanged.
+- Files: `frontend/src/design-system/components/{feedback/Toast,feedback/Tooltip*,navigation/PageHeader,navigation/Tabs,data/Tag,data/Card,data/DataTable*,forms/Checkbox}.{jsx,d.ts}` (* modified), `index.ts`, `sources.json` (+16 entries), `scripts/verify-design-system.mjs` (fails on unlisted copies), `src/app/breakpoints.ts`, `src/app/foundation.css`, `src/main.tsx` (imports it), tests `src/design-system/foundation.test.tsx`, `config/foundationCss.test.ts`, `frontend/README.md`; docs `docs/DECISIONS_REQUIRED.md` (A-80), `docs/backlog/IMPLEMENTATION_PLAN.md` §2a (FE-UI-P1..P5, FE-UI-WBIZ), `docs/ui-implementation/**`.
+- Tests (VERIFIED 2026-11-26T08:08Z, Node 22.20.0): baseline before changes typecheck 0, vitest 224 passed, build 0, ds:verify 57; final `npm run typecheck` exit 0, `npx vitest run` exit 0 with 14 files / 261 passed, `npm run build` exit 0 (JS size unchanged, one module script, no inline), `npm run ds:verify` exit 0 / 73 files, `npm audit` 0, `git diff --check` 0. Mutations all red (6 CSS, Tooltip original 4/4, Tooltip without capture, DataTable without row guard, unlisted copy). Evidence: `docs/ui-implementation/evidence/P1-quality-gate.md`.
+- NOT RUN: E2E (APAS_DEMO_PASSWORD not set, FE-UI-D13); viewport/responsive, contrast, forced-colors and NVDA checks (need a real browser, planned P2-T14); lint (none configured).
+- Review (advisory): security-auditor 0H/0M/4L (L1, L4 fixed; L2, L3 usage rules), ux-workflow-reviewer 2H/7M/5L (H2 fixed, H1 → FE-UI-Q01 + own CSS outline + forced-colors; M/L as usage rules for P2).
+- Rollback: delete the worktree or revert the files; no migration, no backend change, no dependency change.
+- Proposal for the Decision Register / current state (no CURRENT_STATE file, D12): keep A-80 as the register entry; mark FE-UI-P1 DONE in §2a after the owner approves and the commit exists.
+- P2 readiness: ready once P1 is approved and committed. First P2 step is installing `react-router-dom` pinned (proposed 7.18.5) with audit and CSP check; carry the P1 usage rules (P2-T13) and the browser checks (P2-T14). Needs `APAS_DEMO_PASSWORD` for E2E. Batch G design brief (P0-T05) still to do before P4.
+- Follow-up A-81 (owner "theo đề xuất của bạn"): FE-UI-Q01 = A (brief `docs/ui-implementation/design-briefs/FE-UI-Q01-focus-ring.md`, waiting for Claude Design); W-BIZ group 0 approved for UX-16, UX-07, UX-18, UX-05 (safe defaults); UX-09 VAT wording still OPEN.
+- Next: (1) owner pushes and opens the PR; (2) owner sends the Q01 brief to Claude Design and chooses UX-09; (3) P2 on owner's go.
 
 ## Previous: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26 — merged (PR #64)
 - Branch `fix/OUTPUT-PRICE-WORD-BOUNDARY-validator` from `main` `8856f7b` (OUTPUT-DIACRITIC-VARIANTS PR #63 merged). Owner 2026-11-26 ("Theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-79.

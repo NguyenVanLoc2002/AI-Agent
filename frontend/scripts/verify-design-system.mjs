@@ -1,10 +1,12 @@
 // Checks the design-system files copied into src/design-system/ against src/design-system/sources.json
 // (EP-10a, decision 3A): every recorded file in the repo-root design-system/ still has the recorded hash,
-// every copy that is not marked as modified is byte-identical to it, and a modified copy (Icon.jsx, A-66)
-// still has its reviewed hash `copySha256`, so a later edit of it is never silent. Exit 1 on any difference.
+// every copy that is not marked as modified is byte-identical to it, and a modified copy (e.g. Icon.jsx A-66,
+// Tooltip.jsx A-80) still has its reviewed hash `copySha256`, so a later edit of it is never silent. Every file under
+// the copied `components/` and `assets/` folders must have an entry (A-80 review L4), so an unreviewed copy fails too.
+// Exit 1 on any difference.
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const frontend = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,6 +30,18 @@ for (const entry of manifest.files) {
   if (!existsSync(copy)) problems.push(`copy missing: ${entry.path}`);
   else if (!entry.modified && sha256(copy) !== entry.sha256) problems.push(`copy differs without a recorded change: ${entry.path}`);
   else if (entry.modified && sha256(copy) !== entry.copySha256) problems.push(`modified copy changed since its review: ${entry.path}`);
+}
+
+const listed = new Set(manifest.files.map((entry) => entry.path));
+const walk = (dir) => readdirSync(dir, { withFileTypes: true })
+  .flatMap((d) => (d.isDirectory() ? walk(join(dir, d.name)) : [join(dir, d.name)]));
+for (const folder of ['components', 'assets']) {
+  const root = join(copyRoot, folder);
+  if (!existsSync(root)) continue;
+  for (const file of walk(root)) {
+    const path = relative(copyRoot, file).split(sep).join('/');
+    if (!listed.has(path)) problems.push(`copy without a sources.json entry: ${path}`);
+  }
 }
 
 if (problems.length) {

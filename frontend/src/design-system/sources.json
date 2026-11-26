@@ -157,6 +157,27 @@
       "modified": null
     },
     {
+      "path": "components/data/Card.d.ts",
+      "sha256": "77e4e4e9e5aaeecac0617d19d922382929bcf1d088ff06ad2c352b6cb80c48ff",
+      "modified": null
+    },
+    {
+      "path": "components/data/Card.jsx",
+      "sha256": "e4e5a95a0a7923a71dcd6344f68588017a0a64ab3f91477bbd5e91b4bf3ef299",
+      "modified": null
+    },
+    {
+      "path": "components/data/DataTable.d.ts",
+      "sha256": "3889614b3062f212b69499f4e264785bb29b72a378158d5115ec4e0cee769185",
+      "modified": null
+    },
+    {
+      "path": "components/data/DataTable.jsx",
+      "sha256": "67438c1db778c98446ea376315afd4317decf9f6f284f32ce54bf97f0d7b646d",
+      "modified": "A-80 (FE-UI-D14): row Enter/Space acts only on the row itself, not on keys from controls inside it (WCAG 2.1.1, 4.1.2); look unchanged",
+      "copySha256": "db98e45ac97977de5d6aabe1f311b14b3cc3dfbcc6c2ecd842a65c3d2c5a1ba3"
+    },
+    {
       "path": "components/data/DescriptionList.d.ts",
       "sha256": "2c60e16bef254078f8f528651c53dd11534358c2023cd8a20c44f47c3239e6d6",
       "modified": null
@@ -164,6 +185,16 @@
     {
       "path": "components/data/DescriptionList.jsx",
       "sha256": "182cb0f502b27cdcf8319cbc3b6f5a6397e5c442416f8f00c922d5601c760921",
+      "modified": null
+    },
+    {
+      "path": "components/data/Tag.d.ts",
+      "sha256": "7d114ea85af7ede4d03450f9dd037320e7153ad5a9f2fde279bbb41950cf75ae",
+      "modified": null
+    },
+    {
+      "path": "components/data/Tag.jsx",
+      "sha256": "bddde5406b0bcea1324718cd00897340ec31e577150a104f621a5c03e8431218",
       "modified": null
     },
     {
@@ -204,6 +235,37 @@
     {
       "path": "components/feedback/Skeleton.jsx",
       "sha256": "6abe6e3610e61909ebc48d74212ac0448e0626ef657fbdf543828d8287bc27d4",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Toast.d.ts",
+      "sha256": "3a99b0e011541850c838498df383857d75a783b0d28ab0905b40db3b6395faef",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Toast.jsx",
+      "sha256": "d8ab55207ce060f8c51b03016599a5ecf0f15d43dd3366c017434d9fed2d8433",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Tooltip.d.ts",
+      "sha256": "b181757f6fc337a5f1609042d607ec483fb0546d1fec124c1137d96a8ce71d93",
+      "modified": null
+    },
+    {
+      "path": "components/feedback/Tooltip.jsx",
+      "sha256": "26c18c1b1ed8008efb14f1edbb99867fa6713c356767a8bd29511c73dee221a4",
+      "modified": "A-80 (FE-UI-D11): WCAG 1.4.13/4.1.2 - description on the focused control, Esc anywhere closes only the tooltip (capture phase), hoverable (120 ms close delay, pointer events on); look unchanged",
+      "copySha256": "8063cd7643bfc7e6e369f4a2a75a63a3ea08d02951b5a0738928d9b7254dc3c8"
+    },
+    {
+      "path": "components/forms/Checkbox.d.ts",
+      "sha256": "470535cfeae22fca7be44e79729abcbd4f7d13d87d932f3441b4e0000bcbf7da",
+      "modified": null
+    },
+    {
+      "path": "components/forms/Checkbox.jsx",
+      "sha256": "c7a397329dfcfa9759ff28b9d34621b701adedbcf59001f462afc05906dddba2",
       "modified": null
     },
     {
@@ -277,6 +339,16 @@
       "modified": null
     },
     {
+      "path": "components/navigation/PageHeader.d.ts",
+      "sha256": "daa907d6676287382544d6118ed34d179da5c437c80f4450cada22b48962e06e",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/PageHeader.jsx",
+      "sha256": "df0e26ad3157b1802c7d90d5865dd49b705e94dee2f28a90a8804b0a4f379c5d",
+      "modified": null
+    },
+    {
       "path": "components/navigation/Sidebar.d.ts",
       "sha256": "2240a3cf9941c7de45e6a26f48e373f6c739b9a1426313ff4b878a4cc75798dd",
       "modified": null
@@ -284,6 +356,16 @@
     {
       "path": "components/navigation/Sidebar.jsx",
       "sha256": "87f152a3bcc9612a232529570cc37e82986b6e792450df2755b6b19b0f24e3df",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Tabs.d.ts",
+      "sha256": "dfd75b509f831c4f59689434d28d8ae92c9100057a99f9be82a12709bbff9062",
+      "modified": null
+    },
+    {
+      "path": "components/navigation/Tabs.jsx",
+      "sha256": "44ea7b346f8f2e7c36f8f1ee0e69a690d24fa7f42672be224b56ab6702cb2efc",
       "modified": null
     },
     {

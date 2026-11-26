@@ -118,7 +118,7 @@ final class OutputValidator {
     private static final Pattern PART_CODE = Pattern.compile(
             "\\b(?=[A-Z0-9.-]*[0-9])(?=[A-Z0-9.-]*[A-Z])[A-Z0-9][A-Z0-9.-]{3,30}[A-Z0-9]\\b|\\b\\d{3,}-[A-Z0-9-]+\\b"
                     + "|\\b[A-Z0-9]{2,}(?:-[A-Z0-9]+){2,}\\b");
-    // OUTPUT-ORDER-CLAIM-MORE (A-80): more verbs (2A) and up to 30 characters between "đơn" and "đã"/"được" in the same
+    // OUTPUT-ORDER-CLAIM-MORE (A-82): more verbs (2A) and up to 30 characters between "đơn" and "đã"/"được" in the same
     // sentence (1A). Not a claim (review security H1/H2 narrowed these to the words right after "đơn" or the verb):
     // "đơn (hàng) (của X)" followed by "chưa/sẽ/đang" and a verb or "chờ/đợi" ("Đơn của bạn chưa được duyệt, anh đã…",
     // "Đơn đang đợi dù anh đã xác nhận"); a condition right before "đơn" ("Nếu đơn đã được duyệt…"); a question
@@ -175,7 +175,7 @@ final class OutputValidator {
                     + "|((?<![a-z])(thanh tien|chiet khau|chi phi)(?![a-z])"
                     + "[^.!?\\n]{0,30}?(?<![a-z])" + A_PRICE_NUMBER_WORD + "(" + SEP + A_PRICE_NUMBER_WORD + ")++"
                     + A_COUNT + ")");
-    // A-80 (3A): the same shapes and verbs as ORDER_CLAIM, still without "dat" (A-78), "da" after a word.
+    // A-82 (3A): the same shapes and verbs as ORDER_CLAIM, still without "dat" (A-78), "da" after a word.
     private static final String A_ORDER_VERB = "(duyet|phe duyet|xac nhan|tao|chot|len|ghi nhan|hoan tat|xu ly|xu li|giao"
             + "|thanh toan)(?![a-z])";
     private static final String A_ORDER_AGENT = "((ben em|ben minh|nhan vien|cua hang|shop|chung toi|chung em|em)\\s+)?";
