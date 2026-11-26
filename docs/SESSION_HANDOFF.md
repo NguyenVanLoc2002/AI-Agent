@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: FE-UI-P1 design-system foundation for the frontend roadmap, 2026-11-26
+## Current: OUTPUT-ORDER-CLAIM-MORE order claims with words between, new verbs and English variants, 2026-11-26
+- Branch `fix/OUTPUT-ORDER-CLAIM-MORE-validator` from `main` `c4edc3b` (OUTPUT-PRICE-WORD-BOUNDARY PR #64 merged); `main` `9ced1ca` (FE-UI-P1 PR #65) merged in to resolve the conflicts in the shared docs, decision renumbered A-80 → A-82 (PR #65 took A-80, A-81). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-82.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (ORDER_CLAIM, STRIPPED_ORDER_CLAIM); new `OutputValidatorOrderClaimTest.java`. Docs: A-82, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ORDER-CLAIM-REST PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 35 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1715, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 08:49–08:53 UTC).
+- NOT RUN: E2E (no frontend change); CI. Gaps and accepted false positives listed in A-82.
+- Note: a verify stopped part way (low memory) can leave an empty `target/*.jar`; the next `repackage` then fails with "Unable to find main class" until the jar files are deleted.
+- Review (advisory): security-auditor 2H/2M/2L, qa-gatekeeper 2H/5M/3L; fixes and residuals in A-82.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-REST, OUTPUT-ENGLISH-MONEY, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: FE-UI-P1 design-system foundation for the frontend roadmap, 2026-11-26 — merged (PR #65)
 - Scope: frontend roadmap `docs/ui-implementation/` (plan, screen/component inventory, progress, phases P0–P6, decisions, conflict matrix W-BIZ) and phase P1 only: Toast, PageHeader, Tabs, Tag, Card, Tooltip, DataTable (+ Checkbox as its dependency), breakpoints, token-only CSS foundation. No router, shell, batch F migration, batch G or A–E; no API, business rule, permission or mock.
 - Isolation: worktree `D:/Project_Private/AI-Agent-fe`, branch `feat/FE-UI-P1-design-system` from `origin/main` `c4edc3b` (upstream unset). The main folder and its backend branch were not touched. Committed after owner approval (A-81): `0bac97f` (P1), then a docs commit for A-81. Not pushed.
 - Decisions: A-80 (owner 2026-11-26: "1A 2B 3A 4A 5A 6A 7A 8A" + clarifications; preflight "theo Phương án A đề xuất hết cho tôi"); details FE-UI-D01..D14 in `docs/ui-implementation/DECISIONS.md`. D11 (Tooltip) and D14 (DataTable) are modified copies decided within P1 for WCAG; owner may overrule. OPEN FE-UI-Q01: design-system focus ring too faint (~1.3:1), token unchanged.
@@ -14,7 +24,7 @@
 - Follow-up A-81 (owner "theo đề xuất của bạn"): FE-UI-Q01 = A (brief `docs/ui-implementation/design-briefs/FE-UI-Q01-focus-ring.md`, waiting for Claude Design); W-BIZ group 0 approved for UX-16, UX-07, UX-18, UX-05 (safe defaults); UX-09 VAT wording still OPEN.
 - Next: (1) owner pushes and opens the PR; (2) owner sends the Q01 brief to Claude Design and chooses UX-09; (3) P2 on owner's go.
 
-## Previous: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26
+## Previous: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26 — merged (PR #64)
 - Branch `fix/OUTPUT-PRICE-WORD-BOUNDARY-validator` from `main` `8856f7b` (OUTPUT-DIACRITIC-VARIANTS PR #63 merged). Owner 2026-11-26 ("Theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-79.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY "price word then digit": whole words, "giảm xóc/chấn" excluded, same sentence = no ". ! ? newline" followed by an upper-case letter); new `OutputValidatorPriceWordTest.java`; pinned false positives moved in `OutputValidatorDiacriticVariantsTest.java` and `OutputValidatorMoneyWordsTest.java`. Docs: A-79, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ENGLISH-MONEY PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator (17 failures, no price case weakened); targeted tests exit 0 three runs in a row and a clean run after review fixes; 21 mutations, 20 red, 1 NOT RUN (string not unique); `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1571, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 07:24 UTC).

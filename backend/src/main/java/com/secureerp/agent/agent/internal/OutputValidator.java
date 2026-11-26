@@ -118,11 +118,37 @@ final class OutputValidator {
     private static final Pattern PART_CODE = Pattern.compile(
             "\\b(?=[A-Z0-9.-]*[0-9])(?=[A-Z0-9.-]*[A-Z])[A-Z0-9][A-Z0-9.-]{3,30}[A-Z0-9]\\b|\\b\\d{3,}-[A-Z0-9-]+\\b"
                     + "|\\b[A-Z0-9]{2,}(?:-[A-Z0-9]+){2,}\\b");
+    // OUTPUT-ORDER-CLAIM-MORE (A-82): more verbs (2A) and up to 30 characters between "đơn" and "đã"/"được" in the same
+    // sentence (1A). Not a claim (review security H1/H2 narrowed these to the words right after "đơn" or the verb):
+    // "đơn (hàng) (của X)" followed by "chưa/sẽ/đang" and a verb or "chờ/đợi" ("Đơn của bạn chưa được duyệt, anh đã…",
+    // "Đơn đang đợi dù anh đã xác nhận"); a condition right before "đơn" ("Nếu đơn đã được duyệt…"); a question
+    // "…chưa?" right after "đơn" or the verb, one word allowed between ("Bạn đã xác nhận đơn chưa?"); "đơn giản", "đơn
+    // vị", "đơn giá"… A passive claim needs "rồi"/"xong" without "đã" ("Đơn được duyệt rồi ạ"), and may name who did it
+    // ("đã được bên em duyệt").
+    private static final String ORDER_VERB = "(duyệt|duyet|phê duyệt|phe duyet|xác nhận|xac nhan|tạo|tao|đặt|dat|chốt|chot"
+            + "|lên|len|ghi nhận|ghi nhan|hoàn tất|hoan tat|xử lý|xử lí|xu ly|xu li|giao|thanh toán|thanh toan)(?!\\p{L})";
+    private static final String ORDER_AGENT = "((bên em|ben em|bên mình|ben minh|nhân viên|nhan vien|cửa hàng|cua hang|shop"
+            + "|chúng tôi|chung toi|chúng em|chung em|em)\\s+)?";
+    private static final String NOT_AN_ORDER = "(?!\\s*(giản|gian|vị|vi|giá|gia|lẻ|le|độc|doc|thuần|thuan|điệu|dieu|sơ|so)"
+            + "(?!\\p{L}))";
+    private static final String NOT_DONE = "(?!(\\s+(hàng|hang))?(\\s+(của|cua)(\\s+\\p{L}+){1,2})?\\s+((chưa|chua|sẽ|se"
+            + "|đang|dang)\\s+(được|duoc|chờ|cho|đợi|doi|" + ORDER_VERB + ")|(chờ|đợi)(?!\\p{L})"
+            + "|(cho|doi)\\s+(duyệt|duyet|xử lý|xu ly|xu li|nhân viên|nhan vien|xác nhận|xac nhan)(?!\\p{L})))";
+    private static final String QUESTION = "(?!(\\s+\\p{L}+)?\\s*,?\\s*(chưa|chua)(\\s+(ạ|a|nhỉ|nhi|vậy|vay))?\\s*\\?)";
+    private static final String ORDER_SUBJECT = "(?<!(nếu|neu|khi|lúc|luc|để)\\s)(?<!\\p{L})(đơn|don)(?!\\p{L})" + NOT_AN_ORDER
+            + NOT_DONE + "[^.!?\\n]{0,30}?(?<!\\p{L})";
     private static final Pattern ORDER_CLAIM = Pattern.compile(
-            "(?iu)((đã|da|được|duoc)\\s+(duyệt|duyet|phê duyệt|phe duyet|xác nhận|xac nhan|tạo|tao|đặt|dat|chốt|chot)"
-                    + "\\s+(đơn|don|order))|((đơn|don)( hàng| hang)?\\s+(đã|da)\\s+(được|duoc)?\\s*(duyệt|duyet|xác nhận|xac nhan"
-                    + "|tạo|tao|đặt|dat|chốt|chot))|(order\\s+(has\\s+been\\s+|is\\s+)?(approved|confirmed|placed|created))"
-                    + "|(approved\\s+(your\\s+)?order)");
+            "(?iu)((?<!\\p{L})(đã|da|được|duoc)\\s+" + ORDER_VERB + "\\s+(đơn|don|order)(?!\\p{L})" + QUESTION + ")"
+                    + "|(" + ORDER_SUBJECT + "(đã|da)\\s+((được|duoc)\\s+" + ORDER_AGENT + ")?" + ORDER_VERB + QUESTION + ")"
+                    + "|(" + ORDER_SUBJECT + "(được|duoc)\\s+" + ORDER_AGENT + ORDER_VERB + "\\s+(rồi|roi|xong)(?!\\p{L}))"
+                    + "|((?<!(sẽ|nếu|khi|để|cần|thể)\\s)(?<!\\p{L})(đặt|dat|tạo|tao|lên|len)\\s+(hàng|hang|đơn|don)\\s+"
+                    + "((đã|da)\\s+)?(thành công|thanh cong)(?!\\p{L}))"
+                    // Review security M2: "order's been", "order: confirmed", "has now been", "got approved".
+                    + "|((?<!(once|after|when|if|until|before)\\s(your\\s)?)order(\\s+#?\\d+)?(\\s*:|'s|’s|\\s+has"
+                    + "|\\s+is|\\s+was|\\s+got)?(\\s+(now|already))?(\\s+been)?(\\s+(now|successfully|already))?"
+                    + "\\s+(approved|confirmed|placed"
+                    + "|created|processed|shipped|completed)(?!\\p{L}))"
+                    + "|((approved|confirmed|placed|processed|shipped)\\s+(your\\s+|the\\s+)?order)");
 
     // OUTPUT-DIACRITIC-VARIANTS (A-78): the same rules on a copy without diacritics (đ read as d, runs of spaces read as
     // one), so a misspelling a reader still understands ("5 triêu", "đơn hàng đã duỵêt") is caught. Only keywords whose
@@ -149,9 +175,21 @@ final class OutputValidator {
                     + "|((?<![a-z])(thanh tien|chiet khau|chi phi)(?![a-z])"
                     + "[^.!?\\n]{0,30}?(?<![a-z])" + A_PRICE_NUMBER_WORD + "(" + SEP + A_PRICE_NUMBER_WORD + ")++"
                     + A_COUNT + ")");
+    // A-82 (3A): the same shapes and verbs as ORDER_CLAIM, still without "dat" (A-78), "da" after a word.
+    private static final String A_ORDER_VERB = "(duyet|phe duyet|xac nhan|tao|chot|len|ghi nhan|hoan tat|xu ly|xu li|giao"
+            + "|thanh toan)(?![a-z])";
+    private static final String A_ORDER_AGENT = "((ben em|ben minh|nhan vien|cua hang|shop|chung toi|chung em|em)\\s+)?";
+    private static final String A_NOT_DONE = "(?!(\\s+hang)?(\\s+cua(\\s+[a-z]+){1,2})?\\s+((chua|se|dang)\\s+(duoc|cho|doi|"
+            + A_ORDER_VERB + ")|(cho|doi)\\s+(duyet|xu ly|xu li|nhan vien|xac nhan)(?![a-z])))";
+    private static final String A_QUESTION = "(?!(\\s+[a-z]+)?\\s*,?\\s*chua(\\s+(a|nhi|vay))?\\s*\\?)";
+    private static final String A_ORDER_SUBJECT = "(?<!(neu|khi|luc|de)\\s)(?<![a-z])don(?![a-z])"
+            + "(?!\\s*(gian|vi|gia|le|doc|thuan|dieu|so)(?![a-z]))" + A_NOT_DONE + "[^.!?\\n]{0,30}?(?<![a-z])";
     private static final Pattern STRIPPED_ORDER_CLAIM = Pattern.compile(
-            "(?i)(((?<=[a-z] )da|(?<![a-z])duoc)\\s+(duyet|phe duyet|xac nhan|tao|chot)\\s+(don|order)(?![a-z]))"
-                    + "|((?<![a-z])don( hang)?\\s+da\\s+(duoc\\s+)?(duyet|phe duyet|xac nhan|tao|chot)(?![a-z]))");
+            "(?i)(((?<=[a-z] )da|(?<![a-z])duoc)\\s+" + A_ORDER_VERB + "\\s+(don|order)(?![a-z])" + A_QUESTION + ")"
+                    + "|(" + A_ORDER_SUBJECT + "da\\s+(duoc\\s+" + A_ORDER_AGENT + ")?" + A_ORDER_VERB + A_QUESTION + ")"
+                    + "|(" + A_ORDER_SUBJECT + "duoc\\s+" + A_ORDER_AGENT + A_ORDER_VERB + "\\s+(roi|xong)(?![a-z]))"
+                    + "|((?<!(se|neu|khi|de|can|the)\\s)(?<![a-z])(dat|tao|len)\\s+(hang|don)\\s+(da\\s+)?thanh cong"
+                    + "(?![a-z]))");
     private static final Pattern STRIPPED_STOCK = Pattern.compile(
             "(?i)((?<![a-z])(con lai|con hang|ton kho|kho con|kho hang)\\s*:?\\s*\\d)"
                     + "|(\\d+\\s*(cai|chiec|bo)\\s*(trong kho|ton kho|con lai)(?![a-z]))");
