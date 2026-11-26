@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { ROOT_ERROR_OPTIONS } from './app/rootErrors';
 import './design-system/tokens.css';
 import './design-system/components/bundle.css';
 import './app/foundation.css';
@@ -15,7 +16,8 @@ async function start() {
   }
   const root = document.getElementById('root');
   if (root) {
-    createRoot(root).render(<StrictMode><App /></StrictMode>);
+    // FE-REACT19: React's own console reports of render errors are replaced (no message or stack is logged).
+    createRoot(root, ROOT_ERROR_OPTIONS).render(<StrictMode><App /></StrictMode>);
   }
 }
 

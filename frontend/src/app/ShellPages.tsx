@@ -9,8 +9,8 @@ import { PageState } from './PageState';
 //   pattern "what happened + next step"), FE-UI-D15.
 // - Render failure (SH-04, E6-Error): a component threw. Copy PROPOSED, FE-UI-D15. It does not claim that nothing
 //   was saved: a screen can fail after a write succeeded (writing.md; review UX M3). The error is never shown on the
-//   page. React itself still writes a caught render error to the browser console (review security M3, accepted risk:
-//   ApiError messages are fixed; suppressing it needs React 19 root options, an owner decision).
+//   page, and since FE-REACT19 the root's onCaughtError/onUncaughtError (rootErrors.ts) keep React from writing its
+//   message and stack to the console (owner decision B, P2 review security M3).
 
 export function ForbiddenScreen({ onHome }: { onHome: () => void }) {
   return <PageState kind="forbidden" action={<HomeButton onHome={onHome} />} />;
@@ -40,7 +40,7 @@ export class RenderErrorBoundary extends Component<BoundaryProps, { failed: bool
   }
 
   componentDidCatch(_error: unknown, _info: ErrorInfo): void {
-    // Nothing is sent or logged by the app (rule 10); see the note above about React's own console output.
+    // Nothing is sent or logged here (rule 10); React's own report goes to the root options (rootErrors.ts).
   }
 
   render() {
