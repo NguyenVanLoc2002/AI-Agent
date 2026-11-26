@@ -38,10 +38,48 @@ final class OutputValidator {
             "(?i)(\\b[a-z][a-z0-9+.-]*://|\\bwww\\.|\\b[a-z0-9-]+\\.(com|vn|net|org|io|info|biz|xyz|ru|cn|top|app|dev|me)\\b"
                     + "|mailto:|\\[[^\\]]*\\]\\([^)]*\\))");
     private static final Pattern SERVER_TOKEN = Pattern.compile("(?i)\\b(pr|qh|vin|cref|usr|cv)_[A-Za-z0-9_-]{4,}");
+    // OUTPUT-MONEY-WORDS (A-76): money units as whole words, without the part and measure words that start the same
+    // way: "đồng hồ" (gauge), "tỷ lệ" (ratio), "vạn năng" (universal joint), "củ đề"/"củ phát" (starter, alternator),
+    // and a large unit followed by a distance or a speed ("năm nghìn km", "hai nghìn vòng").
+    private static final String NOT_A_MEASURE = "(?!\\s*(km|cây số|cay so|kilomet|kilômét|giờ|gio|vòng|vong)(?!\\p{L}))";
+    private static final String LARGE_UNIT = "(?:(?:nghìn|nghin|ngàn|ngan|triệu|trieu)(?!\\p{L})" + NOT_A_MEASURE
+            + "|(?:tỷ|tỉ|ty)(?!\\p{L})(?!\\s*(lệ|le|số|so)(?!\\p{L}))"
+            + "|vạn(?!\\p{L})(?!\\s*(năng|nang)(?!\\p{L}))" + NOT_A_MEASURE + ")";
+    private static final String DONG = "(?:đồng|dong)(?!\\p{L})(?!\\s*(hồ|ho|bộ|bo|nghĩa|nghia|thời|thoi)(?!\\p{L}))";
+    private static final String CU = "củ(?!\\p{L})(?!\\s*(đề|de|phát|phat)(?!\\p{L}))";
+    private static final String ENGLISH_UNIT = "(?:million|mil|thousand|grand|billion|bn)(?!\\p{L})";
     private static final Pattern MONEY = Pattern.compile(
-            "(?iu)(\\d[\\d.,\\s]*\\s*(₫|đ(?!\\p{L})|vnd|vnđ|đồng|dong\\b|nghìn|nghin|ngàn|ngan|triệu|trieu|tr\\b|k\\b|usd|\\$|€))"
+            // Possessive run (A-76 review: "1-1-1-…" took 0.5 s with backtracking through every unit).
+            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
+                    + ENGLISH_UNIT
+                    // A-76 review security M5: "tr"/"k" as whole words ("\\b" is ASCII-only, so "2 trục", "4 kỳ" are
+                    // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
+                    + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
                     + "|((₫|\\$|€|vnd|usd)\\s*\\d)"
                     + "|((giá|gia|price|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam)\\D{0,20}\\d)");
+    /** OUTPUT-MONEY-WORDS (A-76): a Vietnamese or English number word, with or without diacritics, as a whole word. */
+    private static final String NUMBER_WORD = "(?:một|mốt|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|sáu|sau|bảy|bẩy|bay"
+            + "|tám|tam|chín|chin|mười|muoi|mươi|linh|lẻ|trăm|tram|rưỡi|rưởi|ruoi|nửa|chục|chuc"
+            + "|one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty|hundred)(?!\\p{L})";
+    /** Between number words and units: spaces, and the hyphens, brackets and quotes a model could slip in (review M1). */
+    private static final String SEP = "[\\s\\-_–—()\"'“”]{1,3}";
+    /** A count, a time or a measure after a number: "hai bộ", "ba năm", "hai lần". */
+    private static final String COUNT = "(?!" + SEP + "(bộ|bo|cái|cai|chiếc|chiec|món|mon|loại|loai|ngày|ngay|tuần|tuan"
+            + "|tháng|thang|năm|nam|giờ|gio|phút|phut|người|nguoi|lần|lan|km|lít|lit)(?!\\p{L}))";
+    /**
+     * OUTPUT-MONEY-WORDS (A-76, decisions 1A–3A): amounts in words. (1) Number words followed by a money unit ("hai
+     * triệu", "năm trăm nghìn", "mot ty", "hai mươi k", "two million"); (2) a large unit followed by a number word
+     * ("triệu rưỡi"); (3) a price word followed, within the same sentence, by at least two number words that are not a
+     * count ("giá một bộ là hai trăm rưởi", not "tổng cộng hai bộ" or "giá năm nay"). Biased to fail closed ("một triệu
+     * cảm ơn" is blocked); number words alone ("ba trăm rưởi") are not, they read like a quantity.
+     */
+    private static final Pattern MONEY_WORDS = Pattern.compile(
+            "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*" + SEP
+                    + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
+                    + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
+                    + "|((?<!\\p{L})(giá|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
+                    + "|phí|price|cost)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
+                    + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")++" + COUNT + ")");
     private static final Pattern STOCK = Pattern.compile(
             "(?iu)((còn|con|tồn|ton|stock|kho)\\s*(lại|lai|kho|hàng|hang)?\\s*:?\\s*\\d)|(\\d+\\s*(cái|cai|chiếc|chiec|bộ|bo)"
                     + "\\s*(trong kho|tồn|ton|còn lại|con lai))");
@@ -67,7 +105,9 @@ final class OutputValidator {
         if (text == null || text.isBlank()) {
             return Optional.of(Rejection.EMPTY);
         }
-        String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC);
+        // A-76 review security M1: every Unicode separator (line and paragraph separators, no-break spaces) counts as a
+        // space, so "hai triệu" is read like "hai triệu".
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).replaceAll("\\p{Z}", " ");
         if (normalized.length() > MAX_CHARS) {
             return Optional.of(Rejection.TOO_LONG);
         }
@@ -94,7 +134,7 @@ final class OutputValidator {
         }
         codes.appendTail(withoutCodes);
         String rest = withoutCodes.toString();
-        if (MONEY.matcher(rest).find()) {
+        if (MONEY.matcher(rest).find() || MONEY_WORDS.matcher(rest).find()) {
             return Optional.of(Rejection.MONEY);
         }
         if (STOCK.matcher(rest).find()) {

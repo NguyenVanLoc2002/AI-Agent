@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: FE-E2E-ADVERSARIAL browser tests with a hostile Fake provider, 2026-11-26
+## Current: OUTPUT-MONEY-WORDS amounts in words or slang in the model's answer, 2026-11-26
+- Branch `fix/OUTPUT-MONEY-WORDS-validator` from `main` `75c11bc` (FE-E2E-ADVERSARIAL PR #60 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-76.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY_WORDS, new units and slang, exclusions for parts and measures, whole-word `tr`/`k`, Unicode separators as spaces, possessive digit run); new `OutputValidatorMoneyWordsTest.java`. Docs: A-76, IMPLEMENTATION_PLAN §2a (OUTPUT-MONEY-WORDS DONE; OUTPUT-CONFUSABLES, OUTPUT-LENGTH-RAW PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): new tests red before the fix; `./mvnw -B -q -Dtest='OutputValidator*Test,DefaultAgentTest' test` exit 0 three runs in a row; 16 regex mutations all red, source restored (sha256); `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1299, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 03:26 UTC).
+- NOT RUN: E2E (no frontend change); CI. Accepted false positives and documented gaps listed in A-76.
+- Review (advisory): security-auditor 0H/6M/4L, qa-gatekeeper 0H/4M/4L; fixes and residuals in A-76.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-CONFUSABLES, OUTPUT-LENGTH-RAW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: FE-E2E-ADVERSARIAL browser tests with a hostile Fake provider, 2026-11-26 — merged (PR #60)
 - Branch `feat/FE-E2E-ADVERSARIAL-fake-provider` from `main` `6a00556` (FE-DEPLOY PR #59 merged). Owner 2026-11-26 ("theo đề xuất, hãy triển khai" = 1A–6A): DECISIONS_REQUIRED A-75.
 - Change: `frontend/e2e/` only, no app or backend code: `adversarial.spec.ts` (new), `fakeProvider.mjs` (trigger sentences, remembered productRef/quote handle used once, `GET /__e2e/remembered`), `support.ts` (shared helpers, cust-b), `flows.spec.ts` (helpers moved out). Docs: A-75, IMPLEMENTATION_PLAN §2a (FE-E2E-ADVERSARIAL DONE; FE-E2E-ADVERSARIAL-2, OUTPUT-MONEY-WORDS PROPOSED), `frontend/README.md`.
 - Tests (VERIFIED 2026-11-26, Node 22.20.0, Chromium 1255): `APAS_E2E_REQUIRE_TLS=1 npm run e2e` 29 passed exit 0 at 02:30 UTC (fresh DB, compose project `apas-e2e` on 55432; jar with `-Pwith-frontend` on 127.0.0.1:18080 profile `local` and 18443 `local,tls`, Fake provider wired); `npm run typecheck` 0; `npx vitest run` 224 exit 0; `npm run build` 0; `git diff --check` 0. Mutations (restored, sha256/git checked), all red: 3 on the Fake provider, 4 on the backend (SERVER_TOKEN off; MONEY+LONG_NUMBER off; FORBIDDEN_RESOURCE without handoff; `rejections-before-handoff=4`). MONEY off alone stays green (LONG_NUMBER also blocks).
