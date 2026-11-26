@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-CONFUSABLES + OUTPUT-LENGTH-RAW look-alike characters and raw length in the model's answer, 2026-11-26
+## Current: OUTPUT-DIACRITIC-VARIANTS misspelled keywords in the model's answer, 2026-11-26
+- Branch `fix/OUTPUT-DIACRITIC-VARIANTS-validator` from `main` `bf9ad72` (OUTPUT-CONFUSABLES PR #62 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-78.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (copy without diacritics and with single spaces; `STRIPPED_MONEY`, `STRIPPED_ORDER_CLAIM`, `STRIPPED_STOCK` with keywords that are not common words; typo "gía" in the price words); new `OutputValidatorDiacriticVariantsTest.java`. Docs: A-78, IMPLEMENTATION_PLAN §2a (OUTPUT-DIACRITIC-VARIANTS DONE; OUTPUT-PRICE-WORD-BOUNDARY, OUTPUT-ORDER-CLAIM-MORE PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): probe and red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 27 mutations, 25 red, 2 equivalent; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1491, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 04:43 UTC).
+- NOT RUN: E2E (no frontend change); CI. Documented gaps and known false positives listed in A-78.
+- Review (advisory): security-auditor 0H/3M/3L, qa-gatekeeper 2H/3M/3L; fixes and residuals in A-78.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-PRICE-WORD-BOUNDARY, OUTPUT-ORDER-CLAIM-MORE, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-CONFUSABLES + OUTPUT-LENGTH-RAW look-alike characters and raw length in the model's answer, 2026-11-26 — merged (PR #62)
 - Branch `fix/OUTPUT-CONFUSABLES-validator` from `main` `88e19f6` (OUTPUT-MONEY-WORDS PR #61 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-77.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (`CONFUSABLE_SCRIPT`: only ASCII + Vietnamese letters, digits 0-9, no leftover combining marks, no U+2800/private use/unassigned/lone surrogate/CJK full stop; variation selectors dropped; length on raw and NFKC text); new `OutputValidatorConfusablesTest.java`; `OutputValidatorMoneyWordsTest.java` gap "450к" removed. Docs: A-77, IMPLEMENTATION_PLAN §2a (both DONE; OUTPUT-DIACRITIC-VARIANTS, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): first cases red before the rule; targeted tests exit 0 three runs in a row and after review fixes; 20 mutations all red, source restored (sha256); `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1356, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 04:11 UTC).

@@ -76,7 +76,8 @@ final class OutputValidator {
                     // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
                     + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
                     + "|((₫|\\$|€|vnd|usd)\\s*\\d)"
-                    + "|((giá|gia|price|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam)\\D{0,20}\\d)");
+                    // A-78: "gía" (the tone on the i, a common typo and no word) with the other price words.
+                    + "|((giá|gía|gìa|gỉa|gĩa|gịa|gia|price|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam)\\D{0,20}\\d)");
     /** OUTPUT-MONEY-WORDS (A-76): a Vietnamese or English number word, with or without diacritics, as a whole word. */
     private static final String NUMBER_WORD = "(?:một|mốt|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|sáu|sau|bảy|bẩy|bay"
             + "|tám|tam|chín|chin|mười|muoi|mươi|linh|lẻ|trăm|tram|rưỡi|rưởi|ruoi|nửa|chục|chuc"
@@ -97,7 +98,7 @@ final class OutputValidator {
             "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*" + SEP
                     + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
                     + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
-                    + "|((?<!\\p{L})(giá|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
+                    + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
                     + "|phí|price|cost)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
                     + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")++" + COUNT + ")");
     private static final Pattern STOCK = Pattern.compile(
@@ -113,6 +114,38 @@ final class OutputValidator {
                     + "\\s+(đơn|don|order))|((đơn|don)( hàng| hang)?\\s+(đã|da)\\s+(được|duoc)?\\s*(duyệt|duyet|xác nhận|xac nhan"
                     + "|tạo|tao|đặt|dat|chốt|chot))|(order\\s+(has\\s+been\\s+|is\\s+)?(approved|confirmed|placed|created))"
                     + "|(approved\\s+(your\\s+)?order)");
+
+    // OUTPUT-DIACRITIC-VARIANTS (A-78): the same rules on a copy without diacritics (đ read as d, runs of spaces read as
+    // one), so a misspelling a reader still understands ("5 triêu", "đơn hàng đã duỵêt") is caught. Only keywords whose
+    // form without diacritics is not a common word (3A, the rest are documented gaps): left out are "dong" (dòng, động,
+    // đông), "tram" (trạm), "ngan" (ngăn, ngắn), "ty" (tý), "van" (van, vặn), "canh" (cạnh), "cu" (cũ); "ton" (tốn,
+    // tôn), "con" (côn, cồn) and "kho" (khó, khô) alone; the price words "gia" (giả, già), "tong" (tông), "giam"
+    // (giám), "phi"; the order verb "dat" (đạt: "đã đạt đơn tối thiểu"); and, after a price word, the number words
+    // that are also common words ("từ", "làm", "nữa", "tạm", "sau", "bay", "lẻ", "linh", "chúc"). "da" needs a word
+    // before it, so the polite "Dạ, chốt đơn ở nút bên dưới" is not a claim. The copy only holds ASCII letters
+    // (CONFUSABLE_SCRIPT runs first), so word ends are ASCII.
+    private static final Pattern DIACRITIC = Pattern.compile("\\p{M}");
+    private static final Pattern SPACE_RUN = Pattern.compile("[ \\t]{2,}");
+    private static final String A_NUMBER_WORD = "(?:mot|hai|ba|bon|tu|nam|lam|nham|sau|bay|tam|chin|muoi|linh|le|tram"
+            + "|ruoi|nua|chuc)(?![a-z])";
+    private static final String A_PRICE_NUMBER_WORD = "(?:mot|hai|ba|bon|nam|nham|chin|muoi|tram|ruoi)(?![a-z])";
+    private static final String A_LARGE_UNIT = "(?:trieu|nghin)(?![a-z])(?!\\s*(km|cay so|kilomet|gio|vong)(?![a-z]))";
+    private static final String A_COUNT = "(?!" + SEP + "(bo|cai|chiec|mon|loai|ngay|tuan|thang|nam|gio|phut|nguoi|lan"
+            + "|km|lit)(?![a-z]))";
+    private static final Pattern STRIPPED_MONEY = Pattern.compile(
+            "(?i)(\\d[\\d.,\\s\\-_]*+" + A_LARGE_UNIT + ")"
+                    + "|((?<![a-z])" + A_NUMBER_WORD + "(" + SEP + A_NUMBER_WORD + ")*" + SEP + A_LARGE_UNIT + ")"
+                    + "|((?<![a-z])(trieu|nghin)" + SEP + A_NUMBER_WORD + ")"
+                    + "|((?<![a-z])(thanh tien|chiet khau)(?![a-z])\\D{0,20}\\d)"
+                    + "|((?<![a-z])(thanh tien|chiet khau|chi phi)(?![a-z])"
+                    + "[^.!?\\n]{0,30}?(?<![a-z])" + A_PRICE_NUMBER_WORD + "(" + SEP + A_PRICE_NUMBER_WORD + ")++"
+                    + A_COUNT + ")");
+    private static final Pattern STRIPPED_ORDER_CLAIM = Pattern.compile(
+            "(?i)(((?<=[a-z] )da|(?<![a-z])duoc)\\s+(duyet|phe duyet|xac nhan|tao|chot)\\s+(don|order)(?![a-z]))"
+                    + "|((?<![a-z])don( hang)?\\s+da\\s+(duoc\\s+)?(duyet|phe duyet|xac nhan|tao|chot)(?![a-z]))");
+    private static final Pattern STRIPPED_STOCK = Pattern.compile(
+            "(?i)((?<![a-z])(con lai|con hang|ton kho|kho con|kho hang)\\s*:?\\s*\\d)"
+                    + "|(\\d+\\s*(cai|chiec|bo)\\s*(trong kho|ton kho|con lai)(?![a-z]))");
 
     private OutputValidator() {
     }
@@ -146,7 +179,8 @@ final class OutputValidator {
         if (SERVER_TOKEN.matcher(normalized).find()) {
             return Optional.of(Rejection.SERVER_TOKEN);
         }
-        if (ORDER_CLAIM.matcher(normalized).find()) {
+        if (ORDER_CLAIM.matcher(normalized).find()
+                || STRIPPED_ORDER_CLAIM.matcher(withoutDiacritics(normalized)).find()) {
             return Optional.of(Rejection.ORDER_CLAIM);
         }
         // Part codes first: an allowed code may contain digit runs, which must not count as numbers.
@@ -160,15 +194,24 @@ final class OutputValidator {
         }
         codes.appendTail(withoutCodes);
         String rest = withoutCodes.toString();
-        if (MONEY.matcher(rest).find() || MONEY_WORDS.matcher(rest).find()) {
+        String restWithoutDiacritics = withoutDiacritics(rest);
+        if (MONEY.matcher(rest).find() || MONEY_WORDS.matcher(rest).find()
+                || STRIPPED_MONEY.matcher(restWithoutDiacritics).find()) {
             return Optional.of(Rejection.MONEY);
         }
-        if (STOCK.matcher(rest).find()) {
+        if (STOCK.matcher(rest).find() || STRIPPED_STOCK.matcher(restWithoutDiacritics).find()) {
             return Optional.of(Rejection.STOCK_NUMBER);
         }
         if (LONG_NUMBER.matcher(rest).find()) {
             return Optional.of(Rejection.LONG_NUMBER);
         }
         return Optional.empty();
+    }
+
+    /** A-78: Vietnamese text without tone and vowel marks, đ read as d ("đơn hàng đã duỵêt" → "don hang da duyet"). */
+    private static String withoutDiacritics(String text) {
+        String decomposed = Normalizer.normalize(text, Normalizer.Form.NFD);
+        String stripped = DIACRITIC.matcher(decomposed).replaceAll("").replace('đ', 'd').replace('Đ', 'D');
+        return SPACE_RUN.matcher(stripped).replaceAll(" ");
     }
 }
