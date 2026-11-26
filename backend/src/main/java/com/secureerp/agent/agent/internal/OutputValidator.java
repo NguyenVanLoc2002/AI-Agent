@@ -69,7 +69,7 @@ final class OutputValidator {
     private static final String CU = "củ(?!\\p{L})(?!\\s*(đề|de|phát|phat)(?!\\p{L}))";
     private static final String ENGLISH_UNIT = "(?:million|mil|thousand|grand|billion|bn)(?!\\p{L})";
     /**
-     * OUTPUT-ENGLISH-MONEY (A-85, 1A): currencies written as words or codes, as whole words, with a country before
+     * OUTPUT-ENGLISH-MONEY (A-86, 1A): currencies written as words or codes, as whole words, with a country before
      * dollars ("45 US dollars", review security H2). Not "pound(s)": "45 pounds" may be a weight. Not "euro" before a
      * digit: "Euro 5, Euro 6 engines" is an emission standard (review security).
      */
@@ -83,7 +83,7 @@ final class OutputValidator {
                     // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
                     + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
                     + "|((₫|\\$|€|£|¥|₹|₩|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?)(?!\\p{L}))\\s*:?\\s*\\d)"
-                    // A-85 (2A): English price words as whole words, not after a hyphen ("low-cost") nor before a
+                    // A-86 (2A): English price words as whole words, not after a hyphen ("low-cost") nor before a
                     // hyphen and a letter ("cost-effective"; "Cost-45" is blocked), then a digit in the same sentence
                     // as below, within 40 characters (English sentences run longer, review QA M2). "Discount 10%" is
                     // blocked: a discount is price information. Not total, amount, pay, charge, worth: they often count
@@ -105,7 +105,7 @@ final class OutputValidator {
     private static final String NUMBER_WORD = "(?:một|mốt|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|sáu|sau|bảy|bẩy|bay"
             + "|tám|tam|chín|chin|mười|muoi|mươi|linh|lẻ|trăm|tram|rưỡi|rưởi|ruoi|nửa|chục|chuc"
             + "|one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty|hundred"
-            // A-85 (3A): the other English teens and tens.
+            // A-86 (3A): the other English teens and tens.
             + "|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|thirty|forty|sixty|seventy"
             + "|eighty|ninety)(?!\\p{L})";
     /** Between number words and units: spaces, and the hyphens, brackets and quotes a model could slip in (review M1). */
@@ -126,7 +126,7 @@ final class OutputValidator {
                     + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
                     + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
                     + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
-                    // A-85 review security M: the English price words of MONEY too ("It costs forty-five").
+                    // A-86 review security M: the English price words of MONEY too ("It costs forty-five").
                     + "|phí|price|cost|costs|costing|fee|fees|subtotal|discount|priced|pricing|prices)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
                     + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")++" + COUNT + ")");
     private static final Pattern STOCK = Pattern.compile(

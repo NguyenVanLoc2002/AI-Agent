@@ -8,6 +8,7 @@
 | 1 | 2026-11-26 | "Tôi phê duyệt các lựa chọn sau: **1A 2B 3A 4A 5A 6A 7A 8A**" kèm phần "Decision clarification" D01–D08 | FE-UI-D01..D08 |
 | 2 | 2026-11-26 | "theo Phương án A đề xuất hết cho tôi" (trả lời 4 câu hỏi preflight) | FE-UI-D09, D10, D12, D13 |
 | 3 | 2026-11-26 | "theo đề xuất của bạn" (sau quality gate P1) | FE-UI-Q01 = A, commit P1, W-BIZ nhóm 0 (A-81) |
+| 5 | 2026-11-26 | "Đã merge PR #68, chọn B, bắt đầu P3 đi" | FE-UI-D21 = B (React 19); bắt đầu P3 (A-85) |
 | 4 | 2026-11-26 | "UX-09 chọn (a), bắt đầu P2 đi, tôi đã merge phần vừa rồi" (PR #65 merged) | UX-09 = (a); bắt đầu P2 (A-84) |
 
 ## Quyết định
@@ -31,6 +32,7 @@
 | FE-UI-D18 | Khung theo artboard F2–F5: nhóm sidebar = nhóm breadcrumb (Kinh doanh / Vận hành / Kiểm tra bảo mật); icon OPS `sliders-horizontal` (F5, trước là `shield-alert`); header chỉ hiện nhãn vai trò (API phiên không có tên người); mục EP-10e của F2 chưa hiện tới P4 | DECIDED trong P2 | Lệch có lý do, ghi trong bằng chứng P2 |
 | FE-UI-D19 | Mock bật bằng Vite mode `mock` (`npm run dev:mock`, cổng 5174), không bằng biến môi trường (cmd của Windows không nhận `VAR=1`; `.env.*` bị gitignore); người dùng mock `ops`/`sales`/`secrev`/`cust`, mật khẩu `mock`; `npm run build` chạy `verify-no-mocks` | DECIDED trong P2 (thực thi D05) | Mock chỉ trả các endpoint có thật, mỗi câu trả lời đi qua decoder của app trong test |
 | FE-UI-D20 | `react-router-dom` **7.18.5** ghim chính xác (kéo `react-router` 7.18.5, `cookie` 1.1.1, `set-cookie-parser` 2.7.3; MIT; integrity; > 2 tuần) | DONE trong P2 (thực thi D02) | `npm audit` 0; bundle JS 276 → 320 kB (gzip 81 → 96 kB) |
+| FE-UI-D21 | Lỗi render không được ghi ra console: nâng `react`/`react-dom` **19.3.1**, `@types` 19.3.0; root dùng `onCaughtError`/`onUncaughtError`/`onRecoverableError` chỉ ghi một dòng cố định (`src/app/rootErrors.ts`) | APPROVED 2026-11-26 (owner, B) · làm trước P3 trên nhánh riêng | Bằng chứng `evidence/FE-REACT19.md`; bundle +23 kB gzip |
 | FE-UI-D12 | Không tạo `CURRENT_STATE`; hiện trạng ở `docs/SESSION_HANDOFF.md` + `PROGRESS.md` | APPROVED 2026-11-26 (3A) | |
 | FE-UI-D13 | E2E hồi quy ở quality gate chỉ khi có `APAS_DEMO_PASSWORD` trong môi trường và được dựng PostgreSQL (`apas-e2e`) | APPROVED 2026-11-26 (4A) | P1: biến chưa có → NOT RUN, ghi lý do |
 
