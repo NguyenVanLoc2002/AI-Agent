@@ -24,6 +24,7 @@ final class OutputValidator {
         EMPTY,
         TOO_LONG,
         CONTROL_CHARACTERS,
+        CONFUSABLE_SCRIPT,
         LINK,
         SERVER_TOKEN,
         MONEY,
@@ -34,6 +35,25 @@ final class OutputValidator {
     }
 
     private static final Pattern CONTROL = Pattern.compile("[\\p{Cc}&&[^\\n\\r\\t]]|[\\p{Cf}]");
+    /** Emoji variation selectors U+FE0E/U+FE0F: allowed, but dropped before matching so they cannot split a word. */
+    private static final Pattern VARIATION_SELECTOR = Pattern.compile("[\\uFE0E\\uFE0F]");
+    /**
+     * OUTPUT-CONFUSABLES (A-77, 1A/2A): after NFKC, any letter outside ASCII and the Vietnamese alphabet (Cyrillic
+     * "к", Greek "ο", small capital "ᴋ", dotless "ı", eth "Ð" for "Đ"…), any digit outside 0-9 ("٢") and any
+     * combining mark left over (one that did not compose, such as a strikethrough inside "triệu") would slip past the
+     * keyword rules below, so the answer is rejected as a whole. Vietnamese letters: Latin-1 vowels with grave, acute,
+     * circumflex or tilde; ă đ ĩ ũ; ơ ư; and the precomposed block U+1EA0–U+1EF9. A-77 review security H1/L1/L2: also
+     * characters that show as a gap or a box but are no space for the rules (Braille blank U+2800, private use,
+     * unassigned code points, a lone surrogate) and the CJK full stops that a browser may read as a dot in a link.
+     * Other Latin letters and symbols that NFKC turns into Greek ("Škoda", "Citroën", "Ø", "µm", "kΩ") are accepted
+     * false positives: the bot answers in Vietnamese or English, and a blocked answer goes to staff.
+     */
+    private static final Pattern CONFUSABLE = Pattern.compile(
+            "[\\p{L}&&[^A-Za-z\\u00C0-\\u00C3\\u00C8-\\u00CA\\u00CC\\u00CD\\u00D2-\\u00D5\\u00D9\\u00DA\\u00DD"
+                    + "\\u00E0-\\u00E3\\u00E8-\\u00EA\\u00EC\\u00ED\\u00F2-\\u00F5\\u00F9\\u00FA\\u00FD"
+                    + "\\u0102\\u0103\\u0110\\u0111\\u0128\\u0129\\u0168\\u0169\\u01A0\\u01A1\\u01AF\\u01B0"
+                    + "\\u1EA0-\\u1EF9]]"
+                    + "|[\\p{N}&&[^0-9]]|\\p{M}|[\\p{Co}\\p{Cn}\\p{Cs}\\u2800\\u3002\\uFF61]");
     private static final Pattern LINK = Pattern.compile(
             "(?i)(\\b[a-z][a-z0-9+.-]*://|\\bwww\\.|\\b[a-z0-9-]+\\.(com|vn|net|org|io|info|biz|xyz|ru|cn|top|app|dev|me)\\b"
                     + "|mailto:|\\[[^\\]]*\\]\\([^)]*\\))");
@@ -108,11 +128,17 @@ final class OutputValidator {
         // A-76 review security M1: every Unicode separator (line and paragraph separators, no-break spaces) counts as a
         // space, so "hai triệu" is read like "hai triệu".
         String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).replaceAll("\\p{Z}", " ");
-        if (normalized.length() > MAX_CHARS) {
+        // OUTPUT-LENGTH-RAW (A-77, 3A): the customer gets the original text, so its length counts too; NFKC can make a
+        // text shorter (decomposed Vietnamese) or longer (ligatures).
+        if (text.length() > MAX_CHARS || normalized.length() > MAX_CHARS) {
             return Optional.of(Rejection.TOO_LONG);
         }
         if (CONTROL.matcher(normalized).find()) {
             return Optional.of(Rejection.CONTROL_CHARACTERS);
+        }
+        normalized = VARIATION_SELECTOR.matcher(normalized).replaceAll("");
+        if (CONFUSABLE.matcher(normalized).find()) {
+            return Optional.of(Rejection.CONFUSABLE_SCRIPT);
         }
         if (LINK.matcher(normalized).find()) {
             return Optional.of(Rejection.LINK);
