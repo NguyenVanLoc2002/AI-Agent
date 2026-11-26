@@ -1,6 +1,7 @@
 # P2 · Application Layout & hạ tầng dùng chung
 
-> DESIGN PROPOSAL · nhánh dự kiến `feat/FE-UI-P2-app-shell` · issue FE-UI-P2.
+> **XONG 2026-11-26 (duyệt + commit, A-83)** · worktree `AI-Agent-fe`, nhánh `feat/FE-UI-P2-app-shell` từ `main` `9ced1ca` · A-83 · bằng chứng `../evidence/P2-quality-gate.md`.
+> Khác kế hoạch: `PageState` không có trạng thái 409 (F6: 409 là toast cảnh báo); toast không tự đóng (D16); mock bật bằng Vite mode `mock` (D19); khung theo artboard F2–F5 (max 1192, padding 28/32, gap 20), không theo `AppShell` của batch A–E (chưa duyệt).
 
 ## Scope
 Dựng khung SH-01 theo `AppShell.dc.html`, `R-1024/1280` và `InteractionSpec.dc.html`, cùng các mảnh dùng chung mà mọi page cần: định tuyến theo vai trò, trạng thái trang chuẩn, toast, lỗi/không quyền/không tìm thấy, xử lý hết phiên, lớp mock tách biệt. Màn hình F1–F5 **chưa** chuyển (P3); trong P2 chúng vẫn chạy qua cầu nối tạm để không gãy.

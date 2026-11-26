@@ -9,7 +9,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 |---|---|---|---|---|
 | P0 Chốt điều kiện | XONG | 2026-11-26 | 2026-11-26 | A-80, `DECISIONS.md` |
 | P1 Design System | XONG (duyệt + commit `0bac97f`) | 2026-11-26 | 2026-11-26 | `evidence/P1-quality-gate.md`, A-81 |
-| P2 App Layout | Chưa bắt đầu | — | — | — |
+| P2 App Layout | XONG (duyệt + commit) | 2026-11-26 | 2026-11-26 | `evidence/P2-quality-gate.md`, A-83 |
 | P3 Batch F vào khung | Chưa bắt đầu | — | — | — |
 | P4 Đơn hàng NV (EP-10e) | GATED (thiết kế) | — | — | — |
 | P5 Batch A–E | BLOCKED (UX-xx, contract) | — | — | — |
@@ -42,18 +42,21 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 - [-] P1-T09 Trang tham chiếu — không làm
 
 ## P2 · App Layout & hạ tầng
-- [ ] P2-T01 Router
-- [ ] P2-T02 Bảng route theo vai trò
-- [ ] P2-T03 Guard hiển thị → SH-03
-- [ ] P2-T04 StaffShell SH-01 (1024/1280/1440)
-- [ ] P2-T05 CustomerShell (390)
-- [ ] P2-T06 PageState (7 trạng thái)
-- [ ] P2-T07 ToastViewport SH-08
-- [ ] P2-T08 ErrorBoundary → SH-04
-- [ ] P2-T09 Hết phiên E5 (401)
-- [ ] P2-T10 Lớp mock dev/test + test build
-- [ ] P2-T11 Cầu nối tạm F1–F5
-- [ ] P2-T12 README
+- [x] P2-T00 `react-router-dom` 7.18.5 ghim, audit 0, CSP không đổi (D20)
+- [x] P2-T01 Router (`HashRouter`)
+- [x] P2-T02 Bảng route theo vai trò (`routes.ts`)
+- [x] P2-T03 Guard hiển thị → SH-03 (chữ F6 403), không gọi API màn hình đó
+- [x] P2-T04 StaffShell SH-01 (1024/1280/1440, thu gọn dưới 1280)
+- [x] P2-T05 CustomerShell (390)
+- [x] P2-T06 PageState (6 trạng thái theo F6; 409 là toast)
+- [x] P2-T07 ToastViewport SH-08 + `useToast` (chỉ chữ cố định, D16)
+- [x] P2-T08 ErrorBoundary → SH-04 (chữ PROPOSED, D15)
+- [x] P2-T09 Hết phiên E5 (401): giữ địa chỉ; đăng xuất về `#/`
+- [x] P2-T10 Mock `src/mocks/` (Vite mode `mock`) + `verify-no-mocks` trong build + plugin chặn build mock (D19)
+- [x] P2-T11 F1–F5 chạy trong khung mới, không sửa page
+- [x] P2-T12 README
+- [x] P2-T13 Skip link, `main#noi-dung-chinh`, focus `h1` (D17), `document.title`
+- [x] P2-T14 Playwright `e2e:shell`: 390/1024/1279/1280/1440, forced colors, bundle dưới CSP
 
 ## P3 · Batch F vào khung
 - [ ] P3-T01 E7 Đăng nhập
@@ -78,7 +81,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 
 ## W-BIZ · Xung đột A–E (song song)
 - [x] W-BIZ-T01 Nhóm 0: UX-16, UX-07, UX-18, UX-05 (A-81)
-- [ ] W-BIZ-T01b UX-09 chữ VAT — chờ chủ dự án chọn
+- [x] W-BIZ-T01b UX-09 = (a) "chưa gồm VAT" (A-83)
 - [ ] W-BIZ-T02 UX-15 + UC tra cứu phía NV
 - [ ] W-BIZ-T03 Contract nháp nhóm A
 - [~] FE-UI-Q01 Vòng focus: A-81 chọn A, brief đã viết; chờ Claude Design xuất bản mới
@@ -94,10 +97,10 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 ## P6 · Cổng chất lượng mỗi phase
 | Kiểm tra | P1 | P2 | P3 | P4 |
 |---|---|---|---|---|
-| typecheck / unit / build / ds:verify | [x] 261 test | [ ] | [ ] | [ ] |
-| axe mọi trạng thái | [x] jsdom, không contrast | [ ] | [ ] | [ ] |
-| bàn phím | [x] component | [ ] | [ ] | [ ] |
-| responsive | NOT RUN (jsdom; P2-T14) | [ ] | [ ] | [ ] |
-| khớp thiết kế | — | [ ] | [ ] | [ ] |
-| E2E backend thật | NOT RUN (D13: thiếu `APAS_DEMO_PASSWORD`) | [ ] | [ ] | [ ] |
-| review advisory | [x] sec 0H/0M/4L, UX 2H/7M/5L | [ ] | [ ] | [ ] |
+| typecheck / unit / build / ds:verify | [x] 261 test | [x] 294 test | [ ] | [ ] |
+| axe mọi trạng thái | [x] jsdom, không contrast | [x] jsdom | [ ] | [ ] |
+| bàn phím | [x] component | [x] skip link, focus | [ ] | [ ] |
+| responsive | NOT RUN (jsdom; P2-T14) | [x] Playwright mock 9/9 | [ ] | [ ] |
+| khớp thiết kế | — | [x] khung (page: P3) | [ ] | [ ] |
+| E2E backend thật | NOT RUN (D13: thiếu `APAS_DEMO_PASSWORD`) | NOT RUN (như P1) | [ ] | [ ] |
+| review advisory | [x] sec 0H/0M/4L, UX 2H/7M/5L | [x] sec 0H/3M/5L, UX 0H/7M/6L | [ ] | [ ] |

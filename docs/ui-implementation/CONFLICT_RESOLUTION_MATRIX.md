@@ -29,7 +29,7 @@
 
 | Thứ tự | Nhóm | Màn hình | UX phải chốt | Phụ thuộc nhóm khác | Lý do thứ tự |
 |---|---|---|---|---|---|
-| 0 | **Nhẹ — chỉ chữ/hiển thị** | dùng cho mọi nhóm | UX-16 ✔, UX-07 ✔, UX-18 ✔, UX-05 ✔ (A-81, 2026-11-26: phương án (a)); **UX-09 còn OPEN** | — | Không cần backend; quyết định một lần, áp dụng chung |
+| 0 | **Nhẹ — chỉ chữ/hiển thị** | dùng cho mọi nhóm | UX-16 ✔, UX-07 ✔, UX-18 ✔, UX-05 ✔ (A-81), UX-09 ✔ (A-83) — tất cả phương án (a), 2026-11-26 | — | Không cần backend; quyết định một lần, áp dụng chung |
 | 1 | **E-hỗ trợ tối thiểu** | E4-Denied, E6-Error, E7-Login (đã là SH-03/04/06 trong P2/P3) | UX-11 (a), UX-12 (a) | — | Có thể mở ngay khi giữ RBAC hiện có; phần lớn đã nằm trong P2/P3 |
 | 2 | **A · Tra cứu phụ tùng (chỉ đọc)** | A1–A7, PL-01..03, SH-02 | UX-15, UX-13 (UC NV) | — | Độc lập, chỉ đọc; mở đường cho B và C; quyết định UX-15 là then chốt |
 | 3 | **E · Tổng quan / Hoạt động** | E1, E2 (phạm vi SALES) | UX-11, UX-13; nguồn số liệu | P4 (đơn), batch F (handoff) | Số liệu chỉ từ dữ liệu đã có API |
@@ -43,7 +43,7 @@ Mỗi nhóm mở độc lập: không cần chờ các nhóm sau. Khi một nhó
 ## 3. Việc tiếp theo của workstream (chỉ tài liệu)
 | ID | Việc | Đầu ra |
 |---|---|---|
-| W-BIZ-T01 | Chủ dự án quyết định nhóm 0 (UX-16, 09, 07, 18, 05) | A-81: xong trừ UX-09 |
+| W-BIZ-T01 | Chủ dự án quyết định nhóm 0 (UX-16, 09, 07, 18, 05) | XONG: A-81, A-83 |
 | W-BIZ-T02 | Chủ dự án chọn phương án UX-15 (+ có viết UC tra cứu cho NV không) | A-xx |
 | W-BIZ-T03 | Nếu A được mở: soạn UC mới cho tra cứu phía NV (mã do chủ dự án cấp) + contract nháp `docs/contracts/` + dòng RBAC, review architecture + security | PR tài liệu |
 | W-BIZ-T04 | Lặp lại cho nhóm tiếp theo theo bảng §2 | — |

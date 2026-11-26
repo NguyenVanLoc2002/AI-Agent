@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { configDefaults } from 'vitest/config';
 import { BUNDLE_HEADERS, COMMON_HEADERS } from './config/securityHeaders.ts';
 
@@ -13,8 +13,19 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(backend).hostname)) {
   throw new Error('APAS_BACKEND_URL must point to a loopback address');
 }
 
+// FE-UI-P2 (review security M1): the dev-only mock must never be built. A build in mode "mock", or with NODE_ENV set to
+// anything but "production" (which would make import.meta.env.DEV true), is refused before anything is bundled.
+const refuseMockBuild: Plugin = {
+  name: 'apas-refuse-mock-build',
+  config(_config, { command, mode }) {
+    if (command === 'build' && (mode === 'mock' || (process.env.NODE_ENV !== undefined && process.env.NODE_ENV !== 'production'))) {
+      throw new Error('Refusing to build: mock mode or NODE_ENV is not production (src/mocks/ is dev-only).');
+    }
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), refuseMockBuild],
   server: {
     host: '127.0.0.1',
     port: 5173,
@@ -38,7 +49,8 @@ export default defineConfig({
     // Dates on screen use the viewer's time zone; tests pin it so the expected text is stable.
     env: { TZ: 'UTC' },
     restoreMocks: true,
-    // Browser tests against the real backend run with Playwright (`npm run e2e`, FE-E2E), not with Vitest.
-    exclude: [...configDefaults.exclude, 'e2e/**'],
+    // Browser tests run with Playwright, not Vitest: against the real backend (`npm run e2e`, FE-E2E) and the shell
+    // against the dev mock (`npm run e2e:shell`, FE-UI-P2).
+    exclude: [...configDefaults.exclude, 'e2e/**', 'e2e-shell/**'],
   },
 });
