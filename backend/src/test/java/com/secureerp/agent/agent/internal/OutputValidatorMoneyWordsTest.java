@@ -143,11 +143,11 @@ class OutputValidatorMoneyWordsTest {
     }
 
     /**
-     * 2A, accepted false positives: blocked and handed to staff. "1m2" is also a length (decision 1A); "Gia" starts
-     * "Giao" for the older digit rule (`gia\D{0,20}\d`, before A-76).
+     * 2A, accepted false positives: blocked and handed to staff. "1m2" is also a length (decision 1A). "Giao tới 2
+     * tỉnh" passes since A-79 (price words are whole words, {@link OutputValidatorPriceWordTest}).
      */
     @ParameterizedTest
-    @ValueSource(strings = {"Một triệu cảm ơn bạn", "Dây dài 1m2", "Giao tới 2 tỉnh"})
+    @ValueSource(strings = {"Một triệu cảm ơn bạn", "Dây dài 1m2"})
     void acceptedFalsePositivesAreBlocked(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).contains(Rejection.MONEY);
     }

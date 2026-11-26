@@ -77,7 +77,16 @@ final class OutputValidator {
                     + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
                     + "|((₫|\\$|€|vnd|usd)\\s*\\d)"
                     // A-78: "gía" (the tone on the i, a common typo and no word) with the other price words.
-                    + "|((giá|gía|gìa|gỉa|gĩa|gịa|gia|price|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam)\\D{0,20}\\d)");
+                    // A-79 (OUTPUT-PRICE-WORD-BOUNDARY): a price word is a whole word ("gian", "giám", "giao", "giai",
+                    // "giáp" are not), "giảm xóc"/"giảm chấn" (shock absorber, damper) are part names, and the digit is
+                    // in the same sentence: a full stop, "!", "?" or a line break ends it only when an upper-case
+                    // letter starts the next one ("Giá hỏi nhân viên. Xe 2 cầu"), so "Giá. 500", "Giá?950" and
+                    // "Giá:\n950" stay blocked (review security M2). Kept, fail closed: "gia", "tong", "giam" without
+                    // diacritics ("tham gia 2…"), "tổng" ("tổng đài 1900"), "giảm thanh"/"giảm tốc" ("giảm thanh lý
+                    // 30%" is a discount, review security M1).
+                    + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|price|tổng|tong|thành tiền|thanh tien|chiết khấu"
+                    + "|chiet khau|(giảm|giam)(?!\\s*(xóc|xoc|chấn|chan)(?!\\p{L})))(?!\\p{L})"
+                    + "(?:[^\\d.!?\\n]|[.!?\\n](?!\\s*(?-i:\\p{Lu}))){0,20}\\d)");
     /** OUTPUT-MONEY-WORDS (A-76): a Vietnamese or English number word, with or without diacritics, as a whole word. */
     private static final String NUMBER_WORD = "(?:một|mốt|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|sáu|sau|bảy|bẩy|bay"
             + "|tám|tam|chín|chin|mười|muoi|mươi|linh|lẻ|trăm|tram|rưỡi|rưởi|ruoi|nửa|chục|chuc"
