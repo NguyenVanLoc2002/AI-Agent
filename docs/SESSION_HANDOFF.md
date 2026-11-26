@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-DIACRITIC-VARIANTS misspelled keywords in the model's answer, 2026-11-26
+## Current: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26
+- Branch `fix/OUTPUT-PRICE-WORD-BOUNDARY-validator` from `main` `8856f7b` (OUTPUT-DIACRITIC-VARIANTS PR #63 merged). Owner 2026-11-26 ("Theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-79.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY "price word then digit": whole words, "giảm xóc/chấn" excluded, same sentence = no ". ! ? newline" followed by an upper-case letter); new `OutputValidatorPriceWordTest.java`; pinned false positives moved in `OutputValidatorDiacriticVariantsTest.java` and `OutputValidatorMoneyWordsTest.java`. Docs: A-79, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ENGLISH-MONEY PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator (17 failures, no price case weakened); targeted tests exit 0 three runs in a row and a clean run after review fixes; 21 mutations, 20 red, 1 NOT RUN (string not unique); `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1571, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 07:24 UTC).
+- NOT RUN: E2E (no frontend change); CI. Accepted false positives and gaps listed in A-79.
+- Note: stopping a background `mvnw verify` on Windows leaves Maven and its Testcontainers running; end the tree with `taskkill //PID <sh pid> //T //F`.
+- Review (advisory): security-auditor 0H/2M/3L, qa-gatekeeper 1H/2M/2L; fixes and residuals in A-79.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-MORE, OUTPUT-ENGLISH-MONEY, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-DIACRITIC-VARIANTS misspelled keywords in the model's answer, 2026-11-26 — merged (PR #63)
 - Branch `fix/OUTPUT-DIACRITIC-VARIANTS-validator` from `main` `bf9ad72` (OUTPUT-CONFUSABLES PR #62 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-78.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (copy without diacritics and with single spaces; `STRIPPED_MONEY`, `STRIPPED_ORDER_CLAIM`, `STRIPPED_STOCK` with keywords that are not common words; typo "gía" in the price words); new `OutputValidatorDiacriticVariantsTest.java`. Docs: A-78, IMPLEMENTATION_PLAN §2a (OUTPUT-DIACRITIC-VARIANTS DONE; OUTPUT-PRICE-WORD-BOUNDARY, OUTPUT-ORDER-CLAIM-MORE PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): probe and red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 27 mutations, 25 red, 2 equivalent; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1491, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 04:43 UTC).

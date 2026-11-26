@@ -120,21 +120,12 @@ class OutputValidatorDiacriticVariantsTest {
         "Xe tải 2 tấn dùng loại này", "Đổi 2 vòng bi", "Gioăng 2 lớp", "Năm 2019 xe dùng loại này",
         "Bạn chờ tôi 2 phút", "Có 2 trục cam", "Bạn cần 2 bộ má phanh phải không?", "Xe 4 chỗ dùng loại này",
         "Còn hàng, bạn muốn đặt mấy bộ?", "Tháng 2 có hàng mới", "Đèn 2 tầng", "Phanh đĩa 2 piston", "Hai tấm che",
-        "Con đường này dài 2 cây số", "Hộp số 6 cấp", "Bạn kiểm tra giúp mã OE nhé"
+        "Con đường này dài 2 cây số", "Hộp số 6 cấp", "Bạn kiểm tra giúp mã OE nhé",
+        // Were blocked by the older price-word rule until A-79 (OUTPUT-PRICE-WORD-BOUNDARY).
+        "Hệ thống giám sát 2 cảm biến", "Thời gian bảo hành 12 tháng"
     })
     void ordinaryAnswersPass(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();
-    }
-
-    /**
-     * Known false positives of the older price-word rule (`gia\D{0,20}\d` has no word end; it was there before A-78):
-     * "giám" and "gian" start with "gia". A-78 does not change that rule. When §2a OUTPUT-PRICE-WORD-BOUNDARY ships,
-     * move these to {@link #ordinaryAnswersPass}.
-     */
-    @ParameterizedTest
-    @ValueSource(strings = {"Hệ thống giám sát 2 cảm biến", "Thời gian bảo hành 12 tháng"})
-    void knownFalsePositivesOfThePriceWordRule(String text) {
-        assertThat(OutputValidator.check(text, NO_CODES)).as(text).contains(Rejection.MONEY);
     }
 
     /**
