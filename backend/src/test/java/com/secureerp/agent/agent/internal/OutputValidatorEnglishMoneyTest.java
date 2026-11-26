@@ -10,7 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * OUTPUT-ENGLISH-MONEY (A-84). English amounts the model could write: (1A) currencies as words or codes after a number
+ * OUTPUT-ENGLISH-MONEY (A-85). English amounts the model could write: (1A) currencies as words or codes after a number
  * ("45 dollars", "45 EUR") and their symbols or codes before it ("£45", "EUR 45"); (2A) the price words cost, subtotal,
  * fee, discount followed by a digit in the same sentence; (3A) the English teens and tens as number words before a
  * currency ("forty five dollars"). Ordinary English about parts must still pass.
@@ -71,10 +71,10 @@ class OutputValidatorEnglishMoneyTest {
     }
 
     /**
-     * Documented gaps (A-84): "pound(s)" may be a weight (1A); total, amount, charge, pay, worth often count (2A); a
+     * Documented gaps (A-85): "pound(s)" may be a weight (1A); total, amount, charge, pay, worth often count (2A); a
      * price word after a hyphen ("low-cost") passes, and so does "Low-cost 45"; "Euros 45" ("Euro 6" is a standard);
      * one number word after a price word; amounts without a currency or price word ("45 each"); currency words and
-     * codes not in the list, including Vietnamese names of foreign money (review security H1, PROPOSED below in A-84).
+     * codes not in the list, including Vietnamese names of foreign money (review security H1, PROPOSED below in A-85).
      */
     @ParameterizedTest
     @ValueSource(strings = {
@@ -86,7 +86,7 @@ class OutputValidatorEnglishMoneyTest {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();
     }
 
-    /** Accepted false positives (A-84): blocked and handed to staff. */
+    /** Accepted false positives (A-85): blocked and handed to staff. */
     @ParameterizedTest
     @ValueSource(strings = {
         "2 cents worth of advice", "Costs vary across 2 sizes", "no extra cost, 2-year warranty",

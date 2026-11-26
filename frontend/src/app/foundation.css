@@ -10,6 +10,11 @@
   --bp-staff-min: 1024px;
   --bp-panel-push: 1280px;
   --bp-wide: 1440px;
+  /* Page constants with no design token, from the approved batch F artboards (F2–F5 <main>: max-width 1192px,
+     padding 28px 32px, gap 20px) and the customer chat page of EP-10b (max-width 760px). FE-UI-P2. */
+  --page-max-staff: 1192px;
+  --page-pad-block: 28px;
+  --page-max-customer: 760px;
 }
 
 /* Hidden on screen, read by screen readers (captions, live-region text). */
@@ -60,20 +65,53 @@
   }
 }
 
-/* Page body inside the staff shell: gutter 32 (tokens.json space-8, "Page gutter (28–32)"), section gaps 24. */
+/* Staff shell (SH-01, batch F artboards): sidebar + column with header and a main area that scrolls by itself. */
+.ap-shell {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  background: var(--bg-app);
+}
+.ap-shell__body {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ap-shell__main {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Focused by the shell after a route change (tabindex -1): not a control, no focus ring. */
+.ap-shell__main:focus {
+  outline: none;
+}
+
+/* Page body inside the staff shell, as the F2–F5 <main>: left-aligned, max 1192, padding 28/32, gap 20. */
 .ap-page {
   box-sizing: border-box;
   width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
+  max-width: var(--page-max-staff);
+  padding: var(--page-pad-block) var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
-/* Customer layout (F1, 390 px artboards): narrow gutter, no sidebar. */
+/* Customer layout (F1, 390 px artboards; EP-10b page): no sidebar, centred column, narrow gutter. */
+.ap-customer {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+}
 .ap-page--customer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--page-max-customer);
+  margin: 0 auto;
   padding: var(--space-6) var(--space-4);
 }
 

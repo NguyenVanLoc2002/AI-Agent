@@ -12,10 +12,12 @@ Decisions: `docs/DECISIONS_REQUIRED.md` A-67 (EP-10a), A-68 (EP-10b), A-69 (EP-1
 ```sh
 npm ci              # install exactly what package-lock.json lists
 npm run dev         # http://127.0.0.1:5173, /api forwarded to the backend (APAS_BACKEND_URL to change it)
+npm run dev:mock    # http://127.0.0.1:5174 with the dev-only mock backend (no backend needed, see below)
 npm test            # Vitest + Testing Library + axe-core (jsdom)
 npm run typecheck   # tsc, app code and vite.config.ts separately
-npm run build       # typecheck, then a production bundle in dist/
+npm run build       # typecheck, a production bundle in dist/, then verify-no-mocks (fails if src/mocks/ got in)
 npm run ds:verify   # copies in src/design-system/ still match design-system/ (sources.json)
+npm run e2e:shell   # Playwright: shell layout on the mock dev server + the bundle under the enforced CSP (no backend)
 ```
 
 ## Browser tests against the real backend (FE-E2E, A-71; FE-E2E-FLOWS, A-72)
@@ -55,6 +57,12 @@ The browser will warn about the self-signed certificate; a real deployment needs
 - The dev server (`npm run dev`) sends only `nosniff` and `Referrer-Policy`: Vite's hot reload needs an inline script, so there is no CSP in development.
 - `vite preview` is for a quick local look at the bundle only; the deployed app is served by the backend (above).
 - The browser tests fail on any CSP violation (`e2e/fixtures.ts`). A new inline script or style, an external font or a `data:` URL needs a reviewed change of the policy and of `config/securityHeaders.test.ts`.
+
+## Routes and shell (FE-UI-P2, A-80/A-84)
+Hash routes with `react-router-dom` 7.18.5 `HashRouter` (`src/app/routes.ts`): `#/hop-cho` (SALES), `#/cong-tac-ai` (OPS), `#/su-kien-bao-mat` (SECREV), `#/chat` (customer); `#/` goes to the role's screen. Hash routes need no server change: the backend serves only `/`, `/index.html` and `/assets/**` (A-74). No conversation or order ID is ever in the address (the held conversation opens in memory from the inbox). Another role's screen opened by its address shows "Bạn không có quyền xem trang này" without calling that screen's API; an unknown address shows "Không tìm thấy trang". This is presentation only: the backend authorizes every call. The staff shell (`src/app/shells.tsx`) follows the batch F artboards (sidebar group, breadcrumb group › screen, page box 1192/28/32/20); below 1280 px the sidebar starts collapsed. Shared states: `PageState` (F6), toasts only with fixed texts (`src/app/toast.tsx`), a render-error boundary per screen.
+
+## Mock backend for development (FE-UI-P2, A-80 D05)
+`npm run dev:mock` starts the dev server in Vite mode `mock`; `src/main.tsx` then replaces `fetch` with `src/mocks/backend.ts`. Mock users `ops`, `sales`, `secrev`, `cust`, password `mock` (not a real credential). It answers only endpoints that exist in the backend, in the shapes the app's decoders accept (`src/mocks/backend.test.ts`), with synthetic data. It never ships: the branch is behind `import.meta.env.DEV`, and `npm run build` fails when `scripts/verify-no-mocks.mjs` finds mock code in `dist/`.
 
 ## How it talks to the backend
 - Same origin: the Vite dev server forwards `/api` to the backend, so the backend needs no CORS. The HttpOnly session cookie is the only credential; the code never reads or stores it, and nothing goes into `localStorage`/`sessionStorage`.
