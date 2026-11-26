@@ -6,7 +6,7 @@ import { expectNoViolations, watchCsp, type CspViolation } from './fixtures';
 // environment at call time and only typed into the password field or sent in the login form; it never
 // appears in a test name, an assertion message or a file.
 
-export type DemoUser = 'ops-1' | 'sales-1' | 'sales-2' | 'secrev-1' | 'cust-a' | 'cust-c';
+export type DemoUser = 'ops-1' | 'sales-1' | 'sales-2' | 'secrev-1' | 'cust-a' | 'cust-b' | 'cust-c';
 
 export function demoPassword(): string {
   const password = process.env.APAS_DEMO_PASSWORD;
@@ -186,6 +186,15 @@ export async function reachedProvider(needle: string): Promise<boolean> {
   return body.found;
 }
 
+/** FE-E2E-ADVERSARIAL (A-75): the productRef and quote handle the Fake provider holds for a hostile scenario. */
+export async function fakeProviderRemembered(): Promise<{ productRef: string | null; quoteHandle: string | null }> {
+  const response = await fetch(`${FAKE_PROVIDER_URL}/__e2e/remembered`, { headers: fakeHeaders(), redirect: 'error' });
+  if (!response.ok) throw new Error(`fake provider: remembered ${response.status}`);
+  const body = (await response.json()) as { productRef: unknown; quoteHandle: unknown };
+  const value = (v: unknown) => (typeof v === 'string' ? v : null);
+  return { productRef: value(body.productRef), quoteHandle: value(body.quoteHandle) };
+}
+
 /** The customer's current conversation, as the chat screen remembers it for the tab (A-68). */
 export async function rememberedConversation(page: Page): Promise<string> {
   const id = await page.evaluate(() => window.sessionStorage.getItem('apas.chat.conversation'));
@@ -196,4 +205,44 @@ export async function rememberedConversation(page: Page): Promise<string> {
 /** The short form the staff inbox shows (`shortConversation`). */
 export function shortConversation(conversationId: string): string {
   return `…${conversationId.slice(-6)}`;
+}
+
+// FE-E2E-ADVERSARIAL (A-75): the chat and inbox steps of flows.spec.ts, shared with adversarial.spec.ts.
+
+export async function customerChat(page: Page, user: DemoUser): Promise<void> {
+  await signInWithForm(page, user);
+  await expect(page.getByRole('heading', { name: 'Tư vấn phụ tùng', level: 1 })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Nội dung tin nhắn' })).toBeEditable();
+}
+
+export async function sendAsCustomer(page: Page, text: string): Promise<void> {
+  await page.getByRole('textbox', { name: 'Nội dung tin nhắn' }).fill(text);
+  await page.getByRole('button', { name: 'Gửi' }).click();
+  await expect(page.getByRole('list', { name: 'Tin nhắn' }).getByText(text).last()).toBeVisible();
+}
+
+/** Runs `action` in a new browser context that is closed also when a step fails (review security L3). */
+export async function withContext<T>(browser: Browser, action: (page: Page) => Promise<T>): Promise<T> {
+  const context = await browser.newContext();
+  const violations: CspViolation[] = [];
+  try {
+    await watchCsp(context, violations); // FE-CSP (A-73)
+    const result = await action(await context.newPage());
+    await expectNoViolations(context, violations);
+    return result;
+  } finally {
+    await context.close();
+  }
+}
+
+/** The staff inbox has loaded: rows or the empty state (review QA 6). */
+export async function inboxLoaded(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Hộp chờ nhân viên', level: 1 })).toBeVisible();
+  await expect(page.getByText('Yêu cầu chuyển nhân viên của nhóm').or(page.getByText('Chưa có yêu cầu nào'))).toBeAttached();
+}
+
+export async function resolveHeld(staff: Page): Promise<void> {
+  await staff.getByRole('button', { name: 'Hoàn tất và mở lại AI' }).click();
+  await staff.getByRole('alertdialog', { name: 'Hoàn tất và mở lại trợ lý AI?' }).getByRole('button', { name: 'Hoàn tất và mở lại AI' }).click();
+  await expect(staff.getByText('Đã hoàn tất.').first()).toBeVisible();
 }
