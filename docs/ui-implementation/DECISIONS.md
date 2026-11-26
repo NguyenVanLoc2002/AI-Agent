@@ -7,6 +7,7 @@
 |---|---|---|---|
 | 1 | 2026-11-26 | "Tôi phê duyệt các lựa chọn sau: **1A 2B 3A 4A 5A 6A 7A 8A**" kèm phần "Decision clarification" D01–D08 | FE-UI-D01..D08 |
 | 2 | 2026-11-26 | "theo Phương án A đề xuất hết cho tôi" (trả lời 4 câu hỏi preflight) | FE-UI-D09, D10, D12, D13 |
+| 3 | 2026-11-26 | "theo đề xuất của bạn" (sau quality gate P1) | FE-UI-Q01 = A, commit P1, W-BIZ nhóm 0 (A-81) |
 
 ## Quyết định
 | ID | Quyết định | Trạng thái | Hệ quả / ràng buộc |
@@ -29,7 +30,7 @@
 ## Câu hỏi mở cho chủ dự án
 | ID | Câu hỏi | Bằng chứng | Đề xuất | Tạm thời |
 |---|---|---|---|---|
-| FE-UI-Q01 | Vòng focus của design system (`--focus-ring: 0 0 0 3px rgba(37,99,235,.22)`, `tokens.css`) có độ tương phản khoảng 1,3:1 trên nền trắng, dưới mức 3:1 thường áp cho chỉ báo focus (WCAG 1.4.11 / 2.4.13). Mọi component (Button, Tabs, Tag, Checkbox, Input…) dùng nó kèm `outline: none` | review `ux-workflow-reviewer` P1 (H1); chưa đo bằng công cụ trên trình duyệt | ⭐ A: đưa sang Claude Design đổi token (ví dụ viền `--border-focus` đặc), rồi chép lại; B: giữ token, chấp nhận rủi ro a11y | Không đổi token (là quyết định thiết kế). `foundation.css` dùng outline `--border-focus` cho phần của app; chế độ forced-colors có outline hệ thống cho mọi `:focus-visible` |
+| FE-UI-Q01 | Vòng focus của design system (`--focus-ring: 0 0 0 3px rgba(37,99,235,.22)`, `tokens.css`) có độ tương phản khoảng 1,3:1 trên nền trắng, dưới mức 3:1 thường áp cho chỉ báo focus (WCAG 1.4.11 / 2.4.13). Mọi component (Button, Tabs, Tag, Checkbox, Input…) dùng nó kèm `outline: none` | review `ux-workflow-reviewer` P1 (H1); chưa đo bằng công cụ trên trình duyệt | ⭐ A: đưa sang Claude Design đổi token (ví dụ viền `--border-focus` đặc), rồi chép lại; B: giữ token, chấp nhận rủi ro a11y | **APPROVED A 2026-11-26 (A-81)**: brief `design-briefs/FE-UI-Q01-focus-ring.md` gửi Claude Design; frontend chờ bản xuất mới. Tới lúc đó giữ vá tạm trong `foundation.css` |
 
 ## Quy tắc dùng component rút ra khi review P1 (ràng buộc cho P2+)
 - **Toast** chỉ hiển thị chuỗi được truyền vào; P2 `useToast` nhận thông điệp cố định từ `app/texts.ts` + `REQ-…`, không bao giờ nhận `error.message`, thân phản hồi hay dữ liệu nghiệp vụ. Toast lỗi không tự đóng.

@@ -8,7 +8,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 | Phase | Trạng thái | Bắt đầu | Xong | Bằng chứng |
 |---|---|---|---|---|
 | P0 Chốt điều kiện | XONG | 2026-11-26 | 2026-11-26 | A-80, `DECISIONS.md` |
-| P1 Design System | Đạt quality gate, chờ duyệt + commit | 2026-11-26 | — | `evidence/P1-quality-gate.md` |
+| P1 Design System | XONG (duyệt + commit `0bac97f`) | 2026-11-26 | 2026-11-26 | `evidence/P1-quality-gate.md`, A-81 |
 | P2 App Layout | Chưa bắt đầu | — | — | — |
 | P3 Batch F vào khung | Chưa bắt đầu | — | — | — |
 | P4 Đơn hàng NV (EP-10e) | GATED (thiết kế) | — | — | — |
@@ -77,10 +77,11 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 - [ ] P4-T08 TRACEABILITY, backlog, README
 
 ## W-BIZ · Xung đột A–E (song song)
-- [ ] W-BIZ-T01 Nhóm 0: UX-16, UX-09, UX-07, UX-18, UX-05
+- [x] W-BIZ-T01 Nhóm 0: UX-16, UX-07, UX-18, UX-05 (A-81)
+- [ ] W-BIZ-T01b UX-09 chữ VAT — chờ chủ dự án chọn
 - [ ] W-BIZ-T02 UX-15 + UC tra cứu phía NV
 - [ ] W-BIZ-T03 Contract nháp nhóm A
-- [ ] FE-UI-Q01 Vòng focus design system (đổi token trên Claude Design?)
+- [~] FE-UI-Q01 Vòng focus: A-81 chọn A, brief đã viết; chờ Claude Design xuất bản mới
 
 ## P5 · Batch A–E (BLOCKED)
 - [!] P5-A Tra cứu phụ tùng — UX-13, UX-15, UX-01
