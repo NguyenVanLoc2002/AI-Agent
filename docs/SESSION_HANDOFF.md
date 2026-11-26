@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-ORDER-CLAIM-MORE order claims with words between, new verbs and English variants, 2026-11-26
+## Current: OUTPUT-ORDER-CLAIM-REST order claims without "đơn", "xong/ok" claims, 60-character window, "đã" typos, 2026-11-26
+- Branch `fix/OUTPUT-ORDER-CLAIM-REST-validator` from `main` `d846ab6` (OUTPUT-ORDER-CLAIM-MORE PR #66 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-83. FE-UI-P2 is being done in another session (worktree `AI-Agent-fe`), not touched here.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (BARE_CLAIM, DONE_WORD_CLAIM, DA_TYPO, window 60, more agents; copies for the text without diacritics); new `OutputValidatorOrderClaimRestTest.java`; `OutputValidatorOrderClaimTest.java` window cases. Docs: A-83, IMPLEMENTATION_PLAN §2a (REST DONE; OUTPUT-ORDER-CLAIM-CONTEXT PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator (90 of 159 failed); targeted tests exit 0 three runs in a row; 47 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1869, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 09:19–09:22 UTC).
+- NOT RUN: E2E (no frontend change); CI.
+- Review (advisory): security-auditor 2H/4M/4L, qa-gatekeeper 2H/4M/4L; fixes, accepted false positives and gaps in A-83.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-ENGLISH-MONEY, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; FE-UI-P2 in another session; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-ORDER-CLAIM-MORE order claims with words between, new verbs and English variants, 2026-11-26 — merged (PR #66)
 - Branch `fix/OUTPUT-ORDER-CLAIM-MORE-validator` from `main` `c4edc3b` (OUTPUT-PRICE-WORD-BOUNDARY PR #64 merged); `main` `9ced1ca` (FE-UI-P1 PR #65) merged in to resolve the conflicts in the shared docs, decision renumbered A-80 → A-82 (PR #65 took A-80, A-81). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-82.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (ORDER_CLAIM, STRIPPED_ORDER_CLAIM); new `OutputValidatorOrderClaimTest.java`. Docs: A-82, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ORDER-CLAIM-REST PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 35 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1715, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 08:49–08:53 UTC).
