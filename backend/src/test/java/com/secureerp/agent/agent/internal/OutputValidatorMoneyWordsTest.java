@@ -154,13 +154,14 @@ class OutputValidatorMoneyWordsTest {
 
     /**
      * 3A, documented gaps (A-76): not blocked. Changing one of these is an owner decision, not a test fix. Spelled
-     * numbers without a unit or price word, a bare short number, rare slang and look-alike letters (§2a
-     * OUTPUT-CONFUSABLES). The first barrier is that the model never receives a price.
+     * numbers without a unit or price word, a bare short number and rare slang. Look-alike letters ("450к") are now
+     * rejected by OUTPUT-CONFUSABLES (A-77, {@link OutputValidatorConfusablesTest}). The first barrier is that the
+     * model never receives a price.
      */
     @ParameterizedTest
     @ValueSource(strings = {
         "Ba trăm rưởi một cái", "Bộ này 1250 thôi", "Hai trăm nhé anh", "Bộ này 1t2", "Bộ này 1 ng thôi",
-        "Bộ này 1 xị", "Bộ này 450к"
+        "Bộ này 1 xị"
     })
     void documentedGapsAreNotBlocked(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();
