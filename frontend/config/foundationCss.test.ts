@@ -17,6 +17,7 @@ const mainSource = read('../src/main.tsx');
 
 it('reads the real files (a vacuous pass on empty text is not possible)', () => {
   expect(css).toContain('.ap-page');
+  expect(css).toContain('.ap-shell__main');
   expect(tokens).toContain('--space-8');
   expect(tokens).toContain('--type-button:');
   expect(mainSource).toContain('createRoot');
@@ -39,7 +40,10 @@ describe('foundation.css', () => {
   it('uses no length literal outside the breakpoints and the visually-hidden 1px', () => {
     const offending = css.split('\n')
       .filter((line) => /-?\d*\.?\d+(px|rem|em|vh|vw)\b/.test(line))
-      .filter((line) => !/^\s*--bp-[a-z-]+:\s*\d+px;\s*$/.test(line))
+      // Breakpoints and the page constants of the approved artboards, both defined once in :root.
+      .filter((line) => !/^\s*--(bp|page)-[a-z-]+:\s*\d+px;\s*$/.test(line))
+      // The full viewport height of the shell is a layout fact, not a design value.
+      .filter((line) => !/^\s*(min-)?height:\s*100vh;\s*$/.test(line))
       .filter((line) => !/^\s*@media\b/.test(line))
       .filter((line) => !/^\s*(width|height|margin):\s*-?1px;\s*$/.test(line));
     expect(offending).toEqual([]);

@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
-import { currentSession, logout, type Role, type Session } from '../api/session';
-import { Alert, AppHeader, Button, Sidebar, Spinner } from '../design-system';
+import { HashRouter, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { currentSession, logout, type Session } from '../api/session';
+import { Alert, Button, Spinner } from '../design-system';
 import { CustomerChatPage } from '../pages/CustomerChatPage';
 import { KillSwitchPage } from '../pages/KillSwitchPage';
 import { SecurityInspectorPage } from '../pages/inspector/SecurityInspectorPage';
 import { StaffWorkspace } from '../pages/staff/StaffWorkspace';
 import { LoginPage } from '../pages/LoginPage';
 import { conversationMemory } from './conversationMemory';
+import { documentTitle, homeRoute, resolve, routesFor, type ScreenKey } from './routes';
+import { ForbiddenScreen, NotFoundScreen, RenderErrorBoundary } from './ShellPages';
+import { CustomerShell, StaffShell } from './shells';
 import { failureText, referenceText, ROLE_LABELS, SESSION_EXPIRED } from './texts';
+import { ToastProvider } from './toast';
 
-// Application root (EP-10a). The screens offered per role are presentation only: every API call is
-// authorized again by the backend, which is the authority (CLAUDE.md, rule 10). OPS get the kill switch (F5,
-// EP-10a), SALES the inbox (F2/F3, EP-10c), SECREV the Security Inspector (F4, EP-10d). The customer gets the
-// chat (F1, EP-10b) without the staff sidebar, laid out for phone width.
-
-type ScreenKey = 'kill-switch' | 'inbox' | 'inspector';
-
-interface ScreenDef { key: ScreenKey; label: string; icon: string }
-
-const SCREENS_BY_ROLE: Record<Role, ScreenDef[]> = {
-  OPS: [{ key: 'kill-switch', label: 'Công tắc AI', icon: 'shield-alert' }],
-  CUST: [],
-  SALES: [{ key: 'inbox', label: 'Hộp chờ nhân viên', icon: 'users' }],
-  SECREV: [{ key: 'inspector', label: 'Sự kiện bảo mật', icon: 'shield-check' }],
-};
+// Application root (EP-10a; FE-UI-P2, A-80). Hash routes (D01) with react-router-dom's HashRouter (D02); no
+// conversation or order ID in the address (D04: the held conversation F3 opens in memory from the inbox). The screen
+// offered per role is presentation only: every API call is authorized again by the backend (CLAUDE.md, rule 10).
+// A screen of another role opened by its address shows "no access" without calling that screen's API.
 
 type Boot =
   | { phase: 'checking' }
@@ -33,7 +27,18 @@ type Boot =
   | { phase: 'signed-in'; session: Session };
 
 export function App() {
+  return (
+    <HashRouter>
+      <RenderErrorBoundary>
+        <Root />
+      </RenderErrorBoundary>
+    </HashRouter>
+  );
+}
+
+function Root() {
   const [boot, setBoot] = useState<Boot>({ phase: 'checking' });
+  const navigate = useNavigate();
 
   const check = useCallback(async () => {
     setBoot({ phase: 'checking' });
@@ -47,6 +52,8 @@ export function App() {
 
   useEffect(() => { void check(); }, [check]);
 
+  // Any 401 (P2-T09): forget what the tab remembers and show the sign-in page. The address stays, so the same person
+  // returns to the same screen after signing in again; nothing is resent (writing.md: no write continues by itself).
   const expired = useCallback(() => {
     conversationMemory.reset();
     setBoot({ phase: 'anonymous', notice: SESSION_EXPIRED });
@@ -56,6 +63,7 @@ export function App() {
     conversationMemory.reset();
     // Nothing of the signed-in screens (prices, messages) stays visible while the logout answer is awaited.
     setBoot({ phase: 'signing-out' });
+    navigate('/', { replace: true });
     let notice = 'Bạn đã đăng xuất.';
     try {
       await logout();
@@ -66,7 +74,11 @@ export function App() {
     // Again after the logout answer: a page answer that arrived meanwhile is from an old epoch anyway.
     conversationMemory.reset();
     setBoot({ phase: 'anonymous', notice });
-  }, []);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (boot.phase !== 'signed-in') document.title = documentTitle(boot.phase === 'anonymous' ? 'Đăng nhập' : null);
+  }, [boot.phase]);
 
   switch (boot.phase) {
     case 'signing-out':
@@ -98,61 +110,50 @@ export function App() {
         setBoot({ phase: 'signed-in', session });
       }} />;
     case 'signed-in':
-      return <Shell session={boot.session} onSignOut={() => void signOut()} onUnauthenticated={expired} />;
+      return <SignedIn session={boot.session} onSignOut={() => void signOut()} onUnauthenticated={expired} />;
   }
 }
 
-function Shell({ session, onSignOut, onUnauthenticated }: { session: Session; onSignOut: () => void; onUnauthenticated: () => void }) {
-  const screens = SCREENS_BY_ROLE[session.role];
-  const [active, setActive] = useState<ScreenKey | null>(screens[0]?.key ?? null);
-  const [collapsed, setCollapsed] = useState(false);
-  const roleLabel = ROLE_LABELS[session.role];
-  const current = screens.find((s) => s.key === active) ?? null;
+function SignedIn({ session, onSignOut, onUnauthenticated }: { session: Session; onSignOut: () => void; onUnauthenticated: () => void }) {
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const home = homeRoute(session.role);
+  // No screen takes a query (D04: no IDs in the address); an address with one is not a screen (review security L3).
+  const resolution = search === '' ? resolve(pathname, session.role) : { kind: 'not-found' as const };
+  const current = resolution.kind === 'screen' ? resolution.route : null;
+  const userLabel = ROLE_LABELS[session.role];
 
-  const signOutButton = <Button variant="ghost" size="sm" iconLeft="log-out" onClick={onSignOut}>Đăng xuất</Button>;
-  const content = current?.key === 'kill-switch'
-    ? <KillSwitchPage onUnauthenticated={onUnauthenticated} />
-    : current?.key === 'inbox'
-      ? <StaffWorkspace onUnauthenticated={onUnauthenticated} />
-    : current?.key === 'inspector'
-      ? <SecurityInspectorPage onUnauthenticated={onUnauthenticated} />
-    : session.role === 'CUST'
-      ? <CustomerChatPage customerLinked={session.customerLinked} onUnauthenticated={onUnauthenticated} />
-      : <NotAvailable />;
+  useEffect(() => {
+    document.title = documentTitle(current ? current.label : resolution.kind === 'forbidden' ? 'Không có quyền' : 'Không tìm thấy trang');
+  }, [current, resolution.kind]);
 
-  if (screens.length === 0) {
-    // Customer-facing and other roles without a screen yet: no sidebar, works at phone width.
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-app)' }}>
-        <AppHeader breadcrumb={[{ label: 'AutoParts Agent Sandbox' }]} actions={signOutButton}
-          user={{ name: roleLabel, initials: initials(roleLabel) }} style={{ padding: '0 var(--space-4)' }} />
-        <main style={{ padding: 'var(--space-6) var(--space-4)', maxWidth: 760, width: '100%', margin: '0 auto' }}>{content}</main>
-      </div>
-    );
+  if (resolution.kind === 'home') return <Navigate to={home.path} replace />;
+
+  const goHome = () => navigate(home.path);
+  const content = current
+    ? <Screen screen={current.key} session={session} onUnauthenticated={onUnauthenticated} />
+    : resolution.kind === 'forbidden' ? <ForbiddenScreen onHome={goHome} /> : <NotFoundScreen onHome={goHome} />;
+  // A render failure of one screen keeps the shell (navigation, sign-out) usable; a new address starts clean.
+  const body = <RenderErrorBoundary key={pathname}>{content}</RenderErrorBoundary>;
+
+  // Toasts live inside the signed-in part: sign-out and expiry remove them with the screens (review security L1).
+  if (session.role === 'CUST') {
+    return <ToastProvider><CustomerShell userLabel={userLabel} onSignOut={onSignOut}>{body}</CustomerShell></ToastProvider>;
   }
-
   return (
-    <div style={{ height: '100vh', display: 'flex', background: 'var(--bg-app)' }}>
-      <Sidebar sections={[{ items: screens.map((s) => ({ key: s.key, label: s.label, icon: s.icon })) }]}
-        activeKey={active ?? undefined} onSelect={(key) => setActive(screens.find((s) => s.key === key)?.key ?? null)}
-        collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} brand="AutoParts Agent" env="Demo" />
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <AppHeader breadcrumb={[{ label: current?.label ?? 'AutoParts Agent Sandbox' }]} actions={signOutButton}
-          user={{ name: roleLabel, initials: initials(roleLabel) }} />
-        <main style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-6)' }}>{content}</main>
-      </div>
-    </div>
+    <ToastProvider>
+      <StaffShell routes={routesFor(session.role)} current={current} group={home.group} userLabel={userLabel} onSignOut={onSignOut}>
+        {body}
+      </StaffShell>
+    </ToastProvider>
   );
 }
 
-function NotAvailable() {
-  return (
-    <Alert tone="info" title="Màn hình cho tài khoản này chưa có trong bản demo.">
-      Vui lòng đăng xuất nếu bạn không cần dùng tiếp.
-    </Alert>
-  );
-}
-
-function initials(label: string): string {
-  return label.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('');
+function Screen({ screen, session, onUnauthenticated }: { screen: ScreenKey; session: Session; onUnauthenticated: () => void }) {
+  switch (screen) {
+    case 'kill-switch': return <KillSwitchPage onUnauthenticated={onUnauthenticated} />;
+    case 'inbox': return <StaffWorkspace onUnauthenticated={onUnauthenticated} />;
+    case 'inspector': return <SecurityInspectorPage onUnauthenticated={onUnauthenticated} />;
+    case 'chat': return <CustomerChatPage customerLinked={session.customerLinked} onUnauthenticated={onUnauthenticated} />;
+  }
 }
