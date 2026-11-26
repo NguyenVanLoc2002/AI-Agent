@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-ORDER-CLAIM-REST order claims without "đơn", "xong/ok" claims, 60-character window, "đã" typos, 2026-11-26
+## Current: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26
+- Branch `fix/OUTPUT-ENGLISH-MONEY-validator` from `main` `aef1905` (OUTPUT-ORDER-CLAIM-REST PR #67 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-84. FE-UI-P2 is being done in another session (worktree `AI-Agent-fe`), not touched here.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (CURRENCY_WORD, currency symbols and codes before and after a number, English price words, English teens and tens); new `OutputValidatorEnglishMoneyTest.java`. Docs: A-84, IMPLEMENTATION_PLAN §2a (ENGLISH-MONEY DONE; OUTPUT-FOREIGN-CURRENCY PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): red run of the new class against `main`'s validator: 81 of 138 failed (76 amounts, 5 accepted false positives), all pass and gap cases passed there too; targeted tests exit 0 three runs in a row; after the review fixes 27/27 applied and red under `-Dtest=OutputValidatorEnglishMoneyTest`; `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2007, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 09:40–09:44 UTC).
+- NOT RUN: E2E (no frontend change); CI.
+- Review (advisory): security-auditor 2H/5M/2L, qa-gatekeeper 0H/3M/5L; fixes, accepted false positives and gaps in A-84 (security H1 "45 đô" is outside the approved English scope: OUTPUT-FOREIGN-CURRENCY).
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-FOREIGN-CURRENCY, OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; FE-UI-P2 in another session; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-ORDER-CLAIM-REST order claims without "đơn", "xong/ok" claims, 60-character window, "đã" typos, 2026-11-26 — merged (PR #67)
 - Branch `fix/OUTPUT-ORDER-CLAIM-REST-validator` from `main` `d846ab6` (OUTPUT-ORDER-CLAIM-MORE PR #66 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-83. FE-UI-P2 is being done in another session (worktree `AI-Agent-fe`), not touched here.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (BARE_CLAIM, DONE_WORD_CLAIM, DA_TYPO, window 60, more agents; copies for the text without diacritics); new `OutputValidatorOrderClaimRestTest.java`; `OutputValidatorOrderClaimTest.java` window cases. Docs: A-83, IMPLEMENTATION_PLAN §2a (REST DONE; OUTPUT-ORDER-CLAIM-CONTEXT PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator (90 of 159 failed); targeted tests exit 0 three runs in a row; 47 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1869, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 09:19–09:22 UTC).

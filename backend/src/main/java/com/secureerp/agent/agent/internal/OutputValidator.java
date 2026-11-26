@@ -68,14 +68,28 @@ final class OutputValidator {
     private static final String DONG = "(?:đồng|dong)(?!\\p{L})(?!\\s*(hồ|ho|bộ|bo|nghĩa|nghia|thời|thoi)(?!\\p{L}))";
     private static final String CU = "củ(?!\\p{L})(?!\\s*(đề|de|phát|phat)(?!\\p{L}))";
     private static final String ENGLISH_UNIT = "(?:million|mil|thousand|grand|billion|bn)(?!\\p{L})";
+    /**
+     * OUTPUT-ENGLISH-MONEY (A-84, 1A): currencies written as words or codes, as whole words, with a country before
+     * dollars ("45 US dollars", review security H2). Not "pound(s)": "45 pounds" may be a weight. Not "euro" before a
+     * digit: "Euro 5, Euro 6 engines" is an emission standard (review security).
+     */
+    private static final String CURRENCY_WORD = "(?:(?:us|u\\.s\\.?|american|australian|canadian|singapore|hk)\\s*)?"
+            + "(?:dollars?|bucks?|euros?(?!\\s*\\d)|eur|cents?|gbp|yen|jpy)(?!\\p{L})";
     private static final Pattern MONEY = Pattern.compile(
             // Possessive run (A-76 review: "1-1-1-…" took 0.5 s with backtracking through every unit).
-            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
-                    + ENGLISH_UNIT
+            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|£|¥|₹|₩|¢|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
+                    + ENGLISH_UNIT + "|" + CURRENCY_WORD
                     // A-76 review security M5: "tr"/"k" as whole words ("\\b" is ASCII-only, so "2 trục", "4 kỳ" are
                     // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
                     + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
-                    + "|((₫|\\$|€|vnd|usd)\\s*\\d)"
+                    + "|((₫|\\$|€|£|¥|₹|₩|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?)(?!\\p{L}))\\s*:?\\s*\\d)"
+                    // A-84 (2A): English price words as whole words, not after a hyphen ("low-cost") nor before a
+                    // hyphen and a letter ("cost-effective"; "Cost-45" is blocked), then a digit in the same sentence
+                    // as below, within 40 characters (English sentences run longer, review QA M2). "Discount 10%" is
+                    // blocked: a discount is price information. Not total, amount, pay, charge, worth: they often count
+                    // ("Total 2 sets"). Also "priced", "pricing", "prices" ("price" is below; review security M).
+                    + "|((?<![\\p{L}\\-])(cost|costs|costing|subtotal|fee|fees|discount|priced|pricing|prices)(?!\\p{L})"
+                    + "(?!-\\p{L})(?:[^\\d.!?\\n]|[.!?\\n](?!\\s*(?-i:\\p{Lu}))){0,40}\\d)"
                     // A-78: "gía" (the tone on the i, a common typo and no word) with the other price words.
                     // A-79 (OUTPUT-PRICE-WORD-BOUNDARY): a price word is a whole word ("gian", "giám", "giao", "giai",
                     // "giáp" are not), "giảm xóc"/"giảm chấn" (shock absorber, damper) are part names, and the digit is
@@ -90,7 +104,10 @@ final class OutputValidator {
     /** OUTPUT-MONEY-WORDS (A-76): a Vietnamese or English number word, with or without diacritics, as a whole word. */
     private static final String NUMBER_WORD = "(?:một|mốt|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|sáu|sau|bảy|bẩy|bay"
             + "|tám|tam|chín|chin|mười|muoi|mươi|linh|lẻ|trăm|tram|rưỡi|rưởi|ruoi|nửa|chục|chuc"
-            + "|one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty|hundred)(?!\\p{L})";
+            + "|one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty|hundred"
+            // A-84 (3A): the other English teens and tens.
+            + "|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|thirty|forty|sixty|seventy"
+            + "|eighty|ninety)(?!\\p{L})";
     /** Between number words and units: spaces, and the hyphens, brackets and quotes a model could slip in (review M1). */
     private static final String SEP = "[\\s\\-_–—()\"'“”]{1,3}";
     /** A count, a time or a measure after a number: "hai bộ", "ba năm", "hai lần". */
@@ -105,10 +122,12 @@ final class OutputValidator {
      */
     private static final Pattern MONEY_WORDS = Pattern.compile(
             "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*" + SEP
-                    + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
+                    + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|" + CURRENCY_WORD
+                    + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
                     + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
                     + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
-                    + "|phí|price|cost)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
+                    // A-84 review security M: the English price words of MONEY too ("It costs forty-five").
+                    + "|phí|price|cost|costs|costing|fee|fees|subtotal|discount|priced|pricing|prices)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
                     + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")++" + COUNT + ")");
     private static final Pattern STOCK = Pattern.compile(
             "(?iu)((còn|con|tồn|ton|stock|kho)\\s*(lại|lai|kho|hàng|hang)?\\s*:?\\s*\\d)|(\\d+\\s*(cái|cai|chiếc|chiec|bộ|bo)"
