@@ -1,6 +1,16 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26
+## Current: OUTPUT-ORDER-CLAIM-MORE order claims with words between, new verbs and English variants, 2026-11-26
+- Branch `fix/OUTPUT-ORDER-CLAIM-MORE-validator` from `main` `c4edc3b` (OUTPUT-PRICE-WORD-BOUNDARY PR #64 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-80.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (ORDER_CLAIM, STRIPPED_ORDER_CLAIM); new `OutputValidatorOrderClaimTest.java`. Docs: A-80, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ORDER-CLAIM-REST PROPOSED).
+- Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator; targeted tests exit 0 three runs in a row and after review fixes; 35 mutations applied, all red; `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1715, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 08:49–08:53 UTC).
+- NOT RUN: E2E (no frontend change); CI. Gaps and accepted false positives listed in A-80.
+- Note: a verify stopped part way (low memory) can leave an empty `target/*.jar`; the next `repackage` then fails with "Unable to find main class" until the jar files are deleted.
+- Review (advisory): security-auditor 2H/2M/2L, qa-gatekeeper 2H/5M/3L; fixes and residuals in A-80.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-REST, OUTPUT-ENGLISH-MONEY, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-PRICE-WORD-BOUNDARY price words as whole words in the same sentence, 2026-11-26 — merged (PR #64)
 - Branch `fix/OUTPUT-PRICE-WORD-BOUNDARY-validator` from `main` `8856f7b` (OUTPUT-DIACRITIC-VARIANTS PR #63 merged). Owner 2026-11-26 ("Theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-79.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY "price word then digit": whole words, "giảm xóc/chấn" excluded, same sentence = no ". ! ? newline" followed by an upper-case letter); new `OutputValidatorPriceWordTest.java`; pinned false positives moved in `OutputValidatorDiacriticVariantsTest.java` and `OutputValidatorMoneyWordsTest.java`. Docs: A-79, IMPLEMENTATION_PLAN §2a (DONE; OUTPUT-ENGLISH-MONEY PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run against `main`'s validator (17 failures, no price case weakened); targeted tests exit 0 three runs in a row and a clean run after review fixes; 21 mutations, 20 red, 1 NOT RUN (string not unique); `cd backend && ./mvnw -B verify` exit 0, BUILD SUCCESS (surefire 1571, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; finished 07:24 UTC).
