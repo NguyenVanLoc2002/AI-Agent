@@ -1,5 +1,13 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
+## Current: STAFF-MSG-ID-AUDIT a reused staff event ID is audited, 2026-11-27 — committed locally
+- Branch `feat/STAFF-MSG-ID-AUDIT` from `main` `7d6727d` (STAFF-MSG-ID PR #75 merged). Owner 2026-11-27 ("Theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-92.
+- Change (backend only): `StaffChatService.post` records `STAFF_MESSAGE_POSTED` / `CONVERSATION` / `EVENT_ID_REUSED` separately (best effort, collapsed per minute) before the 409; `StaffMessageDedupIT` assertions. No migration, no frontend change. Docs: A-92, backlog §2a STAFF-MSG-ID-AUDIT DONE.
+- Tests (VERIFIED 2026-11-27): `cd backend && ./mvnw -B clean verify` exit 0, 08:24–08:29 UTC (surefire 2394, failsafe 331 with 1 skipped pre-existing SEC03-F2, sec05-artifact-scan 1); mutants red (failing tests reported, control run green): no record, record on a duplicate, record under ACCESS_DENIED; source restored (sha256).
+- NOT RUN: frontend checks (no frontend change); E2E (no `APAS_DEMO_PASSWORD`); CI.
+- Rollback: revert the commit; no migration or data change.
+- Next: owner pushes and opens the PR; then PROPOSED CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP; P4 waits for the batch G design.
+
 ## Current: STAFF-MSG-ID staff messages carry a client event ID, 2026-11-27 — committed locally
 - Branch `feat/STAFF-MSG-ID-dedup` from `main` `fe0c9bb` (OUTPUT-MONEY-PUNCT PR #74 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-91.
 - Change: migration `V20__staff_message_client_event.sql`; `ConversationStore` (`insertStaff` with event lookup + `on conflict`, `findTurn` CUSTOMER only, `admit` 409 for another direction's ID), `StaffChatService.post`, `StaffChat`, `StaffConversationController` (`clientEventId` required); tests `StaffMessageDedupIT` (new, 7), `StaffInboxIT`/`SecurityInspectorIT` helpers, `ApplicationBootstrapIT` (V20). Frontend: `api/staff.ts` `postStaffMessage(conversationId, clientEventId, text)`, F3 "Gửi lại" with the same ID (no read-and-compare), `StaffWorkspace.test.tsx`, `e2e/flows.spec.ts` body. Docs: A-91, backlog §2a (STAFF-MSG-ID DONE, STAFF-MSG-ID-AUDIT PROPOSED), SYSTEM_ARCHITECTURE endpoint row.

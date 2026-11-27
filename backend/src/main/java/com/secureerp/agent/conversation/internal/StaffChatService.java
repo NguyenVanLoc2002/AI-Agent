@@ -34,6 +34,8 @@ class StaffChatService implements StaffChat {
 
     private static final Logger log = LoggerFactory.getLogger(StaffChatService.class);
     static final int MAX_TEXT = 2000;
+    /** Audit outcome of a staff message whose event ID belongs to another message (A-92). */
+    static final String EVENT_ID_REUSED = "EVENT_ID_REUSED";
 
     private final ConversationStore store;
     private final Handoffs handoffs;
@@ -109,6 +111,11 @@ class StaffChatService implements StaffChat {
             case DUPLICATE -> log.info("conversation.staff_message duplicate");
             case ID_REUSED -> {
                 log.warn("conversation.staff_message refused code=CONFLICT reason=EVENT_ID_REUSED");
+                // STAFF-MSG-ID-AUDIT (A-92, owner 1A/2A): the shipped client never reuses an ID, so a reuse is worth a
+                // record. Written after the transaction, best effort and collapsed per minute like a denial; never the
+                // text, the conversation or the ID.
+                audit.recordSeparately(new AuditEvent(AuditEvent.Action.STAFF_MESSAGE_POSTED,
+                        AuditEvent.Resource.CONVERSATION, EVENT_ID_REUSED, staff.auditActor()));
                 throw new ApplicationException(ErrorCode.CONFLICT);
             }
             case NOT_ACTIVE -> throw new ApplicationException(ErrorCode.NOT_FOUND);
