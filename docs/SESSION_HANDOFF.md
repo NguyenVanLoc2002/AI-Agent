@@ -1,5 +1,14 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
+## Current: STAFF-MSG-ID staff messages carry a client event ID, 2026-11-27 — committed locally
+- Branch `feat/STAFF-MSG-ID-dedup` from `main` `fe0c9bb` (OUTPUT-MONEY-PUNCT PR #74 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-91.
+- Change: migration `V20__staff_message_client_event.sql`; `ConversationStore` (`insertStaff` with event lookup + `on conflict`, `findTurn` CUSTOMER only, `admit` 409 for another direction's ID), `StaffChatService.post`, `StaffChat`, `StaffConversationController` (`clientEventId` required); tests `StaffMessageDedupIT` (new, 7), `StaffInboxIT`/`SecurityInspectorIT` helpers, `ApplicationBootstrapIT` (V20). Frontend: `api/staff.ts` `postStaffMessage(conversationId, clientEventId, text)`, F3 "Gửi lại" with the same ID (no read-and-compare), `StaffWorkspace.test.tsx`, `e2e/flows.spec.ts` body. Docs: A-91, backlog §2a (STAFF-MSG-ID DONE, STAFF-MSG-ID-AUDIT PROPOSED), SYSTEM_ARCHITECTURE endpoint row.
+- Tests (VERIFIED 2026-11-27): `cd backend && ./mvnw -B clean verify` exit 0, 04:33–04:37 UTC (surefire 2394, failsafe 331 with 1 skipped pre-existing SEC03-F2, sec05-artifact-scan 1); mutants red: audit on duplicate, reuse as duplicate, no lookup, no other-direction check (L-1 test red on the pre-fix code); sources restored (sha256). Frontend: `npm ci` (lockfile, 0 vulnerabilities), typecheck 0, `npx vitest run` 312 passed, mutant "new ID on every send" red, `npm run build` + verify-no-mocks 0, `ds:verify` 73.
+- NOT RUN: `npm run e2e` against the jar (no `APAS_DEMO_PASSWORD`); `e2e:shell` (no shell change); CI.
+- Review (advisory): security-auditor 0H/0M/4L; L-1, L-2 fixed with tests; L-3 PROPOSED (STAFF-MSG-ID-AUDIT); L-4 accepted.
+- Rollback: revert the commit; V20 is forward-only (locally `docker compose down -v`); no row changes.
+- Next: owner pushes and opens the PR; then PROPOSED STAFF-MSG-ID-AUDIT, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP; P4 waits for the batch G design.
+
 ## Current: OUTPUT-MONEY-PUNCT punctuation inside amounts, codes before number words, more codes, 2026-11-27
 - Worktree `D:/Project_Private/AI-Agent-money`, branch `fix/OUTPUT-MONEY-PUNCT-validator` from `main` `b3f3e20` (OUTPUT-FOREIGN-CURRENCY PR #72 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-89.
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY_UNIT, MONEY_PUNCT, MONEY_PUNCT_BEFORE, CODE_BEFORE, ENGLISH_NUMBER_WORD, more codes; DONG, ENGLISH_UNIT, CURRENCY_WORD narrowed for "đồng ý", "dong co", "Grand i10", "Euro IV"); new `OutputValidatorMoneyPunctTest.java`; `OutputValidatorForeignCurrencyTest.java` (gaps now blocked moved out of its gap list). Docs: A-89, IMPLEMENTATION_PLAN §2a (MONEY-PUNCT DONE).

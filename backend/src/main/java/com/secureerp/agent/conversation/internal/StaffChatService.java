@@ -15,6 +15,7 @@ import com.secureerp.agent.quote.staff.StaffQuotes;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -76,25 +77,25 @@ class StaffChatService implements StaffChat {
     }
 
     @Override
-    public void post(SessionIdentity staff, ConversationId conversation, String text) {
+    public void post(SessionIdentity staff, ConversationId conversation, UUID clientEventId, String text) {
         requireHolder(staff, conversation);
-        if (text == null || text.isBlank() || text.length() > MAX_TEXT) {
+        if (clientEventId == null || text == null || text.isBlank() || text.length() > MAX_TEXT) {
             throw new ApplicationException(ErrorCode.VALIDATION_FAILED);
         }
         // Checked again and written under the conversation's handoff lock: the text cannot land after the
         // handoff was resolved, or in the session of a member who claimed it next.
-        boolean stored;
+        ConversationStore.StaffInsert outcome;
         try {
             // EP-09b (A-42(j)): the audit record commits with the message or not at all (decision 2A).
-            stored = Boolean.TRUE.equals(transactions.execute(tx -> {
+            outcome = transactions.execute(tx -> {
                 requireStillHolding(staff, conversation);
-                if (!store.insertStaff(conversation, text)) {
-                    return false;
+                ConversationStore.StaffInsert inserted = store.insertStaff(conversation, clientEventId, text);
+                if (inserted == ConversationStore.StaffInsert.STORED) {
+                    audit.record(new AuditEvent(AuditEvent.Action.STAFF_MESSAGE_POSTED,
+                            AuditEvent.Resource.CONVERSATION, "STORED", staff.auditActor()));
                 }
-                audit.record(new AuditEvent(AuditEvent.Action.STAFF_MESSAGE_POSTED, AuditEvent.Resource.CONVERSATION,
-                        "STORED", staff.auditActor()));
-                return true;
-            }));
+                return inserted;
+            });
         } catch (DeniedInTransaction lostTheHandoff) {
             throw denied(lostTheHandoff);
         } catch (PessimisticLockingFailureException busy) {
@@ -102,10 +103,16 @@ class StaffChatService implements StaffChat {
             log.warn("conversation.staff_message refused code=CONFLICT");
             throw new ApplicationException(ErrorCode.CONFLICT);
         }
-        if (!stored) {
-            throw new ApplicationException(ErrorCode.NOT_FOUND);
+        switch (Objects.requireNonNull(outcome)) {
+            case STORED -> log.info("conversation.staff_message stored");
+            // STAFF-MSG-ID (A-91, owner 2A): the resend answers like the first send.
+            case DUPLICATE -> log.info("conversation.staff_message duplicate");
+            case ID_REUSED -> {
+                log.warn("conversation.staff_message refused code=CONFLICT reason=EVENT_ID_REUSED");
+                throw new ApplicationException(ErrorCode.CONFLICT);
+            }
+            case NOT_ACTIVE -> throw new ApplicationException(ErrorCode.NOT_FOUND);
         }
-        log.info("conversation.staff_message stored");
     }
 
     @Override

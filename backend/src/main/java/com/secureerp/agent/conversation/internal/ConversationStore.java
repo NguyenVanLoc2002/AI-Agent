@@ -136,6 +136,13 @@ class ConversationStore {
             if (previous.isPresent()) {
                 return new Admission.Duplicate(previous.get());
             }
+            // STAFF-MSG-ID review L-1: since V20 a staff message carries an event ID too; a customer event that
+            // reuses it is not a turn of the customer and stores nothing (409, like a turn in progress).
+            Integer otherDirection = jdbc.queryForObject("select count(*) from message where conversation_id = ? "
+                    + "and client_event_id = ?", Integer.class, id.value(), clientEventId);
+            if (otherDirection != null && otherDirection > 0) {
+                return new Admission.InProgress();
+            }
             Integer inFlight = jdbc.queryForObject("select count(*) from message c where c.conversation_id = ? "
                     + "and c.direction = 'CUSTOMER' and c.created_at > ? and not exists (select 1 from message b "
                     + "where b.turn_id = c.turn_id and b.direction = 'BOT')", Integer.class, id.value(),
@@ -168,7 +175,7 @@ class ConversationStore {
     Optional<PreviousTurn> findTurn(ConversationId id, UUID clientEventId) {
         return jdbc.query("select c.turn_id, c.created_at, b.text, b.handed_off from message c left join message b "
                                 + "on b.turn_id = c.turn_id and b.direction = 'BOT' "
-                                + "where c.conversation_id = ? and c.client_event_id = ?",
+                                + "where c.conversation_id = ? and c.client_event_id = ? and c.direction = 'CUSTOMER'",
                         (rs, row) -> new PreviousTurn(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant(),
                                 Optional.ofNullable(rs.getString(3)), rs.getBoolean(4)),
                         id.value(), clientEventId)
@@ -244,11 +251,43 @@ class ConversationStore {
      * staff member holds the handoff). The text is stored as written: staff may quote a price to the
      * customer, which is why direction STAFF never enters the model history (BR-36).
      */
-    boolean insertStaff(ConversationId id, String text) {
-        return jdbc.update("insert into message (conversation_id, turn_id, direction, text, created_at) "
-                        + "select conversation_id, ?, 'STAFF', ?, ? from conversation where conversation_id = ? "
-                        + "and status = 'HUMAN_ACTIVE'", UUID.randomUUID(), text, Timestamp.from(clock.instant()),
-                id.value()) == 1;
+    StaffInsert insertStaff(ConversationId id, UUID clientEventId, String text) {
+        Objects.requireNonNull(clientEventId, "clientEventId");
+        // STAFF-MSG-ID (A-91): the same event again is the message already stored, not a second one. The caller
+        // holds the handoff lock; the unique (conversation_id, client_event_id) still decides a race.
+        Optional<StaffInsert> previous = previousEvent(id, clientEventId, text);
+        if (previous.isPresent()) {
+            return previous.get();
+        }
+        int inserted = jdbc.update("insert into message (conversation_id, turn_id, direction, client_event_id, text, "
+                        + "created_at) select conversation_id, ?, 'STAFF', ?, ?, ? from conversation "
+                        + "where conversation_id = ? and status = 'HUMAN_ACTIVE' "
+                        + "on conflict (conversation_id, client_event_id) do nothing", UUID.randomUUID(), clientEventId,
+                text, Timestamp.from(clock.instant()), id.value());
+        if (inserted == 1) {
+            return StaffInsert.STORED;
+        }
+        return previousEvent(id, clientEventId, text).orElse(StaffInsert.NOT_ACTIVE);
+    }
+
+    /** A message with this event ID: the same staff text is a duplicate, anything else reuses the ID. */
+    private Optional<StaffInsert> previousEvent(ConversationId id, UUID clientEventId, String text) {
+        return jdbc.query("select direction, text from message where conversation_id = ? and client_event_id = ?",
+                        (rs, row) -> "STAFF".equals(rs.getString(1)) && text.equals(rs.getString(2))
+                                ? StaffInsert.DUPLICATE : StaffInsert.ID_REUSED,
+                        id.value(), clientEventId)
+                .stream().findFirst();
+    }
+
+    /** Outcome of {@link #insertStaff}. */
+    enum StaffInsert {
+        STORED,
+        /** The same event ID with the same text: already stored, nothing written. */
+        DUPLICATE,
+        /** The event ID belongs to another message (other text or a customer message): nothing written. */
+        ID_REUSED,
+        /** The conversation is not with staff (HUMAN_ACTIVE): nothing written. */
+        NOT_ACTIVE
     }
 
     /** Stores the turn's reply once (unique (turn, direction)); a second write for the same turn is ignored. */

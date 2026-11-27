@@ -11,8 +11,10 @@ import com.secureerp.agent.platform.Money;
 import com.secureerp.agent.quote.staff.StaffQuotes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -50,7 +52,7 @@ class StaffConversationController {
     @PostMapping(path = "/{conversationId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void post(@PathVariable String conversationId, @Valid @RequestBody StaffMessageRequest request) {
-        chat.post(session(), conversation(conversationId), request.text());
+        chat.post(session(), conversation(conversationId), request.clientEventId(), request.text());
     }
 
     /** EP-08b: the newest quote of a held conversation, with prices; no confirmation token. */
@@ -89,7 +91,8 @@ class StaffConversationController {
     record LineView(String sku, int quantity, String unitPrice, String lineTotal) {
     }
 
-    record StaffMessageRequest(@NotBlank @Size(max = 2000) String text) {
+    /** STAFF-MSG-ID (A-91, owner 1A): the event ID is required, as for the customer's message. */
+    record StaffMessageRequest(@NotNull UUID clientEventId, @NotBlank @Size(max = 2000) String text) {
 
         @Override
         public String toString() {
