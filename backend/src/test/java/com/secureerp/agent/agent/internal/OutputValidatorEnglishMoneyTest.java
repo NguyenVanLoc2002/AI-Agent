@@ -74,13 +74,13 @@ class OutputValidatorEnglishMoneyTest {
      * Documented gaps (A-86): "pound(s)" may be a weight (1A); total, amount, charge, pay, worth often count (2A); a
      * price word after a hyphen ("low-cost") passes, and so does "Low-cost 45"; "Euros 45" ("Euro 6" is a standard);
      * one number word after a price word; amounts without a currency or price word ("45 each"); currency words and
-     * codes not in the list, including Vietnamese names of foreign money (review security H1, PROPOSED below in A-86).
+     * codes not in the list. Vietnamese names of foreign money and the codes AUD, SGD… (review security H1) are blocked
+     * since A-88 ({@link OutputValidatorForeignCurrencyTest}).
      */
     @ParameterizedTest
     @ValueSource(strings = {
         "45 pounds", "Total: 45", "Amount: 45", "Charge: 45", "Pay 45 now", "worth 45", "Low-cost 45", "Late-fee 45",
-        "Euros 45", "Discount of ten percent", "That one is 45 each", "45 per unit", "45 AUD", "45 baht", "45 đô",
-        "45 đô la", "45 tệ", "45 bảng Anh"
+        "Euros 45", "Discount of ten percent", "That one is 45 each", "45 per unit"
     })
     void documentedGapsAreNotBlocked(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();

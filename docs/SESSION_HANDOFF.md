@@ -1,13 +1,22 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, committed locally
+## Current: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, PR #73
 - Branch `docs/P0-T05-batch-g-brief` from `main` `c5dfaad` (PR #71 FE-UI-P3 merged). Decision FE-UI-D06 (6A, A-80).
 - Change (docs only): `docs/ui-implementation/design-briefs/P0-T05-batch-g-staff-orders.md` (G1 awaiting decision, G2 reconciliation; fields checked against `StaffDecisionController`, `OrderReconciliationController` and their services; states, forbidden content per UX-03/UX-08/UX-10; owner questions Q1–Q4 approved 2026-11-27 "theo đề xuất" = Q1A–Q4A, FE-UI-D30..D33); `PROGRESS.md` P0-T05 ticked.
 - Tests: none (docs only). Check: `git diff --stat` docs only.
 - Rollback: revert the commit.
-- Next: owner pushes and opens the PR, sends the brief to Claude Design; then P4-T00 (approve the design → `docs/design/specs/60-batch-g-don-hang-nhan-vien.md` + prototypes), then P4.
+- Next: owner merges PR #73 (main `b3f3e20` merged in, conflict only here), sends the brief to Claude Design; then P4-T00 (approve the design → `docs/design/specs/60-batch-g-don-hang-nhan-vien.md` + prototypes), then P4.
 
-## Current (frontend session): FE-UI-P3 batch F screens in the new shell, 2026-11-26 — approved 2026-11-27, committed locally
+## Current: OUTPUT-FOREIGN-CURRENCY foreign money in the model's answer, 2026-11-27
+- Branch `fix/OUTPUT-FOREIGN-CURRENCY-validator` from `main` `eea4140` (OUTPUT-ENGLISH-MONEY PR #69 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-88 (written as A-87, renumbered when merging `main` `c5dfaad`: PR #71 FE-UI-P3 took A-87).
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (FOREIGN_CURRENCY, NAME_SEP, FOREIGN_CODE_BEFORE, `\p{Sc}`); new `OutputValidatorForeignCurrencyTest.java`; `OutputValidatorEnglishMoneyTest.java` (gaps now blocked moved out of its gap list: "45 AUD", "45 baht", "45 đô", "45 đô la", "45 tệ", "45 bảng Anh"). Docs: A-88, IMPLEMENTATION_PLAN §2a (FOREIGN-CURRENCY DONE; OUTPUT-MONEY-PUNCT PROPOSED).
+- Tests (VERIFIED 2026-11-27, Java 21 target): red run of the new class against `main`'s validator: 87 of 192 failed (amounts and accepted false positives), all pass and gap cases passed there too; `./mvnw -B test -Dtest='OutputValidator*Test'` 1034 tests, 0 failures; mutations 20/20 red under `-Dtest=OutputValidatorForeignCurrencyTest`, source restored (sha256 checked); `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2193, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 03:13–03:17 UTC).
+- NOT RUN: E2E (no frontend change); CI.
+- Review (advisory): security-auditor 0H/3M/5L, qa-gatekeeper 2H/3M/3L (all test additions); fixes, accepted false positives and gaps in A-88; punctuation between number and unit, a code before number words and other codes: OUTPUT-MONEY-PUNCT.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-MONEY-PUNCT, OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: FE-UI-P3 batch F screens in the new shell, 2026-11-26 — merged (PR #71)
 - Worktree `D:/Project_Private/AI-Agent-fe`, branch `feat/FE-UI-P3-batch-f-shell` from `main` `eea4140` (FE-REACT19 PR #70 merged). Decisions A-87, FE-UI-D22–D29.
 - Change (frontend only): E7 login, F5 kill switch, F2 inbox, F3 conversation, F4 inspector, F1 customer chat and quote card re-laid-out to their artboards; `src/app/shells.tsx` (`useExtraCrumb`, customer header with `useCustomerStatus`, sticky composer); focus after sign-out/expiry/boot error; `foundation.css`; tests; `e2e-shell/bundle.spec.ts` signed-in screens under CSP. Evidence: `docs/ui-implementation/evidence/P3-quality-gate.md` (gate, deviation table §5, money/time review §6, reviews §7).
 - Tests (VERIFIED 2026-11-26T11:14Z): typecheck 0; vitest 312 passed (twice); build + verify-no-mocks 0; ds:verify 73; npm audit 0; e2e:shell 13 passed. NOT RUN: `npm run e2e` against the jar (no `APAS_DEMO_PASSWORD`); lint (not configured).
@@ -15,7 +24,7 @@
 - Rollback: revert the commit; no backend, migration or data change.
 - Next: owner pushes and opens the PR (A-87 re-checked free on `main` 2026-11-27). After P3: P0-T05 batch G brief for EP-10e (P4), W-BIZ, FE-UI-Q01 waits for Claude Design.
 
-## Current: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26
+## Previous: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26 — merged (PR #69)
 - Branch `fix/OUTPUT-ENGLISH-MONEY-validator` from `main` `aef1905` (OUTPUT-ORDER-CLAIM-REST PR #67 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-86 (written as A-84; PR #68 FE-UI-P2 took A-84 and PR #70 FE-REACT19 took A-85, renumbered when merging `main` `29840af` and `22a626c`).
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (CURRENCY_WORD, currency symbols and codes before and after a number, English price words, English teens and tens); new `OutputValidatorEnglishMoneyTest.java`. Docs: A-86, IMPLEMENTATION_PLAN §2a (ENGLISH-MONEY DONE; OUTPUT-FOREIGN-CURRENCY PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run of the new class against `main`'s validator: 81 of 138 failed (76 amounts, 5 accepted false positives), all pass and gap cases passed there too; targeted tests exit 0 three runs in a row; after the review fixes 27/27 applied and red under `-Dtest=OutputValidatorEnglishMoneyTest`; `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2007, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 09:40–09:44 UTC).
