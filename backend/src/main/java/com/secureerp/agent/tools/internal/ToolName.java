@@ -3,6 +3,7 @@ package com.secureerp.agent.tools.internal;
 import com.secureerp.agent.gateway.api.ToolSpec;
 import com.secureerp.agent.identity.Channel;
 import com.secureerp.agent.identity.Role;
+import com.secureerp.agent.tools.ToolManager;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -18,7 +19,7 @@ enum ToolName {
             "category":{"type":"string","maxLength":80},\
             "vehicleModel":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9 .-]{0,49}$"}},\
             "oneOf":[{"required":["vinRef"]},{"required":["oe"]},{"required":["category","vehicleModel"]}]}"""),
-    REQUEST_QUOTE("requestQuote", """
+    REQUEST_QUOTE(ToolManager.REQUEST_QUOTE, """
             {"type":"object","additionalProperties":false,"required":["lines"],"properties":{"lines":\
             {"type":"array","minItems":1,"maxItems":20,"items":{"type":"object","additionalProperties":false,\
             "required":["productRef","quantity"],"properties":{"productRef":{"type":"string"},\

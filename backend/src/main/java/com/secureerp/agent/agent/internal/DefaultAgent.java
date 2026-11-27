@@ -94,6 +94,10 @@ class DefaultAgent implements Agent {
         List<ToolResultDto> results = new ArrayList<>();
         Set<String> allowedCodes = new HashSet<>();
         String issuedHandle = null;
+        // OUTPUT-ORDER-CLAIM-CONTEXT (A-90, 2A): stricter order claims when the customer names an order or a quote,
+        // or a quote tool was proposed in this turn. Server-side inputs only: the sanitized customer texts, the tool
+        // proposals and their results. Not across turns: a quote from an earlier turn is not known here (A-90 gap).
+        boolean orderContext = OutputValidator.orderTopic(turn.customerTexts());
 
         for (int call = 1; call <= MAX_MODEL_CALLS; call++) {
             ModelRequest request = new ModelRequest(UUID.randomUUID().toString(), SYSTEM_PROMPT_ID, messages, context,
@@ -105,7 +109,8 @@ class DefaultAgent implements Agent {
             }
             ModelResponse response = ((GatewayResult.Completed) result).response();
             if (response.toolProposals().isEmpty()) {
-                Optional<OutputValidator.Rejection> rejection = OutputValidator.check(response.text(), allowedCodes);
+                Optional<OutputValidator.Rejection> rejection = OutputValidator.check(response.text(), allowedCodes,
+                        orderContext);
                 if (rejection.isPresent()) {
                     log.warn("agent.turn output_rejected kind={} call={}", rejection.get(), call);
                     return handoff(Reason.OUTPUT_REJECTED, call);
@@ -121,6 +126,12 @@ class DefaultAgent implements Agent {
             for (ToolProposal proposal : response.toolProposals()) {
                 if (results.size() >= ModelRequest.MAX_TOOL_RESULTS) {
                     return handoff(Reason.TOOL_REJECTED_REPEATED, call);
+                }
+                // A-90 review (security M1, backend M1): a quote proposal turns the context on even when the tool
+                // rejects it (a ToolErrorResult without handoff lets the model answer again). Case-insensitive, so
+                // an alias the tool manager rejects counts too.
+                if (proposal.name() != null && proposal.name().strip().equalsIgnoreCase(ToolManager.REQUEST_QUOTE)) {
+                    orderContext = true;
                 }
                 ToolOutcome outcome = tools.execute(toolContext, proposal);
                 results.add(outcome.result());
