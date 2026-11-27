@@ -182,7 +182,7 @@ test('F2/F3: a handoff reaches the right team, staff reply and hand the conversa
     await staff.bringToFront();
     await resolveHeld(staff);
     expect([403, 404]).toContain((await callApi(staff, 'GET', `/api/internal/conversations/${conversation}/messages`)).status);
-    expect([403, 404]).toContain((await callApi(staff, 'POST', `/api/internal/conversations/${conversation}/messages`, { text: 'Tin sau khi hoàn tất' })).status);
+    expect([403, 404]).toContain((await callApi(staff, 'POST', `/api/internal/conversations/${conversation}/messages`, { clientEventId: crypto.randomUUID(), text: 'Tin sau khi hoàn tất' })).status);
   });
 
   // The AI answers the customer again (review QA 11).

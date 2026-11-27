@@ -26,6 +26,7 @@ const STAFF_QUOTE = {
   quoteRef: 'BG-ABCDEFGH', version: 2, status: 'ISSUED', currency: 'VND', validUntil: '2099-01-03T08:00:00Z', total: '2580000',
   lines: [{ sku: 'SKU-BRK-PAD-A', quantity: 2, unitPrice: '1290000', lineTotal: '2580000' }], notes: ['Giá chưa gồm VAT'],
 };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const message = (direction: string, text: string) => ({ direction, text, sentAt: '2020-01-02T08:01:00Z' });
 
 function setup(routes: Record<string, Handler>) {
@@ -245,7 +246,8 @@ describe('F3 · held conversation', () => {
     await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     expect(await screen.findByText('Đã gửi tin cho khách.')).toBeInTheDocument();
-    expect(JSON.parse(backend.calls.find((c) => c.method === 'POST' && c.path === MESSAGES)?.body ?? '{}')).toEqual({ text: 'Chào bạn, tôi hỗ trợ tiếp.' });
+    expect(JSON.parse(backend.calls.find((c) => c.method === 'POST' && c.path === MESSAGES)?.body ?? '{}'))
+      .toEqual({ clientEventId: expect.stringMatching(UUID), text: 'Chào bạn, tôi hỗ trợ tiếp.' });
     expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('');
     expect(count(backend, 'GET', MESSAGES)).toBe(2);
     expect(count(backend, 'GET', QUOTE)).toBe(1);
@@ -260,14 +262,15 @@ describe('F3 · held conversation', () => {
     expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('Chờ tôi chút.');
   });
 
-  it('never resends a message whose answer did not arrive; it reads the conversation again', async () => {
+  it('never resends by itself when the answer did not arrive, and reads nothing (STAFF-MSG-ID 4A)', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
     await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
     await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
-    expect(await screen.findByText('Chưa xác nhận được tin đã gửi.')).toBeInTheDocument();
+    expect(await screen.findByText('Chưa rõ tin đã gửi được chưa.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gửi lại' })).toBeInTheDocument();
     expect(count(backend, 'POST', MESSAGES)).toBe(1);
-    expect(count(backend, 'GET', MESSAGES)).toBe(2);
+    expect(count(backend, 'GET', MESSAGES)).toBe(1);
     expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('Chờ tôi chút.');
   });
 
@@ -377,25 +380,43 @@ describe('EP-10c review fixes', () => {
     answer(json(200, []));
   });
 
-  it('asks for an explicit resend when an unknown send is not visible after the read (security M-2)', async () => {
+  const sentBodies = (backend: ReturnType<typeof fakeBackend>) =>
+    backend.calls.filter((c) => c.method === 'POST' && c.path === MESSAGES).map((c) => JSON.parse(c.body ?? '{}') as { clientEventId: string; text: string });
+
+  it('resends an unknown send with the same event ID, so it is stored once (STAFF-MSG-ID, security M-2)', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
-    backend.set(`GET ${MESSAGES}`, () => problem(409, 'CONFLICT'));
     await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
     await user.click(screen.getByRole('button', { name: 'Gửi' }));
+    await screen.findByText('Chưa rõ tin đã gửi được chưa.');
 
-    expect(await screen.findByText('Chưa xác nhận được tin đã gửi.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Xác nhận gửi lại' })).toBeInTheDocument();
-    expect(count(backend, 'POST', MESSAGES)).toBe(1);
+    backend.set(`POST ${MESSAGES}`, () => new Response(null, { status: 204 }));
+    await user.click(screen.getByRole('button', { name: 'Gửi lại' }));
+
+    expect(await screen.findByText('Đã gửi tin cho khách.')).toBeInTheDocument();
+    const [first, second] = sentBodies(backend);
+    expect(first?.clientEventId).toMatch(UUID);
+    expect(second).toEqual(first);
+    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('');
   });
 
-  it('treats an unknown send as delivered when the read shows it (security M-2)', async () => {
+  it('uses a new event ID once the text changed or the last send succeeded', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
-    backend.set(`GET ${MESSAGES}`, () => json(200, [message('CUSTOMER', 'a'), message('STAFF', 'Chờ tôi chút.')]));
-    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    const box = screen.getByLabelText('Trả lời khách hàng');
+    await user.type(box, 'Chờ tôi chút.');
     await user.click(screen.getByRole('button', { name: 'Gửi' }));
+    await screen.findByText('Chưa rõ tin đã gửi được chưa.');
+    await user.type(box, ' Cảm ơn.');
+    expect(screen.getByRole('button', { name: 'Gửi' })).toBeInTheDocument();
 
-    expect(await screen.findByText('Tin đã có trong cuộc trò chuyện.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('');
+    backend.set(`POST ${MESSAGES}`, () => new Response(null, { status: 204 }));
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
+    await screen.findByText('Đã gửi tin cho khách.');
+    await user.type(box, 'Chờ tôi chút. Cảm ơn.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
+    await waitFor(() => expect(sentBodies(backend)).toHaveLength(3));
+
+    const ids = sentBodies(backend).map((b) => b.clientEventId);
+    expect(new Set(ids).size).toBe(3);
   });
 
   it.each([

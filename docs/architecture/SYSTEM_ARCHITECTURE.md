@@ -79,7 +79,7 @@ Schema ứng dụng `app` và schema giả lập `mock_erp` tách biệt; Flyway
 | `GET /api/demo/quotes/{id}` | CUST owner (EP-08b: SALES xem qua `GET /api/internal/conversations/{id}/quote`, chỉ khi giữ handoff) | nơi duy nhất (cùng quote card) có giá |
 | `POST /api/demo/quotes/{id}/confirm` `{version, confirmationToken}` | CUST owner | module quote; idempotency server-side theo quoteId:version; `409` stale/repriced, `410` expired, `404` không phải chủ; rate limit |
 | `GET /api/internal/handoffs`; `POST /api/internal/handoffs/{id}/claim`, `/resolve` | SALES | BRD §12 có `claim`; `resolve` là bổ sung |
-| `POST /api/internal/conversations/{id}/messages` | SALES (đã claim, HUMAN_ACTIVE) | bổ sung; tin direction STAFF |
+| `POST /api/internal/conversations/{id}/messages` `{clientEventId, text}` | SALES (đã claim, HUMAN_ACTIVE) | bổ sung; tin direction STAFF; STAFF-MSG-ID (A-91): `clientEventId` bắt buộc, cùng ID + cùng nội dung → `204` không ghi thêm, ID của tin khác → `409` |
 | `GET /api/internal/orders/unknown`; `POST /api/internal/orders/{requestId}/reconcile` `{outcome}` | SALES | bổ sung; ghi audit đối soát |
 | `POST /api/internal/orders/{requestId}/staff-decision` `{decision: APPROVED|REJECTED}` (EP-08b; trước đây đề xuất `/api/internal/quotes/{id}/…`) và `GET /api/internal/orders/awaiting-decision` | SALES team của khách | bổ sung PoC; thay cho đọc ngược từ ERP (OPEN D-01) |
 | `GET /api/demo/security/traces/{traceId}` | SECREV | **giữ đường dẫn BRD §12**; chỉ field names, policy codes |
