@@ -11,6 +11,7 @@
 | 5 | 2026-11-26 | "Đã merge PR #68, chọn B, bắt đầu P3 đi" | FE-UI-D21 = B (React 19); bắt đầu P3 (A-85) |
 | 4 | 2026-11-26 | "UX-09 chọn (a), bắt đầu P2 đi, tôi đã merge phần vừa rồi" (PR #65 merged) | UX-09 = (a); bắt đầu P2 (A-84) |
 | 6 | 2026-11-26 | "Đã merge PR #70, bắt đầu P3 đi" | Bắt đầu P3 (A-87); D22–D29 là lựa chọn cài đặt trong P3, chủ dự án có thể bác ở quality gate |
+| 7 | 2026-11-27 | "theo đề xuất" (brief batch G, câu hỏi Q1–Q4) | FE-UI-D30..D33 = Q1A Q2A Q3A Q4A |
 
 ## Quyết định
 | ID | Quyết định | Trạng thái | Hệ quả / ràng buộc |
@@ -42,6 +43,10 @@
 | FE-UI-D27 | E7: thương hiệu làm tiêu đề thẻ, h1 "Đăng nhập" ẩn; câu phụ "Đăng nhập bằng tài khoản demo · dữ liệu mô phỏng"; không có trạng thái tạm khóa, SSO | DECIDED trong P3, duyệt 2026-11-27 | E2E bảo mật (framing, headers, session) tìm heading "Đăng nhập": không đổi baseline. Khóa tài khoản chờ A-39(b) |
 | FE-UI-D28 | Focus sau đăng xuất, hết phiên, kiểm tra phiên lỗi lại: vào thông báo (hoặc h1 trang đăng nhập) khi focus đang ở `body` | DECIDED trong P3 (dư P2 UX M2, WCAG 2.4.3) | Test đột biến đỏ khi bỏ lệnh focus |
 | FE-UI-D29 | h1/h2 được focus bằng script (`tabindex=-1`) không hiện viền focus (trừ chế độ forced colors) | DECIDED trong P3, duyệt 2026-11-27 | Ảnh chụp cho thấy viền mặc định của trình duyệt trên h1 sau đăng nhập; đó không phải control |
+| FE-UI-D30 | Batch G không hiện `requestId`; dòng nhận diện bằng mã BG + phiên bản + số đơn ERP (G1) hoặc mã tra cứu ERP (G2) | APPROVED 2026-11-27 (Q1A) | `requestId` chỉ dùng trong đường dẫn ghi |
+| FE-UI-D31 | G1 và G2 là hai mục sidebar riêng trong nhóm "Kinh doanh"; mỗi trang chỉ đọc một danh sách khi vào | APPROVED 2026-11-27 (Q2A) | Không có Tabs đọc cả hai danh sách (mỗi lần đọc audit `STAFF_LIST_READ`) |
+| FE-UI-D32 | G2: khi có `reportedErpOrderRef`, điền sẵn và khóa số đơn đó, chọn sẵn "Có trong ERP", tắt "Không có trong ERP" kèm giải thích | APPROVED 2026-11-27 (Q3A) | Backend vẫn là ranh giới: lựa chọn khác → 409 |
+| FE-UI-D33 | Nút G1: "Ghi đã duyệt" / "Ghi đã từ chối"; tiêu đề Dialog "Ghi đơn … đã được duyệt trên ERP?" | APPROVED 2026-11-27 (Q4A) | SALES ghi lại việc đã làm trên ERP, không duyệt trong APAS (A-15, UX-10) |
 | FE-UI-D12 | Không tạo `CURRENT_STATE`; hiện trạng ở `docs/SESSION_HANDOFF.md` + `PROGRESS.md` | APPROVED 2026-11-26 (3A) | |
 | FE-UI-D13 | E2E hồi quy ở quality gate chỉ khi có `APAS_DEMO_PASSWORD` trong môi trường và được dựng PostgreSQL (`apas-e2e`) | APPROVED 2026-11-26 (4A) | P1: biến chưa có → NOT RUN, ghi lý do |
 
