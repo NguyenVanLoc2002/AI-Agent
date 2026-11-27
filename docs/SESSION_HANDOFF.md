@@ -1,5 +1,12 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
+## Current: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, committed locally
+- Branch `docs/P0-T05-batch-g-brief` from `main` `c5dfaad` (PR #71 FE-UI-P3 merged). Decision FE-UI-D06 (6A, A-80).
+- Change (docs only): `docs/ui-implementation/design-briefs/P0-T05-batch-g-staff-orders.md` (G1 awaiting decision, G2 reconciliation; fields checked against `StaffDecisionController`, `OrderReconciliationController` and their services; states, forbidden content per UX-03/UX-08/UX-10; owner questions Q1–Q4 approved 2026-11-27 "theo đề xuất" = Q1A–Q4A, FE-UI-D30..D33); `PROGRESS.md` P0-T05 ticked.
+- Tests: none (docs only). Check: `git diff --stat` docs only.
+- Rollback: revert the commit.
+- Next: owner pushes and opens the PR, sends the brief to Claude Design; then P4-T00 (approve the design → `docs/design/specs/60-batch-g-don-hang-nhan-vien.md` + prototypes), then P4.
+
 ## Current (frontend session): FE-UI-P3 batch F screens in the new shell, 2026-11-26 — approved 2026-11-27, committed locally
 - Worktree `D:/Project_Private/AI-Agent-fe`, branch `feat/FE-UI-P3-batch-f-shell` from `main` `eea4140` (FE-REACT19 PR #70 merged). Decisions A-87, FE-UI-D22–D29.
 - Change (frontend only): E7 login, F5 kill switch, F2 inbox, F3 conversation, F4 inspector, F1 customer chat and quote card re-laid-out to their artboards; `src/app/shells.tsx` (`useExtraCrumb`, customer header with `useCustomerStatus`, sticky composer); focus after sign-out/expiry/boot error; `foundation.css`; tests; `e2e-shell/bundle.spec.ts` signed-in screens under CSP. Evidence: `docs/ui-implementation/evidence/P3-quality-gate.md` (gate, deviation table §5, money/time review §6, reviews §7).
