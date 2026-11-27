@@ -80,16 +80,13 @@ class OutputValidatorForeignCurrencyTest {
     /**
      * Documented gaps (A-88): "yên", "bảng", "xu", "cắc", "bạt", "won" alone (1A); amounts without a currency, often
      * quantities (3A); "do la" on the stripped copy, as "2 đó là" would read the same; "bảng anh" with a lower-case a
-     * (review security M3); a code before number words; punctuation between the number and the unit (all units, also
-     * before A-88: review security M2); currencies not in the approved list (review QA M); typos ("đôlar", "nhân dân
-     * tê").
+     * (review security M3); typos ("đôlar", "nhân dân tê"). A code before number words, punctuation between the
+     * number and the unit and the codes CHF, NZD… are blocked since A-89 ({@link OutputValidatorMoneyPunctTest}).
      */
     @ParameterizedTest
     @ValueSource(strings = {
         "45 yên", "45 bảng", "45 xu", "45 cắc", "45 bạt", "45 won", "45 each", "45 per unit", "45 apiece", "45 một bộ",
-        "45/bộ", "45 mỗi cái", "45 dô la", "RS 45", "45 bang anh", "SGD forty-five", "CNY fifty", "**45** đô la",
-        "45 (SGD)", "45 – yuan", "SGD - 45", "Rs=45", "45 CHF", "45 NZD", "45 MYR", "45 TWD", "45 RUB", "45 AED",
-        "45 peso", "45 franc", "45 dirham", "45 đôlar", "45 nhân dân tê"
+        "45/bộ", "45 mỗi cái", "45 dô la", "RS 45", "45 bang anh", "45 đôlar", "45 nhân dân tê"
     })
     void documentedGapsAreNotBlocked(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();

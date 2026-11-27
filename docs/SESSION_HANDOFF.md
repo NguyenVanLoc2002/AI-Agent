@@ -1,13 +1,22 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, PR #73
+## Current: OUTPUT-MONEY-PUNCT punctuation inside amounts, codes before number words, more codes, 2026-11-27
+- Worktree `D:/Project_Private/AI-Agent-money`, branch `fix/OUTPUT-MONEY-PUNCT-validator` from `main` `b3f3e20` (OUTPUT-FOREIGN-CURRENCY PR #72 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–5A): DECISIONS_REQUIRED A-89.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (MONEY_UNIT, MONEY_PUNCT, MONEY_PUNCT_BEFORE, CODE_BEFORE, ENGLISH_NUMBER_WORD, more codes; DONG, ENGLISH_UNIT, CURRENCY_WORD narrowed for "đồng ý", "dong co", "Grand i10", "Euro IV"); new `OutputValidatorMoneyPunctTest.java`; `OutputValidatorForeignCurrencyTest.java` (gaps now blocked moved out of its gap list). Docs: A-89, IMPLEMENTATION_PLAN §2a (MONEY-PUNCT DONE).
+- Tests (VERIFIED 2026-11-27, Java 21 target): red run of the new class against `main`'s validator: 122 of 217 failed (amounts and accepted false positives), all pass and gap cases passed there too; `./mvnw -B test -Dtest='OutputValidator*Test'` 1238 tests, 0 failures; mutations 27/27 red under `-Dtest=OutputValidatorMoneyPunctTest`, source restored (sha256 checked); `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2394, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 03:35–03:38 UTC).
+- NOT RUN: E2E (no frontend change); CI.
+- Review (advisory): security-auditor 0H/2M/7L, qa-gatekeeper 2H/3M/4L; fixes, accepted false positives and gaps in A-89.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, merged (PR #73)
 - Branch `docs/P0-T05-batch-g-brief` from `main` `c5dfaad` (PR #71 FE-UI-P3 merged). Decision FE-UI-D06 (6A, A-80).
 - Change (docs only): `docs/ui-implementation/design-briefs/P0-T05-batch-g-staff-orders.md` (G1 awaiting decision, G2 reconciliation; fields checked against `StaffDecisionController`, `OrderReconciliationController` and their services; states, forbidden content per UX-03/UX-08/UX-10; owner questions Q1–Q4 approved 2026-11-27 "theo đề xuất" = Q1A–Q4A, FE-UI-D30..D33); `PROGRESS.md` P0-T05 ticked.
 - Tests: none (docs only). Check: `git diff --stat` docs only.
 - Rollback: revert the commit.
 - Next: owner merges PR #73 (main `b3f3e20` merged in, conflict only here), sends the brief to Claude Design; then P4-T00 (approve the design → `docs/design/specs/60-batch-g-don-hang-nhan-vien.md` + prototypes), then P4.
 
-## Current: OUTPUT-FOREIGN-CURRENCY foreign money in the model's answer, 2026-11-27
+## Previous: OUTPUT-FOREIGN-CURRENCY foreign money in the model's answer, 2026-11-27 — merged (PR #72)
 - Branch `fix/OUTPUT-FOREIGN-CURRENCY-validator` from `main` `eea4140` (OUTPUT-ENGLISH-MONEY PR #69 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-88 (written as A-87, renumbered when merging `main` `c5dfaad`: PR #71 FE-UI-P3 took A-87).
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (FOREIGN_CURRENCY, NAME_SEP, FOREIGN_CODE_BEFORE, `\p{Sc}`); new `OutputValidatorForeignCurrencyTest.java`; `OutputValidatorEnglishMoneyTest.java` (gaps now blocked moved out of its gap list: "45 AUD", "45 baht", "45 đô", "45 đô la", "45 tệ", "45 bảng Anh"). Docs: A-88, IMPLEMENTATION_PLAN §2a (FOREIGN-CURRENCY DONE; OUTPUT-MONEY-PUNCT PROPOSED).
 - Tests (VERIFIED 2026-11-27, Java 21 target): red run of the new class against `main`'s validator: 87 of 192 failed (amounts and accepted false positives), all pass and gap cases passed there too; `./mvnw -B test -Dtest='OutputValidator*Test'` 1034 tests, 0 failures; mutations 20/20 red under `-Dtest=OutputValidatorForeignCurrencyTest`, source restored (sha256 checked); `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2193, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 03:13–03:17 UTC).
