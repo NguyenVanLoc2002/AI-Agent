@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decodeStaffQuote } from '../../api/staff';
 import { axeViolations, fakeBackend, json, networkFailure, problem, type Handler } from '../../test/fakeBackend';
+import { ToastProvider } from '../../app/toast';
 import { StaffWorkspace } from './StaffWorkspace';
 
 // F2 · HO-01 and F3 · HO-02 (UC-05/06, SALES). Synthetic handoffs, conversations and quotes only.
@@ -35,7 +36,8 @@ function setup(routes: Record<string, Handler>) {
     ...routes,
   });
   const onUnauthenticated = vi.fn();
-  const view = render(<StaffWorkspace onUnauthenticated={onUnauthenticated} />);
+  // As in the app: inside the shell's <main> and the signed-in ToastProvider (App.tsx).
+  const view = render(<ToastProvider><main><StaffWorkspace onUnauthenticated={onUnauthenticated} /></main></ToastProvider>);
   return { backend, view, onUnauthenticated, user: userEvent.setup() };
 }
 
@@ -63,8 +65,8 @@ describe('F2 · staff inbox', () => {
     expect(within(rows[1] as HTMLElement).getByText('Bạn đang xử lý')).toBeInTheDocument();
     expect(within(rows[1] as HTMLElement).getByRole('button', { name: /^Mở cuộc trò chuyện/ })).toBeInTheDocument();
     expect(within(rows[2] as HTMLElement).getByText('Nhân viên khác đang xử lý')).toBeInTheDocument();
-    expect(within(rows[2] as HTMLElement).getByText('Tin nhắn chứa dữ liệu nhạy cảm')).toBeInTheDocument();
-    expect(within(rows[2] as HTMLElement).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(rows[2] as HTMLElement).getByRole('button', { name: 'Đã có người nhận' })).toBeDisabled();
+    expect(within(rows[2] as HTMLElement).getByText('Sau khi hoàn tất: mở tiếp vì Tin nhắn chứa dữ liệu nhạy cảm')).toBeInTheDocument();
     expect(within(rows[1] as HTMLElement).getByText('…AAAAAA')).toBeInTheDocument();
     expect(view.container.textContent).not.toContain(CONV);
     expect(await axeViolations(view.container)).toEqual([]);
@@ -100,12 +102,41 @@ describe('F2 · staff inbox', () => {
     expect(count(backend, 'POST', `${LIST}/1/claim`)).toBe(1);
   });
 
-  it('says the claim did not go through (409, taken or busy) and reads the inbox again', async () => {
+  it('on 409 reads the inbox again and, when the row is now another member’s, shows the "taken" toast (F6)', async () => {
+    const { backend, user } = setup({ [`POST ${LIST}/1/claim`]: () => problem(409, 'CONFLICT') });
+    const claimButton = await screen.findByRole('button', { name: /^Nhận xử lý cuộc trò chuyện/ });
+    backend.set(`GET ${LIST}`, () => json(200, [handoff({ handoffId: 1, conversationId: CONV_2, status: 'CLAIMED', mine: false })]));
+    await user.click(claimButton);
+
+    expect(await screen.findByText('Yêu cầu đã có người nhận')).toBeInTheDocument();
+    expect(screen.getByText('Một nhân viên khác vừa nhận yêu cầu này. Danh sách đã được tải lại.')).toBeInTheDocument();
+    expect(count(backend, 'GET', LIST)).toBe(2);
+    expect(screen.queryByText('Cuộc trò chuyện đang bận')).not.toBeInTheDocument();
+  });
+
+  it('on 409 with the row still waiting, shows the "busy" toast instead (one code for both, UX M4)', async () => {
     const { backend, user } = setup({ [`POST ${LIST}/1/claim`]: () => problem(409, 'CONFLICT') });
     await user.click(await screen.findByRole('button', { name: /^Nhận xử lý cuộc trò chuyện/ }));
 
-    expect(await screen.findByText('Chưa nhận được yêu cầu này.')).toBeInTheDocument();
+    expect(await screen.findByText('Cuộc trò chuyện đang bận')).toBeInTheDocument();
+    expect(count(backend, 'GET', LIST)).toBe(2);
+    expect(screen.queryByText('Yêu cầu đã có người nhận')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['gone from the list', [] as unknown[], 'Yêu cầu không còn trong hộp chờ.'],
+    ['now this member’s', [handoff({ handoffId: 1, conversationId: CONV_2, status: 'CLAIMED', mine: true })], null],
+  ])('on 409 with the row %s, shows no toast that contradicts the list (security L-1)', async (_label, rows, notice) => {
+    const { backend, user } = setup({ [`POST ${LIST}/1/claim`]: () => problem(409, 'CONFLICT') });
+    const claimButton = await screen.findByRole('button', { name: /^Nhận xử lý cuộc trò chuyện/ });
+    backend.set(`GET ${LIST}`, () => json(200, rows));
+    await user.click(claimButton);
+
     await waitFor(() => expect(count(backend, 'GET', LIST)).toBe(2));
+    if (notice) expect(await screen.findByText(notice)).toBeInTheDocument();
+    else expect(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ })).toHaveFocus();
+    expect(screen.queryByText('Cuộc trò chuyện đang bận')).not.toBeInTheDocument();
+    expect(screen.queryByText('Yêu cầu đã có người nhận')).not.toBeInTheDocument();
   });
 
   it('sends one claim when the button is pressed twice', async () => {
@@ -121,7 +152,7 @@ describe('F2 · staff inbox', () => {
 
   it('shows a permission message on 403 and hands a 401 back to the app', async () => {
     setup({ [`GET ${LIST}`]: () => problem(403, 'FORBIDDEN') });
-    expect(await screen.findByText('Bạn không có quyền xem hộp chờ nhân viên.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn không có quyền xem trang này')).toBeInTheDocument();
 
     const { onUnauthenticated } = setup({ [`GET ${LIST}`]: () => problem(401, 'UNAUTHENTICATED') });
     await waitFor(() => expect(onUnauthenticated).toHaveBeenCalledTimes(1));
@@ -144,16 +175,20 @@ describe('F3 · held conversation', () => {
     const { view } = await openHeld();
 
     expect(await screen.findByText('Cho tôi giá tốt hơn nếu lấy 50 bộ')).toBeInTheDocument();
-    expect(screen.getAllByText('Khách hàng')).toHaveLength(2);
-    expect(screen.getByText('Trợ lý AI')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Tin nhắn' });
+    expect(within(list).getAllByText(/^Khách hàng:/)).toHaveLength(2);
+    expect(within(list).getByText('Trợ lý AI')).toBeInTheDocument();
     expect(screen.getByText('[tin nhắn đã bị chặn]')).toBeInTheDocument();
-    expect(screen.getByText('Lý do chuyển: Khách yêu cầu nhân viên')).toBeInTheDocument();
+    expect(screen.getByText('Lý do: Khách yêu cầu nhân viên')).toBeInTheDocument();
+    expect(screen.getByText('Trợ lý AI đang tạm dừng')).toBeInTheDocument();
 
-    const box = screen.getByRole('complementary', { name: 'Báo giá của cuộc trò chuyện' });
-    expect(await within(box).findByText('BG-ABCDEFGH · phiên bản 2')).toBeInTheDocument();
+    const box = await screen.findByRole('region', { name: 'Báo giá BG-ABCDEFGH' });
+    expect(within(box).getByText(/^Phiên bản 2 · Hiệu lực đến \d\d\/01\/2099 \d\d:\d\d$/)).toBeInTheDocument();
     expect(within(box).getByText('Đã gửi khách')).toBeInTheDocument();
-    expect(within(box).getByText('2 × 1.290.000 ₫')).toBeInTheDocument();
+    expect(within(box).getByText('Đơn giá 1.290.000 ₫')).toBeInTheDocument();
+    expect(within(box).getAllByText('2.580.000 ₫')).toHaveLength(2);
     expect(within(box).getByText('Tạm tính')).toBeInTheDocument();
+    expect(within(box).getByText('Chỉ xem, không sửa giá tại đây')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Xác nhận/ })).not.toBeInTheDocument();
     expect(await axeViolations(view.container)).toEqual([]);
   });
@@ -161,8 +196,8 @@ describe('F3 · held conversation', () => {
   it('labels an issued quote past its validity as expired, so staff do not repeat a stale price (security L-2)', async () => {
     await openHeld({ [`GET ${QUOTE}`]: () => json(200, { ...STAFF_QUOTE, validUntil: '2020-01-03T08:00:00Z' }) });
 
-    const box = screen.getByRole('complementary', { name: 'Báo giá của cuộc trò chuyện' });
-    expect(await within(box).findByText('Hết hiệu lực')).toBeInTheDocument();
+    const box = await screen.findByRole('region', { name: 'Báo giá BG-ABCDEFGH' });
+    expect(within(box).getByText('Hết hiệu lực')).toBeInTheDocument();
     expect(within(box).queryByText('Đã gửi khách')).not.toBeInTheDocument();
   });
 
@@ -183,65 +218,74 @@ describe('F3 · held conversation', () => {
   it('shows no prices when the price read could not be recorded (503)', async () => {
     await openHeld({ [`GET ${QUOTE}`]: () => problem(503, 'SERVICE_UNAVAILABLE') });
 
-    expect(await screen.findByText(/chưa ghi được nhật ký xem giá nên không hiển thị giá/)).toBeInTheDocument();
+    expect(await screen.findByText('Tạm thời không hiển thị báo giá')).toBeInTheDocument();
+    expect(screen.getByText(/chưa ghi được nhật ký cho lần xem này nên không hiện báo giá/)).toBeInTheDocument();
     expect(screen.getByText('Mã tham chiếu: REQ-1A2B3C4D')).toBeInTheDocument();
     expect(screen.queryByText(/₫/)).not.toBeInTheDocument();
   });
 
-  it('returns to the inbox when the access ended (404 on the messages)', async () => {
+  it('shows "not found" when the access ended (404 on the messages), and goes back to the inbox on request (F6)', async () => {
     const { backend, user } = setup({ [`GET ${MESSAGES}`]: () => problem(404, 'NOT_FOUND') });
     await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
 
-    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Hộp chờ nhân viên' })).toBeInTheDocument();
-    await waitFor(() => expect(count(backend, 'GET', LIST)).toBe(2));
+    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện')).toBeInTheDocument();
+    expect(screen.getByText('Yêu cầu đã hoàn tất hoặc không còn do bạn xử lý. Quay lại hộp chờ để xem yêu cầu khác.')).toBeInTheDocument();
+    expect(screen.getByText(/REQ-1A2B3C4D/)).toBeInTheDocument();
     expect(count(backend, 'GET', QUOTE)).toBe(0);
+    expect(count(backend, 'GET', LIST)).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'Về hộp chờ' }));
+    expect(screen.getByRole('heading', { name: 'Hộp chờ nhân viên' })).toHaveFocus();
+    await waitFor(() => expect(count(backend, 'GET', LIST)).toBe(2));
   });
 
   it('sends a message, says so only after the answer, and reads the messages again', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => new Response(null, { status: 204 }) });
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chào bạn, tôi hỗ trợ tiếp.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chào bạn, tôi hỗ trợ tiếp.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     expect(await screen.findByText('Đã gửi tin cho khách.')).toBeInTheDocument();
     expect(JSON.parse(backend.calls.find((c) => c.method === 'POST' && c.path === MESSAGES)?.body ?? '{}')).toEqual({ text: 'Chào bạn, tôi hỗ trợ tiếp.' });
-    expect(screen.getByLabelText('Tin nhắn cho khách')).toHaveValue('');
+    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('');
     expect(count(backend, 'GET', MESSAGES)).toBe(2);
     expect(count(backend, 'GET', QUOTE)).toBe(1);
   });
 
   it('keeps the text when the conversation is busy (409)', async () => {
     const { user } = await openHeld({ [`POST ${MESSAGES}`]: () => problem(409, 'CONFLICT') });
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chờ tôi chút.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
-    expect(await screen.findByText('Hệ thống đang bận.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tin nhắn cho khách')).toHaveValue('Chờ tôi chút.');
+    expect(await screen.findByText('Cuộc trò chuyện đang bận')).toBeInTheDocument();
+    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('Chờ tôi chút.');
   });
 
   it('never resends a message whose answer did not arrive; it reads the conversation again', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chờ tôi chút.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     expect(await screen.findByText('Chưa xác nhận được tin đã gửi.')).toBeInTheDocument();
     expect(count(backend, 'POST', MESSAGES)).toBe(1);
     expect(count(backend, 'GET', MESSAGES)).toBe(2);
-    expect(screen.getByLabelText('Tin nhắn cho khách')).toHaveValue('Chờ tôi chút.');
+    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('Chờ tôi chút.');
   });
 
-  it('returns to the inbox when the access ended before a send (404)', async () => {
+  it('removes the conversation from the screen when the access ended before a send (404)', async () => {
     const { user } = await openHeld({ [`POST ${MESSAGES}`]: () => problem(404, 'NOT_FOUND') });
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chờ tôi chút.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
-    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện.')).toBeInTheDocument();
+    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện')).toBeInTheDocument();
+    expect(screen.queryByText('Cho tôi giá tốt hơn nếu lấy 50 bộ')).not.toBeInTheDocument();
+    expect(screen.queryByText(/₫/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Về hộp chờ' })).toHaveFocus();
   });
 
   it('reads new messages on request without reading the prices again (decision 2A)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { backend, user } = await openHeld();
-    await screen.findByText('BG-ABCDEFGH · phiên bản 2');
+    await screen.findByRole('region', { name: 'Báo giá BG-ABCDEFGH' });
 
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(count(backend, 'GET', MESSAGES)).toBe(1);
@@ -294,6 +338,7 @@ describe('F3 · held conversation', () => {
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Hoàn tất và mở lại AI' }));
 
     expect(await screen.findByText('Chưa hoàn tất được.')).toBeInTheDocument();
+    expect(screen.queryByText('Cuộc trò chuyện đang bận')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Cuộc trò chuyện/ })).toBeInTheDocument();
   });
 });
@@ -302,11 +347,11 @@ describe('F3 · held conversation', () => {
 describe('EP-10c review fixes', () => {
   it('returns focus to the message box after a send (UX M1)', async () => {
     const { user } = await openHeld({ [`POST ${MESSAGES}`]: () => new Response(null, { status: 204 }) });
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chào bạn.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chào bạn.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     await screen.findByText('Đã gửi tin cho khách.');
-    await waitFor(() => expect(screen.getByLabelText('Tin nhắn cho khách')).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText('Trả lời khách hàng')).toHaveFocus());
   });
 
   it('says what a read on request found (UX M2)', async () => {
@@ -335,8 +380,8 @@ describe('EP-10c review fixes', () => {
   it('asks for an explicit resend when an unknown send is not visible after the read (security M-2)', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
     backend.set(`GET ${MESSAGES}`, () => problem(409, 'CONFLICT'));
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chờ tôi chút.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     expect(await screen.findByText('Chưa xác nhận được tin đã gửi.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Xác nhận gửi lại' })).toBeInTheDocument();
@@ -346,11 +391,11 @@ describe('EP-10c review fixes', () => {
   it('treats an unknown send as delivered when the read shows it (security M-2)', async () => {
     const { backend, user } = await openHeld({ [`POST ${MESSAGES}`]: () => networkFailure() });
     backend.set(`GET ${MESSAGES}`, () => json(200, [message('CUSTOMER', 'a'), message('STAFF', 'Chờ tôi chút.')]));
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Chờ tôi chút.');
-    await user.click(screen.getByRole('button', { name: 'Gửi cho khách' }));
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Chờ tôi chút.');
+    await user.click(screen.getByRole('button', { name: 'Gửi' }));
 
     expect(await screen.findByText('Tin đã có trong cuộc trò chuyện.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Tin nhắn cho khách')).toHaveValue('');
+    expect(screen.getByLabelText('Trả lời khách hàng')).toHaveValue('');
   });
 
   it.each([
@@ -386,18 +431,18 @@ describe('EP-10c review fixes', () => {
 
   it('warns in the resolve dialog that an unsent draft is dropped (UX L2)', async () => {
     const { user } = await openHeld();
-    await user.type(screen.getByLabelText('Tin nhắn cho khách'), 'Bản nháp');
+    await user.type(screen.getByLabelText('Trả lời khách hàng'), 'Bản nháp');
     await user.click(screen.getByRole('button', { name: 'Hoàn tất và mở lại AI' }));
 
     expect(within(screen.getByRole('alertdialog')).getByText('Tin đang soạn chưa được gửi và sẽ không được gửi.')).toBeInTheDocument();
   });
 
-  it('returns to the inbox when the quote read is refused (403, security L-3)', async () => {
+  it('shows "not found" and no messages when the quote read is refused (403, security L-3)', async () => {
     const { user } = setup({ [`GET ${QUOTE}`]: () => problem(403, 'FORBIDDEN') });
     await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
 
-    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Hộp chờ nhân viên' })).toHaveFocus();
+    expect(await screen.findByText('Không tìm thấy cuộc trò chuyện')).toBeInTheDocument();
+    expect(screen.queryByText('Cho tôi giá tốt hơn nếu lấy 50 bộ')).not.toBeInTheDocument();
   });
 
   it('refuses an inbox row with a field it does not know (security L-4)', async () => {
@@ -405,6 +450,31 @@ describe('EP-10c review fixes', () => {
 
     expect(await screen.findByText('Chưa tải được hộp chờ')).toBeInTheDocument();
     expect(screen.queryByText('Khách A')).not.toBeInTheDocument();
+  });
+});
+
+// P3 review UX M1/M3.
+describe('P3 review fixes', () => {
+  it('reads the quote once the messages can be read after a failed first read (UX M1)', async () => {
+    const { backend, user } = setup({ [`GET ${MESSAGES}`]: () => problem(500, 'INTERNAL') });
+    await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
+    expect(await screen.findByText('Chưa tải được tin nhắn')).toBeInTheDocument();
+    expect(count(backend, 'GET', QUOTE)).toBe(0);
+
+    backend.set(`GET ${MESSAGES}`, () => json(200, []));
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByRole('region', { name: 'Báo giá BG-ABCDEFGH' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tải tin mới' }));
+    await waitFor(() => expect(count(backend, 'GET', MESSAGES)).toBe(3));
+    expect(count(backend, 'GET', QUOTE)).toBe(1);
+  });
+
+  it('keeps focus off <body> after a refused claim (UX M3)', async () => {
+    const { user } = setup({ [`POST ${LIST}/1/claim`]: () => problem(409, 'CONFLICT') });
+    await user.click(await screen.findByRole('button', { name: /^Nhận xử lý cuộc trò chuyện/ }));
+
+    await screen.findByText('Cuộc trò chuyện đang bận');
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
   });
 });
 

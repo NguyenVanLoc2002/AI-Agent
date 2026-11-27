@@ -10,8 +10,8 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 | P0 Chốt điều kiện | XONG | 2026-11-26 | 2026-11-26 | A-80, `DECISIONS.md` |
 | P1 Design System | XONG (duyệt + commit `0bac97f`) | 2026-11-26 | 2026-11-26 | `evidence/P1-quality-gate.md`, A-81 |
 | P2 App Layout | XONG (duyệt + commit) | 2026-11-26 | 2026-11-26 | `evidence/P2-quality-gate.md`, A-84 |
-| FE-REACT19 (trước P3) | Đạt gate, đã commit (chưa push) | 2026-11-26 | — | `evidence/FE-REACT19.md` |
-| P3 Batch F vào khung | Chưa bắt đầu | — | — | — |
+| FE-REACT19 (trước P3) | XONG (PR #70 merged) | 2026-11-26 | 2026-11-26 | `evidence/FE-REACT19.md`, A-85 |
+| P3 Batch F vào khung | XONG (duyệt + commit) | 2026-11-26 | 2026-11-27 | `evidence/P3-quality-gate.md`, A-87 |
 | P4 Đơn hàng NV (EP-10e) | GATED (thiết kế) | — | — | — |
 | P5 Batch A–E | BLOCKED (UX-xx, contract) | — | — | — |
 | P6 Chất lượng | Liên tục | — | — | — |
@@ -39,7 +39,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 - [x] P1-T05 `sources.json` + `ds:verify` bắt file chép không khai báo
 - [x] P1-T06 `breakpoints.ts`
 - [x] P1-T07 `foundation.css` + `config/foundationCss.test.ts`
-- [-] P1-T08 Định dạng tiền/thời gian — ngoài phạm vi P1 được duyệt, chuyển P3
+- [x] P1-T08 Định dạng tiền/thời gian — rà trong P3, không cần sửa (`evidence/P3-quality-gate.md` §6)
 - [-] P1-T09 Trang tham chiếu — không làm
 
 ## P2 · App Layout & hạ tầng
@@ -60,14 +60,17 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 - [x] P2-T14 Playwright `e2e:shell`: 390/1024/1279/1280/1440, forced colors, bundle dưới CSP
 
 ## P3 · Batch F vào khung
-- [ ] P3-T01 E7 Đăng nhập
-- [ ] P3-T02 F5 Công tắc AI
-- [ ] P3-T03 F2 Hộp chờ
-- [ ] P3-T04 F3 Hội thoại
-- [ ] P3-T05 F4 Inspector
-- [ ] P3-T06 F1 Chat khách
-- [ ] P3-T07 Gỡ cầu nối tạm
-- [ ] P3-T08 Bảng lệch thiết kế
+- [x] P3-T01 E7 Đăng nhập
+- [x] P3-T02 F5 Công tắc AI
+- [x] P3-T03 F2 Hộp chờ (409 → toast, D22)
+- [x] P3-T04 F3 Hội thoại (breadcrumb, mất quyền tại chỗ, D23–D24)
+- [x] P3-T05 F4 Inspector (không chép ToolCall, D26)
+- [x] P3-T06 F1 Chat khách (header + ô soạn dính đáy, D25)
+- [x] P3-T07 Gỡ cầu nối tạm — không còn gì để gỡ (đã hết từ P2)
+- [x] P3-T08 Bảng lệch thiết kế — `evidence/P3-quality-gate.md` §5
+- [x] Dư P2: focus sau đăng xuất/hết phiên/"Thử lại" (D28); khung đã đăng nhập dưới CSP (4 test bundle)
+- [x] P1-T08 rà `money.ts`/thời gian — không sửa, ghi ở bằng chứng §6
+- [x] Chủ dự án duyệt quality gate P3 (2026-11-27, "theo đề xuất")
 
 ## P4 · Đơn hàng NV (GATED)
 - [!] P4-T00 Thiết kế batch G được duyệt
@@ -98,10 +101,10 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 ## P6 · Cổng chất lượng mỗi phase
 | Kiểm tra | P1 | P2 | P3 | P4 |
 |---|---|---|---|---|
-| typecheck / unit / build / ds:verify | [x] 261 test | [x] 294 test | [ ] | [ ] |
-| axe mọi trạng thái | [x] jsdom, không contrast | [x] jsdom | [ ] | [ ] |
-| bàn phím | [x] component | [x] skip link, focus | [ ] | [ ] |
-| responsive | NOT RUN (jsdom; P2-T14) | [x] Playwright mock 9/9 | [ ] | [ ] |
-| khớp thiết kế | — | [x] khung (page: P3) | [ ] | [ ] |
-| E2E backend thật | NOT RUN (D13: thiếu `APAS_DEMO_PASSWORD`) | NOT RUN (như P1) | [ ] | [ ] |
-| review advisory | [x] sec 0H/0M/4L, UX 2H/7M/5L | [x] sec 0H/3M/5L, UX 0H/7M/6L | [ ] | [ ] |
+| typecheck / unit / build / ds:verify | [x] 261 test | [x] 294 test | [x] 312 test | [ ] |
+| axe mọi trạng thái | [x] jsdom, không contrast | [x] jsdom | [x] jsdom (test cũ + mới) | [ ] |
+| bàn phím | [x] component | [x] skip link, focus | [x] focus F3/F2/F5, đăng xuất, hết phiên | [ ] |
+| responsive | NOT RUN (jsdom; P2-T14) | [x] Playwright mock 9/9 | [x] e2e:shell 13/13 + ảnh 390–1440 | [ ] |
+| khớp thiết kế | — | [x] khung (page: P3) | [x] F1–F5, E7; lệch có lý do §5 | [ ] |
+| E2E backend thật | NOT RUN (D13: thiếu `APAS_DEMO_PASSWORD`) | NOT RUN (như P1) | NOT RUN (như P1) | [ ] |
+| review advisory | [x] sec 0H/0M/4L, UX 2H/7M/5L | [x] sec 0H/3M/5L, UX 0H/7M/6L | [x] sec 0H/1M/3L, UX 0H/3M/10L | [ ] |

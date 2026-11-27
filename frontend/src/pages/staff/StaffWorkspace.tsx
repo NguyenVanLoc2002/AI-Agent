@@ -13,12 +13,14 @@ interface Props {
 export function StaffWorkspace({ onUnauthenticated }: Props) {
   const [open, setOpen] = useState<Handoff | null>(null);
   const [notice, setNotice] = useState<InboxNotice | null>(null);
+  /** Back from a conversation: the inbox starts focus at its heading. */
+  const [returned, setReturned] = useState(false);
 
   if (open) {
     return (
       <StaffConversationPage key={open.handoffId} handoff={open} onUnauthenticated={onUnauthenticated}
-        onLeave={(next) => { setNotice(next); setOpen(null); }} />
+        onLeave={(next) => { setNotice(next); setReturned(true); setOpen(null); }} />
     );
   }
-  return <StaffInboxPage notice={notice} onNotice={setNotice} onOpen={(h) => { setNotice(null); setOpen(h); }} onUnauthenticated={onUnauthenticated} />;
+  return <StaffInboxPage focusHeading={returned} notice={notice} onNotice={setNotice} onOpen={(h) => { setNotice(null); setOpen(h); }} onUnauthenticated={onUnauthenticated} />;
 }

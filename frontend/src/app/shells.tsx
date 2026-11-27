@@ -1,17 +1,31 @@
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AppHeader, Button, Sidebar } from '../design-system';
+import { AppHeader, Badge, Button, IconButton, Sidebar } from '../design-system';
 import { below } from './breakpoints';
-import { APP_NAME, type ScreenRoute } from './routes';
+import type { ScreenRoute } from './routes';
 import { useMediaQuery } from './useMediaQuery';
 
 // FE-UI-P2 (P2-T04, P2-T05, P2-T13). Staff shell SH-01 as the approved batch F artboards (F2–F5): Sidebar with the
 // role's group as section title, AppHeader with breadcrumb group › screen, main area that scrolls by itself, page
 // body .ap-page. Below 1280 px the sidebar starts collapsed (docs/design/specs/01 T13; FE-UI-D08); the user can
-// still open it. Staff widths below 1024 px have no artboard (PROPOSED). The customer shell keeps the EP-10b layout:
-// no sidebar, one centred column that works at 390 px (F1).
+// still open it. Staff widths below 1024 px have no artboard (PROPOSED). The customer shell is the F1 artboard
+// header (FE-UI-P3): brand, "Tư vấn phụ tùng · Thử nghiệm", the chat state badge given by the page, and sign-out;
+// no sidebar, one centred column that works at 390 px.
 
 export const MAIN_ID = 'noi-dung-chinh';
+
+// FE-UI-P3 (P3-T04): a view inside a screen that has no address of its own (F3 opens from F2 in memory, D04) adds
+// one breadcrumb level, as the F3 artboard "Kinh doanh › Hộp chờ nhân viên › HT-3F2A". Outside a staff shell
+// (tests, customer shell) it does nothing.
+const ExtraCrumb = createContext<(label: string | null) => void>(() => {});
+
+export function useExtraCrumb(label: string | null) {
+  const set = useContext(ExtraCrumb);
+  useEffect(() => {
+    set(label);
+    return () => set(null);
+  }, [set, label]);
+}
 
 interface ShellProps {
   /** Role label as people read it; the session has no person name. */
@@ -36,9 +50,10 @@ export function StaffShell({ routes, current, group, userLabel, onSignOut, child
   const collapsed = choice ?? narrow;
   const main = useRef<HTMLElement>(null);
   useFocusOnRouteChange(main);
+  const [extra, setExtra] = useState<string | null>(null);
 
   const sections = [{ title: group, items: routes.map((r) => ({ key: r.key, label: r.label, icon: r.icon ?? 'circle' })) }];
-  const breadcrumb = [{ label: group }, ...(current ? [{ label: current.label }] : [])];
+  const breadcrumb = [{ label: group }, ...(current ? [{ label: current.label }] : []), ...(current && extra ? [{ label: extra }] : [])];
 
   return (
     <div className="ap-shell">
@@ -50,22 +65,47 @@ export function StaffShell({ routes, current, group, userLabel, onSignOut, child
         <AppHeader breadcrumb={breadcrumb} actions={<SignOutButton onSignOut={onSignOut} />}
           user={{ name: userLabel, initials: initials(userLabel) }} />
         <main id={MAIN_ID} ref={main} tabIndex={-1} aria-label="Nội dung chính" className="ap-shell__main">
-          <div className="ap-page">{children}</div>
+          <div className="ap-page"><ExtraCrumb.Provider value={setExtra}>{children}</ExtraCrumb.Provider></div>
         </main>
       </div>
     </div>
   );
 }
 
-export function CustomerShell({ userLabel, onSignOut, children }: ShellProps) {
+/** The chat state shown in the customer header (F1: "Trợ lý AI đang trả lời", "Chờ nhân viên"). */
+export interface CustomerStatus { tone: 'success' | 'warning' | 'info'; label: string }
+
+const CustomerStatusContext = createContext<(status: CustomerStatus | null) => void>(() => {});
+
+export function useCustomerStatus(status: CustomerStatus | null) {
+  const set = useContext(CustomerStatusContext);
+  const tone = status?.tone ?? null;
+  const label = status?.label ?? null;
+  useEffect(() => {
+    set(tone && label ? { tone, label } : null);
+    return () => set(null);
+  }, [set, tone, label]);
+}
+
+export function CustomerShell({ onSignOut, children }: ShellProps) {
   const main = useRef<HTMLElement>(null);
   useFocusOnRouteChange(main);
+  const [status, setStatus] = useState<CustomerStatus | null>(null);
   return (
     <div className="ap-customer">
       <SkipLink target={main} />
-      <AppHeader breadcrumb={[{ label: APP_NAME }]} actions={<SignOutButton onSignOut={onSignOut} />}
-        user={{ name: userLabel, initials: initials(userLabel) }} style={{ padding: '0 var(--space-4)' }} />
-      <main id={MAIN_ID} ref={main} tabIndex={-1} aria-label="Nội dung chính" className="ap-page--customer">{children}</main>
+      <header className="ap-customer__header">
+        <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <span style={{ font: 'var(--type-card-title)', color: 'var(--text-primary)' }}>AutoParts Agent</span>
+          <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>Tư vấn phụ tùng · Thử nghiệm</span>
+        </div>
+        {status && <Badge tone={status.tone} shape="pill" size="sm">{status.label}</Badge>}
+        {/* Not on the F1 artboard, which has no account controls; an icon keeps the 390 px header on one line. */}
+        <IconButton icon="log-out" label="Đăng xuất" onClick={onSignOut} />
+      </header>
+      <main id={MAIN_ID} ref={main} tabIndex={-1} aria-label="Nội dung chính" className="ap-page--customer">
+        <CustomerStatusContext.Provider value={setStatus}>{children}</CustomerStatusContext.Provider>
+      </main>
     </div>
   );
 }

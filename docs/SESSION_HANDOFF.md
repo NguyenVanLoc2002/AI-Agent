@@ -1,5 +1,13 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
+## Current (frontend session): FE-UI-P3 batch F screens in the new shell, 2026-11-26 — approved 2026-11-27, committed locally
+- Worktree `D:/Project_Private/AI-Agent-fe`, branch `feat/FE-UI-P3-batch-f-shell` from `main` `eea4140` (FE-REACT19 PR #70 merged). Decisions A-87, FE-UI-D22–D29.
+- Change (frontend only): E7 login, F5 kill switch, F2 inbox, F3 conversation, F4 inspector, F1 customer chat and quote card re-laid-out to their artboards; `src/app/shells.tsx` (`useExtraCrumb`, customer header with `useCustomerStatus`, sticky composer); focus after sign-out/expiry/boot error; `foundation.css`; tests; `e2e-shell/bundle.spec.ts` signed-in screens under CSP. Evidence: `docs/ui-implementation/evidence/P3-quality-gate.md` (gate, deviation table §5, money/time review §6, reviews §7).
+- Tests (VERIFIED 2026-11-26T11:14Z): typecheck 0; vitest 312 passed (twice); build + verify-no-mocks 0; ds:verify 73; npm audit 0; e2e:shell 13 passed. NOT RUN: `npm run e2e` against the jar (no `APAS_DEMO_PASSWORD`); lint (not configured).
+- Review (advisory): security 0H/1M/3L, UX 0H/3M/10L; M fixed with tests (mutation red); L fixed or recorded.
+- Rollback: revert the commit; no backend, migration or data change.
+- Next: owner pushes and opens the PR (A-87 re-checked free on `main` 2026-11-27). After P3: P0-T05 batch G brief for EP-10e (P4), W-BIZ, FE-UI-Q01 waits for Claude Design.
+
 ## Current: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26
 - Branch `fix/OUTPUT-ENGLISH-MONEY-validator` from `main` `aef1905` (OUTPUT-ORDER-CLAIM-REST PR #67 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-86 (written as A-84; PR #68 FE-UI-P2 took A-84 and PR #70 FE-REACT19 took A-85, renumbered when merging `main` `29840af` and `22a626c`).
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (CURRENCY_WORD, currency symbols and codes before and after a number, English price words, English teens and tens); new `OutputValidatorEnglishMoneyTest.java`. Docs: A-86, IMPLEMENTATION_PLAN §2a (ENGLISH-MONEY DONE; OUTPUT-FOREIGN-CURRENCY PROPOSED).

@@ -5,7 +5,7 @@ import { callApi, demoPassword, ensureAiOn, expectProblem, loginAnswer, readAiSw
 // FE-E2E (A-71) · sign-in, missing session, CSRF and sign-out (ADR-010) through the real backend.
 
 const SESSION_EXPIRED = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
-const BAD_CREDENTIALS = 'Tên đăng nhập hoặc mật khẩu không đúng.';
+const BAD_CREDENTIALS = 'Tài khoản hoặc mật khẩu không đúng';
 // A constant, not derived from the real password, so a failing assertion can never print it (review
 // security M3). Used on a customer account, so a future login lockout (UX-12) cannot lock out ops-1, which
 // the clean-up needs (review security L6, QA M6).
