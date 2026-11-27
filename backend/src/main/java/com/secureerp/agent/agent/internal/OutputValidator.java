@@ -75,14 +75,36 @@ final class OutputValidator {
      */
     private static final String CURRENCY_WORD = "(?:(?:us|u\\.s\\.?|american|australian|canadian|singapore|hk)\\s*)?"
             + "(?:dollars?|bucks?|euros?(?!\\s*\\d)|eur|cents?|gbp|yen|jpy)(?!\\p{L})";
+    /**
+     * OUTPUT-FOREIGN-CURRENCY (A-87, 1A, 2A): Vietnamese names of foreign money, other currency names and codes, as
+     * whole words after a number. Not "đô thị" (city), "đô vật", "đô đốc", "tệ nạn", "tệ hại"; "bảng" only with "Anh"
+     * ("2 bảng mạch", "Bảng 2"), "yên" only with "Nhật" ("2 yên xe"); not "xu" ("xu hướng", "xu páp"), "cắc", "bạt"
+     * ("bạt phủ xe"), "won" (English verb). Without diacritics only as typed in ASCII ("45 do la", "45 nhan dan te"),
+     * not on the stripped copy, where "2 đó là" would read "2 do la". "Rs" only with that case: "RS 6" is a car model.
+     * Review: hyphens, brackets and runs of spaces between the words ("nhân-dân-tệ", "bảng (Anh)"); "Anh" only with
+     * an upper-case A, since "anh" addresses the customer ("gửi 2 bảng anh tham khảo"); not "tệ hơn/quá/lắm/nhất"
+     * (bad); possessive spaces around the hyphen (a long run of spaces after "đô").
+     */
+    private static final String NAME_SEP = "[\\s\\-()]{1,3}+";
+    private static final String FOREIGN_CURRENCY = "(?:đô\\s*+-?\\s*+la|đôla|do\\s*+-?\\s*+la|dola"
+            + "|đô(?!\\s*(thị|thi|vật|vat|đốc|doc)(?!\\p{L}))"
+            + "|(?:nhân|nhan)" + NAME_SEP + "(?:dân|dan)" + NAME_SEP + "(?:tệ|te)"
+            + "|tệ(?!\\s*(nạn|nan|hại|hai|hơn|hon|quá|qua|lắm|lam|nhất|nhat)(?!\\p{L}))"
+            + "|(?:bảng|bang)" + NAME_SEP + "(?-i:Anh|ANH)"
+            + "|(?:yên|yen)" + NAME_SEP + "(?:nhật|nhat)|rúp|rup|ringgit|rupees?|yuan|baht"
+            + "|aud|sgd|cny|rmb|thb|krw|hkd|cad|inr|quid|(?-i:Rs)\\.?)(?!\\p{L})";
+    /** OUTPUT-FOREIGN-CURRENCY (A-87, 2A): the codes before a number ("SGD 45", "Rs. 45"). */
+    private static final String FOREIGN_CODE_BEFORE = "aud|sgd|cny|rmb|thb|krw|hkd|cad|inr|quid|(?-i:Rs)\\.?";
     private static final Pattern MONEY = Pattern.compile(
             // Possessive run (A-76 review: "1-1-1-…" took 0.5 s with backtracking through every unit).
-            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|£|¥|₹|₩|¢|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
-                    + ENGLISH_UNIT + "|" + CURRENCY_WORD
+            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|£|¥|₹|₩|¢|\\p{Sc}|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
+                    + ENGLISH_UNIT + "|" + CURRENCY_WORD + "|" + FOREIGN_CURRENCY
                     // A-76 review security M5: "tr"/"k" as whole words ("\\b" is ASCII-only, so "2 trục", "4 kỳ" are
                     // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
                     + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
-                    + "|((₫|\\$|€|£|¥|₹|₩|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?)(?!\\p{L}))\\s*:?\\s*\\d)"
+                    // A-87 review security L5: any currency symbol (₽, ฿, ₱…) before or after a digit.
+                    + "|((₫|\\$|€|£|¥|₹|₩|\\p{Sc}|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?|" + FOREIGN_CODE_BEFORE
+                    + ")(?!\\p{L}))\\s*:?\\s*\\d)"
                     // A-86 (2A): English price words as whole words, not after a hyphen ("low-cost") nor before a
                     // hyphen and a letter ("cost-effective"; "Cost-45" is blocked), then a digit in the same sentence
                     // as below, within 40 characters (English sentences run longer, review QA M2). "Discount 10%" is
@@ -123,7 +145,7 @@ final class OutputValidator {
     private static final Pattern MONEY_WORDS = Pattern.compile(
             "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*" + SEP
                     + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|" + CURRENCY_WORD
-                    + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
+                    + "|" + FOREIGN_CURRENCY + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
                     + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
                     + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
                     // A-86 review security M: the English price words of MONEY too ("It costs forty-five").

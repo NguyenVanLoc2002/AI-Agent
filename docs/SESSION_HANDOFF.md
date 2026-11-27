@@ -1,6 +1,15 @@
 # Session handoff — AutoParts Agent Sandbox (APAS)
 
-## Current: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26
+## Current: OUTPUT-FOREIGN-CURRENCY foreign money in the model's answer, 2026-11-27
+- Branch `fix/OUTPUT-FOREIGN-CURRENCY-validator` from `main` `eea4140` (OUTPUT-ENGLISH-MONEY PR #69 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-87.
+- Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (FOREIGN_CURRENCY, NAME_SEP, FOREIGN_CODE_BEFORE, `\p{Sc}`); new `OutputValidatorForeignCurrencyTest.java`; `OutputValidatorEnglishMoneyTest.java` (gaps now blocked moved out of its gap list: "45 AUD", "45 baht", "45 đô", "45 đô la", "45 tệ", "45 bảng Anh"). Docs: A-87, IMPLEMENTATION_PLAN §2a (FOREIGN-CURRENCY DONE; OUTPUT-MONEY-PUNCT PROPOSED).
+- Tests (VERIFIED 2026-11-27, Java 21 target): red run of the new class against `main`'s validator: 87 of 192 failed (amounts and accepted false positives), all pass and gap cases passed there too; `./mvnw -B test -Dtest='OutputValidator*Test'` 1034 tests, 0 failures; mutations 20/20 red under `-Dtest=OutputValidatorForeignCurrencyTest`, source restored (sha256 checked); `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2193, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 03:13–03:17 UTC).
+- NOT RUN: E2E (no frontend change); CI.
+- Review (advisory): security-auditor 0H/3M/5L, qa-gatekeeper 2H/3M/3L (all test additions); fixes, accepted false positives and gaps in A-87; punctuation between number and unit, a code before number words and other codes: OUTPUT-MONEY-PUNCT.
+- Rollback: revert the commit; no migration, no data change.
+- Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-MONEY-PUNCT, OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
+
+## Previous: OUTPUT-ENGLISH-MONEY English amounts in the model's answer, 2026-11-26 — merged (PR #69)
 - Branch `fix/OUTPUT-ENGLISH-MONEY-validator` from `main` `aef1905` (OUTPUT-ORDER-CLAIM-REST PR #67 merged). Owner 2026-11-26 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-86 (written as A-84; PR #68 FE-UI-P2 took A-84 and PR #70 FE-REACT19 took A-85, renumbered when merging `main` `29840af` and `22a626c`).
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (CURRENCY_WORD, currency symbols and codes before and after a number, English price words, English teens and tens); new `OutputValidatorEnglishMoneyTest.java`. Docs: A-86, IMPLEMENTATION_PLAN §2a (ENGLISH-MONEY DONE; OUTPUT-FOREIGN-CURRENCY PROPOSED).
 - Tests (VERIFIED 2026-11-26, Java 21 target): red run of the new class against `main`'s validator: 81 of 138 failed (76 amounts, 5 accepted false positives), all pass and gap cases passed there too; targeted tests exit 0 three runs in a row; after the review fixes 27/27 applied and red under `-Dtest=OutputValidatorEnglishMoneyTest`; `cd backend && ./mvnw -B clean verify` exit 0, BUILD SUCCESS (surefire 2007, failsafe 324 with 1 skipped pre-existing: SEC03-F2, sec05-artifact-scan 1; 09:40–09:44 UTC).
