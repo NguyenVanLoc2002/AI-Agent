@@ -6,14 +6,26 @@ import {
 import { ApiError } from '../api/client';
 import { readQuote } from '../api/quotes';
 import { conversationMemory } from '../app/conversationMemory';
+import { PageState } from '../app/PageState';
+import { useCustomerStatus, type CustomerStatus } from '../app/shells';
 import { failureText, formatDateTime, referenceText } from '../app/texts';
-import { AIComposer, Alert, Button, ChatMessage, Icon, Skeleton } from '../design-system';
+import { AIComposer, Alert, Button, ChatMessage, Icon } from '../design-system';
 import { QuotePanel, type QuoteState } from './chat/QuotePanel';
 
 // F1 · CH-01..CH-04 customer chat over the local channel simulator (UC-01, UC-03/04 customer side, D-06;
 // docs/design/specs/50-batch-f-man-hinh-thieu.md, prototypes F1-*.dc.html as behavior reference only).
 // The backend owns every decision: who answers, whether a message is stored, whether a quote exists.
 // This page shows what the backend returns and never shows why a conversation was handed off (A-14).
+// FE-UI-P3: layout and copy of the approved artboards F1-Chat, F1-Handoff and F1-SendStates (390 px): the state badge
+// sits in the customer header, the composer stays at the bottom of the screen.
+
+/** Header badge per state (F1-Chat "Trợ lý AI đang trả lời", F1-Handoff "Chờ nhân viên"). */
+const STATUS: Record<CustomerState, CustomerStatus> = {
+  BOT: { tone: 'success', label: 'Trợ lý AI đang trả lời' },
+  WAITING_STAFF: { tone: 'warning', label: 'Chờ nhân viên' },
+  // Not drawn: F1-Handoff shows the "staff joined" divider under the same badge; this names the new state.
+  STAFF: { tone: 'info', label: 'Nhân viên đang hỗ trợ' },
+};
 
 /** A-68 (4A): while staff handle the conversation, the page reads it again this often (visible tab only). */
 export const STAFF_POLL_MS = 5_000;
@@ -58,6 +70,7 @@ export function CustomerChatPage({ customerLinked, onUnauthenticated }: Props) {
   /** UX review M1: only a newly arrived bot or staff message is announced, not the whole list. */
   const [announcement, setAnnouncement] = useState('');
   const seen = useRef<number | null>(null);
+  useCustomerStatus(phase.kind === 'ready' ? STATUS[state] : null);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -213,18 +226,17 @@ export function CustomerChatPage({ customerLinked, onUnauthenticated }: Props) {
     }
   }
 
+  const staff = state !== 'BOT';
   return (
-    <div ref={container} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: 560, width: '100%', margin: '0 auto' }}>
-      <div>
-        <h1 style={{ margin: 0, font: 'var(--type-section-title)' }}>Tư vấn phụ tùng</h1>
-        <p style={{ margin: '2px 0 0', font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>Kênh chat mô phỏng · Thử nghiệm</p>
-      </div>
+    <div ref={container} style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      {/* The F1 artboard has no page title (the brand is in the header); the page heading is for screen readers. */}
+      <h1 className="ap-visually-hidden">Tư vấn phụ tùng</h1>
       <PhaseView phase={phase} onRetry={() => void start()} />
       {phase.kind === 'ready' && (
         <>
           <StateBanner state={state} />
           <p role="status" style={VISUALLY_HIDDEN}>{announcement}</p>
-          <ol aria-label="Tin nhắn" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <ol aria-label="Tin nhắn" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {messages.length === 0 && !sending && (
               <li style={{ font: 'var(--type-body)', color: 'var(--text-secondary)', textAlign: 'center' }}>
                 Hãy nhắn mã OE, mã phụ tùng hoặc mô tả phụ tùng bạn cần.
@@ -237,11 +249,16 @@ export function CustomerChatPage({ customerLinked, onUnauthenticated }: Props) {
           </ol>
           {quote && <QuotePanel key={quote.quoteRef} quote={quote} onQuoteChange={(next) => setQuote(next)} onUnauthenticated={onUnauthenticated}
             onHandedOff={() => { refresh(phase.conversationId).catch(() => setState('WAITING_STAFF')); }} />}
-          {notice && <SendNoticeView notice={notice} onResend={() => void send(pendingEvent.current?.text ?? draft)} sending={sending} onDismiss={() => setNotice(null)} />}
-          <AIComposer value={draft} onChange={setDraft} onSubmit={(text) => void send(text)} busy={sending}
-            maxLength={MAX_MESSAGE_CHARS} label="Nội dung tin nhắn" placeholder="Nhập tin nhắn…"
-            disclaimer="Tối đa 2.000 ký tự. Không gửi mật khẩu, số thẻ hay thông tin cá nhân không cần thiết." />
-          {sending && state !== 'BOT' && <p role="status" style={{ margin: 0, font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>Đang gửi…</p>}
+          <div className="ap-customer__composer">
+            {notice && <SendNoticeView notice={notice} onResend={() => void send(pendingEvent.current?.text ?? draft)} sending={sending} onDismiss={() => setNotice(null)} />}
+            <AIComposer value={draft} onChange={setDraft} onSubmit={(text) => void send(text)} busy={sending}
+              maxLength={MAX_MESSAGE_CHARS} label="Nội dung tin nhắn"
+              placeholder={staff ? 'Nhắn cho nhân viên tư vấn…' : 'Nhập mã OE, số VIN hoặc câu hỏi…'}
+              disclaimer={sending ? 'Đang gửi… Nút gửi khóa cho đến khi có phản hồi.'
+                : staff ? 'Tối đa 2.000 ký tự. Tin nhắn được lưu cho nhân viên; trợ lý AI không trả lời cho đến khi nhân viên hoàn tất.'
+                  : 'Tối đa 2.000 ký tự. Không gửi mật khẩu, số thẻ hay thông tin cá nhân không cần thiết.'} />
+            {sending && state !== 'BOT' && <p role="status" style={VISUALLY_HIDDEN}>Đang gửi…</p>}
+          </div>
         </>
       )}
     </div>
@@ -252,22 +269,20 @@ const VISUALLY_HIDDEN = { position: 'absolute', width: 1, height: 1, margin: -1,
 
 function PhaseView({ phase, onRetry }: { phase: Phase; onRetry: () => void }) {
   if (phase.kind === 'starting') {
-    return <Skeleton lines={3} />;
+    return <PageState kind="loading" loadingLabel="Đang mở cuộc trò chuyện" />;
   }
   if (phase.kind === 'not-linked') {
     return (
-      <Alert tone="neutral" icon="lock" title="Bạn chưa dùng được kênh chat này.">
-        Tài khoản của bạn chưa được liên kết với một khách hàng. Vui lòng liên hệ cửa hàng để được hỗ trợ.
-      </Alert>
+      <PageState kind="forbidden" title="Bạn chưa dùng được kênh chat này"
+        description="Tài khoản của bạn chưa được liên kết với một khách hàng. Vui lòng liên hệ cửa hàng để được hỗ trợ." />
     );
   }
   if (phase.kind === 'failed') {
+    const timeout = phase.error instanceof ApiError && phase.error.kind === 'timeout';
     return (
-      <Alert tone="error" title="Chưa mở được cuộc trò chuyện"
-        action={<Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={onRetry}>Thử lại</Button>}>
-        {failureText(phase.error)}
-        {referenceText(phase.error) && <span style={{ display: 'block' }}>{referenceText(phase.error)}</span>}
-      </Alert>
+      <PageState kind={timeout ? 'timeout' : 'error'} error={phase.error} title="Chưa mở được cuộc trò chuyện"
+        description={failureText(phase.error)}
+        action={<Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={onRetry}>Thử lại</Button>} />
     );
   }
   return null;
@@ -301,7 +316,8 @@ function messageTime(sentAt: Date | null): string | undefined {
 function MessageView({ message }: { message: Message }) {
   const time = messageTime(message.sentAt);
   if (message.direction === 'CUSTOMER') {
-    return <ChatMessage role="user" time={time}>{message.text}</ChatMessage>;
+    // F1 artboard author "Bạn": the user bubble shows no author, so it is given to screen readers.
+    return <ChatMessage role="user" time={time}><span className="ap-visually-hidden">Bạn: </span><span>{message.text}</span></ChatMessage>;
   }
   if (message.direction === 'BOT') {
     return <ChatMessage role="assistant" time={time}>{message.text}</ChatMessage>;
@@ -326,12 +342,12 @@ function MessageView({ message }: { message: Message }) {
 function SendNoticeView({ notice, onResend, sending, onDismiss }: { notice: SendNotice; onResend: () => void; sending: boolean; onDismiss: () => void }) {
   switch (notice.kind) {
     case 'busy':
-      return <Alert tone="warning" title="Lượt trước chưa xong" onDismiss={onDismiss}>Vui lòng chờ câu trả lời rồi gửi tiếp. Nội dung bạn đang gõ vẫn được giữ.</Alert>;
+      return <Alert tone="info" icon="clock" title="Tin trước đang được xử lý" onDismiss={onDismiss}>Vui lòng chờ câu trả lời rồi gửi tiếp. Nội dung bạn đang gõ vẫn được giữ.</Alert>;
     case 'rate':
-      return <Alert tone="warning" title="Bạn gửi quá nhiều tin" onDismiss={onDismiss}>Vui lòng thử lại sau ít phút. Chưa có tin nào bị mất.</Alert>;
+      return <Alert tone="warning" title="Bạn đã gửi nhiều yêu cầu trong thời gian ngắn" onDismiss={onDismiss}>Vui lòng thử lại sau ít phút. Chưa có tin nào bị mất.</Alert>;
     case 'unknown':
       return (
-        <Alert tone="warning" title="Chưa nhận được phản hồi"
+        <Alert tone="warning" icon="timer-off" title="Chưa nhận được phản hồi"
           action={<Button variant="secondary" size="sm" iconLeft="refresh-cw" loading={sending} onClick={onResend}>Gửi lại</Button>}>
           Tin của bạn có thể đã được ghi nhận. Bấm Gửi lại để gửi lại đúng tin đó; hệ thống không xử lý trùng một tin.
           {notice.reference && <span style={{ display: 'block' }}>{notice.reference}</span>}

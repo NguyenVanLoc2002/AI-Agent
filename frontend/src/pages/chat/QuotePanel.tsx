@@ -140,24 +140,39 @@ export function QuotePanel({ quote, onQuoteChange, onHandedOff, onUnauthenticate
   const card = quote.card && quote.status === 'ISSUED' ? quote.card : null;
   const changed = notice?.kind === 'changed';
 
+  // F1-Chat / F1-QuoteStates card: border-card, shadow-xs, padding 16, gap 12; title and caption left, status badge right.
+  // A changed quote puts its notice above the title, as the artboard.
+  const reference = notice?.kind === 'pending' || notice?.kind === 'unknown';
   return (
-    <section ref={section} tabIndex={-1} aria-label={`Báo giá ${quote.quoteRef}`} style={{ outline: 'none',  background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-card)',
-      borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, font: 'var(--type-card-title)' }}>Báo giá <span className="ap-code">{quote.quoteRef}</span></h2>
-        {label && <Badge tone={TONES[quote.status] ?? 'neutral'} shape="pill">{label}</Badge>}
+    <section ref={section} tabIndex={-1} aria-label={`Báo giá ${quote.quoteRef}`} style={{ outline: 'none', background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-card)',
+      borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xs)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      {changed && notice && <QuoteNotice notice={notice} quote={quote} />}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-0-5)', minWidth: 0 }}>
+          <h2 style={{ margin: 0, font: 'var(--type-card-title)' }}>Báo giá <span className="ap-code">{quote.quoteRef}</span></h2>
+          <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
+            Phiên bản {card ? card.version : quote.version}{card ? ` · Hiệu lực đến ${formatDateTime(card.validUntil)}` : ''}
+          </span>
+        </div>
+        {label && <Badge tone={TONES[quote.status] ?? 'neutral'} shape="pill" size="sm">{label}</Badge>}
       </div>
 
-      {notice && <QuoteNotice notice={notice} quote={quote} />}
-
-      {card ? <CardBody card={card} /> : (
-        <p style={{ margin: 0, font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>Phiên bản {quote.version}</p>
+      {notice && !changed && <QuoteNotice notice={notice} quote={quote} />}
+      {reference && (
+        <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
+          Mã tham chiếu: <span className="ap-code">{quote.quoteRef} · phiên bản {quote.version}</span>
+        </span>
       )}
 
+      {card && <CardBody card={card} />}
+
       {card && (
-        <Button fullWidth loading={busy === 'confirm'} disabled={busy !== null} onClick={() => void confirm(card)}>
+        <Button fullWidth iconLeft="square-check" loading={busy === 'confirm'} disabled={busy !== null} onClick={() => void confirm(card)}>
           {busy === 'confirm' ? 'Đang gửi xác nhận…' : changed ? `Xác nhận phiên bản ${card.version}` : 'Xác nhận báo giá'}
         </Button>
+      )}
+      {!card && notice?.kind === 'expired' && (
+        <Button fullWidth iconLeft="square-check" disabled>Xác nhận báo giá</Button>
       )}
 
       {!card && (notice?.kind === 'pending' || notice?.kind === 'unknown' || isPendingOutcome(quote.status)) && (
@@ -179,26 +194,26 @@ function confirmRefusal(error: ApiError): string {
 function QuoteNotice({ notice, quote }: { notice: Notice; quote: QuoteState }) {
   switch (notice.kind) {
     case 'changed':
-      return <Alert tone="warning" title="Báo giá đã thay đổi">Phiên bản {notice.previousVersion} không còn dùng được. Xem phiên bản {quote.version} bên dưới trước khi xác nhận.</Alert>;
+      return <Alert tone="warning" title="Báo giá vừa được cập nhật">Phiên bản {notice.previousVersion} không còn dùng được. Xem phiên bản {quote.version} bên dưới trước khi xác nhận.</Alert>;
     case 'expired':
-      return <Alert tone="neutral" icon="timer-off" title="Hết hiệu lực">Báo giá này không còn dùng để đặt hàng. Nhắn yêu cầu trong khung chat để nhận báo giá mới.</Alert>;
+      return <Alert tone="warning" title="Báo giá đã hết hiệu lực">Báo giá này không còn dùng để đặt hàng. Nhắn yêu cầu trong khung chat để nhận báo giá mới.</Alert>;
     case 'pending':
+      // F1-QuoteStates "Đang gửi, chưa rõ kết quả · 202": a waiting state, not an error (specs/50 CH-03).
       return (
-        <Alert tone="warning" icon="circle-pause" title="Đang kiểm tra">
+        <Alert tone="info" icon="clock" title="Chưa nhận được kết quả từ hệ thống">
           Yêu cầu đặt hàng đã được ghi nhận. Nhân viên sẽ kiểm tra và liên hệ bạn; bạn không cần gửi lại.
-          <span style={{ display: 'block' }}>Mã tham chiếu: {quote.quoteRef} · phiên bản {quote.version}</span>
         </Alert>
       );
     case 'unknown':
+      // The answer of the confirmation itself did not arrive: it may not have been stored, so the wording differs.
       return (
-        <Alert tone="warning" icon="circle-pause" title="Chưa nhận được kết quả">
+        <Alert tone="info" icon="clock" title="Chưa nhận được kết quả">
           Yêu cầu có thể đã được ghi nhận. Không cần gửi lại; bấm "Xem kết quả mới nhất" để kiểm tra.
-          <span style={{ display: 'block' }}>Mã tham chiếu: {quote.quoteRef} · phiên bản {quote.version}</span>
           {notice.reference && <span style={{ display: 'block' }}>{notice.reference}</span>}
         </Alert>
       );
     case 'handed-off':
-      return <Alert tone="info" title="Chuyển nhân viên">Yêu cầu xác nhận của bạn đã được chuyển cho nhân viên tư vấn. Nhân viên sẽ phản hồi trong khung chat này.</Alert>;
+      return <Alert tone="info" icon="circle-pause" title="Nhân viên tư vấn sẽ hỗ trợ bạn">Yêu cầu xác nhận của bạn đã được chuyển cho nhân viên tư vấn. Nhân viên sẽ phản hồi trong khung chat này.</Alert>;
     case 'created':
       return <Alert tone="success" title="Đã gửi yêu cầu đặt hàng">Nhân viên sẽ kiểm tra và liên hệ bạn; bạn không cần gửi lại.</Alert>;
     case 'not-found':
@@ -213,38 +228,25 @@ function QuoteNotice({ notice, quote }: { notice: Notice; quote: QuoteState }) {
   }
 }
 
+// F1-Chat card body: one nested box per line (SKU, quantity × unit price, line total), then "Tạm tính". The artboard
+// also shows a product name; QuoteView has none (deviation table).
 function CardBody({ card }: { card: QuoteCard }) {
   return (
     <>
-      <p style={{ margin: 0, font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>
-        Phiên bản {card.version} · Hiệu lực đến {formatDateTime(card.validUntil)}
-      </p>
-      <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-table)' }}>
-        <caption style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Các dòng của báo giá {card.quoteRef}</caption>
-        <thead>
-          <tr style={{ font: 'var(--type-table-header)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-            <th scope="col" style={{ padding: 'var(--space-1) 0' }}>SKU</th>
-            <th scope="col" style={{ padding: 'var(--space-1) 0', textAlign: 'right' }}>Số lượng × Đơn giá</th>
-            <th scope="col" style={{ padding: 'var(--space-1) 0', textAlign: 'right' }}>Thành tiền</th>
-          </tr>
-        </thead>
-        <tbody>
-          {card.lines.map((line, i) => (
-            <tr key={i} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <td className="ap-code" style={{ padding: 'var(--space-2) 0', overflowWrap: 'anywhere' }}>{line.sku}</td>
-              <td style={{ padding: 'var(--space-2) 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{line.quantity} × {formatMoney(line.unitPrice, card.currency)}</td>
-              <td style={{ padding: 'var(--space-2) 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(line.lineTotal, card.currency)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr style={{ borderTop: '1px solid var(--border-default)', fontWeight: 600 }}>
-            <th scope="row" colSpan={2} style={{ padding: 'var(--space-2) 0', textAlign: 'left' }}>Tạm tính</th>
-            <td style={{ padding: 'var(--space-2) 0', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(card.total, card.currency)}</td>
-          </tr>
-        </tfoot>
-      </table>
+      <ul aria-label={`Các dòng của báo giá ${card.quoteRef}`} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        {card.lines.map((line, i) => (
+          <li key={i} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: 'var(--space-3)', background: 'var(--bg-nested)', borderRadius: 'var(--radius-md)' }}>
+            <span className="ap-code" style={{ color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>{line.sku}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)', font: 'var(--type-table)', fontVariantNumeric: 'tabular-nums' }}>
+              <span>{line.quantity} × {formatMoney(line.unitPrice, card.currency)}</span>
+              <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{formatMoney(line.lineTotal, card.currency)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--space-3)', fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ font: 'var(--type-label)', color: 'var(--text-body)' }}>Tạm tính</span>
+        <span style={{ font: 'var(--type-section-title)', whiteSpace: 'nowrap' }}>{formatMoney(card.total, card.currency)}</span>
       </div>
       {card.notes.length > 0 && (
         <ul style={{ margin: 0, paddingLeft: 'var(--space-5)', font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>

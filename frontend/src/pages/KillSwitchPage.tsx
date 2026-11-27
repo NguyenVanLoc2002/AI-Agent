@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/client';
 import { readSwitch, setSwitch, type DisabledReason, type SwitchState } from '../api/killSwitch';
 import { failureText, formatDateTime, referenceText } from '../app/texts';
-import { Alert, Badge, Button, DescriptionList, Dialog, Spinner, Switch } from '../design-system';
+import { PageState } from '../app/PageState';
+import { Alert, Badge, Button, DescriptionList, Dialog, PageHeader, Spinner, Switch } from '../design-system';
 
 // F5 · OP-01 · AI kill switch (UC-08; docs/design/specs/50-batch-f-man-hinh-thieu.md, prototype
 // F5-KillSwitch.dc.html as behavior reference only). The backend decides who may read or change the switch
@@ -15,6 +16,10 @@ export const REASON_LABELS: Record<DisabledReason, string> = {
   UNREADABLE: 'Không đọc được trạng thái',
   UNKNOWN: 'Không rõ lý do',
 };
+
+// F5 artboard switch copy.
+const SWITCH_LABEL = 'Cho phép trợ lý AI trả lời khách';
+const SWITCH_HINT = 'Khi tắt, mọi lượt chat mới được chuyển cho nhân viên với lý do “Trợ lý AI đang tắt” và không gọi nhà cung cấp AI.';
 
 const PROPAGATION = 'Máy chủ này áp dụng ngay. Các máy chủ khác áp dụng trong tối đa 30 giây. Lượt đang chạy không bị hủy giữa chừng.';
 
@@ -59,14 +64,17 @@ export function KillSwitchPage({ onUnauthenticated }: Props) {
     return false;
   }, [onUnauthenticated]);
 
-  const reload = useCallback(async () => {
-    setLoad({ phase: 'loading' });
+  // P3 review UX M2: what is on screen stays while the state is read again (the switch keeps the focus it got back
+  // from the dialog); the spinner is for the first read only. `focusTitle`: the control that asked is replaced.
+  const reload = useCallback(async (focusTitle = false) => {
+    setLoad((current) => (current.phase === 'ready' || current.phase === 'unreadable' ? current : { phase: 'loading' }));
     try {
       const state = await readSwitch();
       if (mounted.current) setLoad({ phase: 'ready', state });
     } catch (error) {
       if (mounted.current && !handleError(error)) setLoad({ phase: 'unreadable', error });
     }
+    if (focusTitle && mounted.current) window.setTimeout(() => document.getElementById('kill-switch-state')?.focus(), 0);
   }, [handleError]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -87,10 +95,12 @@ export function KillSwitchPage({ onUnauthenticated }: Props) {
       if (!mounted.current) return;
       setConfirmOff(false);
       if (handleError(error)) return;
-      const action = enabled ? 'bật' : 'tắt';
       if (error instanceof ApiError && error.kind === 'http' && error.status !== null && error.status < 500) {
         // A 4xx answer: the server refused the request before changing anything.
-        setNotice({ tone: 'error', title: `Chưa ${action} được trợ lý AI`, body: `Chưa có thay đổi nào được ghi. ${failureText(error)}`, reference: referenceText(error) });
+        // F6 artboard "Đổi công tắc · F5"; a 429 keeps its own advice.
+        setNotice({ tone: 'error', title: 'Không đổi được trạng thái AI',
+          body: error.status === 429 ? `Trạng thái hiện tại giữ nguyên. ${failureText(error)}` : 'Trạng thái hiện tại giữ nguyên. Tải lại trang để xem trạng thái mới nhất rồi thử lại.',
+          reference: referenceText(error) });
       } else {
         // Timeout, network failure, 5xx or an unreadable answer: the change may have been stored (the backend
         // answers 503 also for a commit whose outcome is unknown). Never retry the write; read the state
@@ -99,18 +109,23 @@ export function KillSwitchPage({ onUnauthenticated }: Props) {
         await reload();
       }
     } finally {
-      if (mounted.current) setPending(null);
+      if (mounted.current) {
+        setPending(null);
+        // The dialog closed while the switch was still locked, so the focus could not go back to it (P3 review UX
+        // M2): once unlocked, the switch (or the card title, if the state is no longer readable) takes it.
+        window.setTimeout(() => {
+          if (document.activeElement !== null && document.activeElement !== document.body) return;
+          const card = document.getElementById('kill-switch-state')?.closest('section');
+          (card?.querySelector<HTMLElement>('[role="switch"]') ?? document.getElementById('kill-switch-state'))?.focus();
+        }, 0);
+      }
     }
   }
 
   return (
-    <section aria-labelledby="kill-switch-title" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', maxWidth: 760 }}>
-      <div>
-        <h1 id="kill-switch-title" style={{ margin: 0, font: 'var(--type-page-title)' }}>Công tắc trợ lý AI</h1>
-        <p style={{ margin: '4px 0 0', font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
-          Tắt khẩn cấp việc gọi nhà cung cấp AI cho toàn bộ hệ thống. Màn hình này không hiển thị dữ liệu kinh doanh.
-        </p>
-      </div>
+    <>
+      <PageHeader title="Công tắc trợ lý AI"
+        description="Tắt khẩn cấp việc gọi nhà cung cấp AI cho toàn bộ hệ thống. Màn hình này không hiển thị dữ liệu kinh doanh." />
 
       {notice && (
         <Alert tone={notice.tone} title={notice.title} onDismiss={() => setNotice(null)}>
@@ -121,29 +136,24 @@ export function KillSwitchPage({ onUnauthenticated }: Props) {
         </Alert>
       )}
 
-      {load.phase === 'loading' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--text-secondary)', font: 'var(--type-body)' }}>
-          <Spinner label="Đang tải trạng thái" /> Đang tải trạng thái…
+      {load.phase === 'forbidden' ? (
+        <PageState kind="forbidden" />
+      ) : (
+        // F5 artboard: the state card is half of the page body (flex 1 1 420); the confirmation is the Dialog below.
+        <div className="ap-cluster" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
+          <section aria-labelledby="kill-switch-state" style={CARD}>
+            {load.phase === 'loading' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--text-secondary)', font: 'var(--type-body)' }}>
+                <Spinner label="" /> Đang tải trạng thái…
+              </div>
+            )}
+            {load.phase === 'unreadable' && <UnreadablePanel error={load.error} onReload={() => void reload(true)} />}
+            {load.phase === 'ready' && (
+              <StatePanel state={load.state} pending={pending}
+                onToggle={(next) => (next ? void change(true) : setConfirmOff(true))} />
+            )}
+          </section>
         </div>
-      )}
-
-      {load.phase === 'forbidden' && (
-        <Alert tone="neutral" icon="lock" title="Bạn không có quyền xem công tắc trợ lý AI.">
-          Liên hệ quản trị hệ thống để được cấp quyền.
-        </Alert>
-      )}
-
-      {load.phase === 'unreadable' && (
-        <Alert tone="error" title="AI được coi là đang tắt"
-          action={<Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={() => void reload()}>Tải lại</Button>}>
-          Không đọc được trạng thái. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.
-          {referenceText(load.error) && <span style={{ display: 'block' }}>{referenceText(load.error)}</span>}
-        </Alert>
-      )}
-
-      {load.phase === 'ready' && (
-        <StatePanel state={load.state} pending={pending}
-          onToggle={(next) => (next ? void change(true) : setConfirmOff(true))} />
       )}
 
       <Dialog open={confirmOff} tone="danger" title="Tắt trợ lý AI?"
@@ -151,44 +161,86 @@ export function KillSwitchPage({ onUnauthenticated }: Props) {
         onClose={pending === null ? () => setConfirmOff(false) : undefined}
         footer={<>
           <Button variant="secondary" disabled={pending !== null} onClick={() => setConfirmOff(false)}>Hủy</Button>
-          <Button variant="danger" loading={pending === false} onClick={() => void change(false)}>
+          <Button variant="danger" iconLeft="circle-pause" loading={pending === false} onClick={() => void change(false)}>
             {pending === false ? 'Đang tắt…' : 'Tắt AI'}
           </Button>
         </>}>
         <p style={{ margin: 0, font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>{PROPAGATION}</p>
       </Dialog>
-    </section>
+    </>
+  );
+}
+
+// F5 artboard section "Trạng thái hiện tại": surface card, radius lg, padding 24, gap 16, flex 1 1 420.
+const CARD = {
+  flex: '1 1 420px', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', background: 'var(--bg-surface)',
+  border: 'var(--border-width-default) solid var(--border-card)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)',
+  display: 'flex', flexDirection: 'column', gap: 'var(--space-4)',
+} as const;
+
+function CardTitle({ badge }: { badge: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      <h2 id="kill-switch-state" tabIndex={-1} style={{ margin: 0, font: 'var(--type-section-title)' }}>Trạng thái hiện tại</h2>
+      {badge}
+    </div>
+  );
+}
+
+// Badge tone per reason, as the artboard's "Khi AI đang tắt, màn hình hiển thị lý do" cards.
+const OFF_TONE: Record<DisabledReason, 'warning' | 'error' | 'restricted'> = {
+  OPERATOR: 'warning', PROVIDER_AUTH: 'error', UNREADABLE: 'restricted', UNKNOWN: 'warning',
+};
+
+function reasonHint(state: SwitchState): string {
+  switch (state.reason) {
+    case 'PROVIDER_AUTH': return 'Hệ thống tự tắt. Thay khóa trong kho bí mật, rồi bật lại bằng công tắc.';
+    case 'UNREADABLE': return 'Không đọc được cấu hình. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.';
+    default: return state.since ? `Từ ${formatDateTime(state.since)}. Bật lại bằng công tắc ở trên.` : 'Bật lại bằng công tắc ở trên.';
+  }
+}
+
+// The artboard repeats the badge in each reason card because it shows the variants side by side; the screen shows one
+// state, so the badge is only in the card title.
+function ReasonBlock({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div style={{ background: 'var(--bg-nested)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', alignItems: 'flex-start' }}>
+      <span style={{ font: 'var(--type-label)' }}>{label}</span>
+      <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{hint}</span>
+    </div>
   );
 }
 
 function StatePanel({ state, pending, onToggle }: { state: SwitchState; pending: boolean | null; onToggle: (next: boolean) => void }) {
+  // The API gives the time of the last change and, while off, its reason. It has no "last reason" once the AI is on
+  // again, so the artboard row "Lý do tắt gần nhất" is left out (P3 deviation table).
   const items = [
-    { label: 'Trạng thái', value: state.aiEnabled ? 'Đang bật' : 'Đang tắt' },
-    ...(state.aiEnabled ? [] : [{ label: 'Lý do', value: REASON_LABELS[state.reason ?? 'UNKNOWN'] }]),
-    { label: state.aiEnabled ? 'Bật từ' : 'Tắt từ', value: state.since ? formatDateTime(state.since) : '—' },
+    { label: 'Thay đổi gần nhất', value: state.since ? `${state.aiEnabled ? 'Bật lại lúc' : 'Tắt lúc'} ${formatDateTime(state.since)}` : '—' },
   ];
+  const reason = state.reason ?? 'UNKNOWN';
   return (
-    <div style={{ background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-card)', borderRadius: 'var(--radius-lg)',
-      boxShadow: 'var(--shadow-card)', padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, font: 'var(--type-card-title)' }}>Trạng thái hiện tại</h2>
-        <Badge tone={state.aiEnabled ? 'success' : 'error'} shape="pill">{state.aiEnabled ? 'AI đang bật' : 'AI đang tắt'}</Badge>
-      </div>
-      <Switch checked={state.aiEnabled} disabled={pending !== null} label="Trợ lý AI"
-        description={pending === true ? 'Đang bật…' : state.aiEnabled ? 'Gạt để tắt. Cần xác nhận.' : 'Gạt để bật lại.'}
+    <>
+      <CardTitle badge={<Badge tone={state.aiEnabled ? 'success' : OFF_TONE[reason]} shape="pill">{state.aiEnabled ? 'AI đang bật' : 'AI đang tắt'}</Badge>} />
+      <Switch checked={state.aiEnabled} disabled={pending !== null} label={SWITCH_LABEL}
+        description={pending === true ? 'Đang bật…' : SWITCH_HINT}
         onChange={onToggle} />
-      <DescriptionList columns={3} items={items} />
-      {!state.aiEnabled && state.reason === 'PROVIDER_AUTH' && (
-        <Alert tone="warning" title={REASON_LABELS.PROVIDER_AUTH}>
-          Hệ thống tự tắt. Thay khóa trong kho bí mật, rồi bật lại bằng công tắc.
-        </Alert>
+      <DescriptionList columns={1} items={items} />
+      {!state.aiEnabled && (
+        <ReasonBlock label={REASON_LABELS[reason]} hint={reasonHint(state)} />
       )}
-      {!state.aiEnabled && state.reason === 'UNREADABLE' && (
-        <Alert tone="error" title="AI được coi là đang tắt">
-          Không đọc được cấu hình. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.
-        </Alert>
-      )}
-      <p style={{ margin: 0, font: 'var(--type-helper)', color: 'var(--text-secondary)' }}>{PROPAGATION}</p>
-    </div>
+      <Alert tone="info" icon="clock" title="Thời gian áp dụng">{PROPAGATION}</Alert>
+    </>
+  );
+}
+
+function UnreadablePanel({ error, onReload }: { error: unknown; onReload: () => void }) {
+  const reference = referenceText(error);
+  return (
+    <>
+      <CardTitle badge={<Badge tone="restricted" shape="pill">Không đọc được trạng thái</Badge>} />
+      <ReasonBlock label="AI được coi là đang tắt"
+        hint={`Không đọc được cấu hình. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.${reference ? ` ${reference}` : ''}`} />
+      <div><Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={onReload}>Tải lại</Button></div>
+    </>
   );
 }

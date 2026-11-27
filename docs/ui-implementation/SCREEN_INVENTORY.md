@@ -9,12 +9,12 @@ Trạng thái: **DONE** = đã có mã + test (trước kế hoạch này) · **
 | Mã | Màn hình | Route đề xuất | Vai trò | Thiết kế | API | Trạng thái | Phase | Ghi chú / chặn bởi |
 |---|---|---|---|---|---|---|---|---|
 | SH-01 | Khung: sidebar thu gọn, header, vùng làm việc | (bao mọi route nhân viên) | SALES, SECREV, OPS | `AppShell.dc.html`, `R-1024/1280` | — | READY (đang có bản đơn giản) | P2 | Bảng Trợ lý AI trong khung: BLOCKED (UX-01) — không dựng |
-| SH-01c | Khung khách (không sidebar, 390 px) | `#/chat` | CUST | `F1-Chat.dc.html` | — | DONE (EP-10b) | P3 | Chuyển vào layout mới |
+| SH-01c | Khung khách (không sidebar, 390 px) | `#/chat` | CUST | `F1-Chat.dc.html` | — | DONE (EP-10b) · P3 khung F1 (header, ô soạn dính đáy) | P3 | Gate P3 chờ duyệt |
 | SH-02 | Tìm nhanh SKU/OE/VIN trên header | — | — | `AppShell` | không có | BLOCKED | P5 | Thuộc batch A |
 | SH-03 / E4 | Không có quyền truy cập | (hiện ngay tại route bị chặn, không route riêng) | mọi vai trò | `E4-Denied.dc.html` | — | READY | P2 | Nút "Yêu cầu cấp quyền" (R10) là điểm nối: OUT trong PoC |
 | SH-04 / E6 | Lỗi hệ thống / không tìm thấy trang | `*` | mọi vai trò | `E6-Error.dc.html` | — | READY | P2 | |
 | SH-05 | Băng ERP gián đoạn toàn cục | — | — | `A5-ErpDown` | không có tín hiệu toàn cục | BLOCKED | P5 | |
-| SH-06 / E7 | Đăng nhập | (khi chưa có phiên) | mọi vai trò | `E7-Login.dc.html`, `E7-LoginError` | Spring form login | DONE (EP-10a), chưa đối chiếu E7 | P3 | `E7-LoginLocked`: OUT (UX-12 khóa tài khoản OPEN) |
+| SH-06 / E7 | Đăng nhập | (khi chưa có phiên) | mọi vai trò | `E7-Login.dc.html`, `E7-LoginError` | Spring form login | DONE (EP-10a) · P3 đối chiếu E7 (lệch: `evidence/P3-quality-gate.md` §5) | P3 | `E7-LoginLocked`: OUT (UX-12 khóa tài khoản OPEN) |
 | SH-07 / E5 | Phiên hết hạn | (lớp phủ) | mọi vai trò | `E5-Expired`, `E5-ExpiredMax`, `E5-Inflight` | 401 từ mọi API | READY một phần | P2 | `E5-Warning` (5 phút trước): OUT (UX-12 OPEN). 30 phút/8 giờ do backend (ADR-010) |
 | SH-08 | Toast kết quả thao tác | (viewport toàn cục) | mọi vai trò | `InteractionSpec.dc.html` | — | READY | P2 | Cần chép `Toast` |
 
@@ -23,14 +23,14 @@ Trạng thái: **DONE** = đã có mã + test (trước kế hoạch này) · **
 ### 2.1 Batch F (đã duyệt 23/11/2026, `specs/50`)
 | Mã | Màn hình | Route đề xuất | Vai trò | UC | API | Artboard | Trạng thái | Phase |
 |---|---|---|---|---|---|---|---|---|
-| F1 CH-01 | Chat khách + thẻ báo giá | `#/chat` | CUST | UC-01, UC-03/04 | conversations, messages, quotes | `F1-Chat` | DONE (EP-10b) | P3 |
-| F1 CH-02 | Chờ nhân viên tư vấn | `#/chat` | CUST | UC-05 | `GET conversations/{id}` state | `F1-Handoff` | DONE | P3 |
-| F1 CH-03 | Trạng thái báo giá phía khách | `#/chat` | CUST | UC-04 | `POST quotes/{ref}/confirm` | `F1-QuoteStates` | DONE | P3 |
-| F1 CH-04 | Trạng thái gửi tin | `#/chat` | CUST | UC-01 | messages | `F1-SendStates` | DONE | P3 |
-| F2 HO-01 | Hộp chờ nhân viên | `#/hop-cho` | SALES | UC-05/06 | handoffs, claim | `F2-Inbox`, `F6-StaffStates` | DONE (EP-10c) | P3 |
-| F3 HO-02 | Hội thoại đang xử lý | `#/hop-cho` (mở trong bộ nhớ, QĐ 4) | SALES | UC-06 | internal messages, quote, resolve | `F3-Conversation` | DONE | P3 |
-| F4 SI-01 | Security Inspector | `#/su-kien-bao-mat` | SECREV | UC-07 | security events, traces | `F4-Inspector` | DONE (EP-10d) | P3 |
-| F5 OP-01 | Công tắc trợ lý AI | `#/cong-tac-ai` | OPS | UC-08 | kill-switch | `F5-KillSwitch` | DONE (EP-10a) | P3 |
+| F1 CH-01 | Chat khách + thẻ báo giá | `#/chat` | CUST | UC-01, UC-03/04 | conversations, messages, quotes | `F1-Chat` | DONE (EP-10b) | P3 đối chiếu artboard (gate chờ duyệt) |
+| F1 CH-02 | Chờ nhân viên tư vấn | `#/chat` | CUST | UC-05 | `GET conversations/{id}` state | `F1-Handoff` | DONE | P3 đối chiếu artboard (gate chờ duyệt) |
+| F1 CH-03 | Trạng thái báo giá phía khách | `#/chat` | CUST | UC-04 | `POST quotes/{ref}/confirm` | `F1-QuoteStates` | DONE | P3 đối chiếu artboard (gate chờ duyệt) |
+| F1 CH-04 | Trạng thái gửi tin | `#/chat` | CUST | UC-01 | messages | `F1-SendStates` | DONE | P3 đối chiếu artboard (gate chờ duyệt) |
+| F2 HO-01 | Hộp chờ nhân viên | `#/hop-cho` | SALES | UC-05/06 | handoffs, claim | `F2-Inbox`, `F6-StaffStates` | DONE (EP-10c) | P3 đối chiếu artboard (gate chờ duyệt) |
+| F3 HO-02 | Hội thoại đang xử lý | `#/hop-cho` (mở trong bộ nhớ, QĐ 4) | SALES | UC-06 | internal messages, quote, resolve | `F3-Conversation` | DONE | P3 đối chiếu artboard (gate chờ duyệt) |
+| F4 SI-01 | Security Inspector | `#/su-kien-bao-mat` | SECREV | UC-07 | security events, traces | `F4-Inspector` | DONE (EP-10d) | P3 đối chiếu artboard (gate chờ duyệt) |
+| F5 OP-01 | Công tắc trợ lý AI | `#/cong-tac-ai` | OPS | UC-08 | kill-switch | `F5-KillSwitch` | DONE (EP-10a) | P3 đối chiếu artboard (gate chờ duyệt) |
 
 ### 2.2 Đơn hàng của nhân viên (EP-10e)
 | Mã | Màn hình | Route đề xuất | Vai trò | UC | API | Thiết kế | Trạng thái | Phase |

@@ -261,7 +261,7 @@ describe('F4 · security events', () => {
   it('shows a lock, not data, for a role other than SECREV (403)', async () => {
     const { view } = setup({ [`GET ${EVENTS}?*`]: () => problem(403, 'FORBIDDEN') });
 
-    expect(await screen.findByText('Bạn không có quyền xem sự kiện bảo mật.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn không có quyền xem trang này')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(await axeViolations(view.container)).toEqual([]);
   });
@@ -294,7 +294,7 @@ describe('F4 · trace', () => {
     expect(within(screen.getByRole('table', { name: 'Lần gọi công cụ của trace' })).getByText('ARGUMENT_INVALID')).toBeInTheDocument();
     expect(screen.getByText(T1)).toBeInTheDocument();
     expect(screen.getByText('Có dữ liệu bị chặn khi gửi tới AI hoặc khi AI trả về')).toBeInTheDocument();
-    expect(screen.queryByText('Trace chưa đầy đủ.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chỉ hiện 200 dòng đầu')).not.toBeInTheDocument();
     expect(await axeViolations(view.container)).toEqual([]);
   });
 
@@ -302,7 +302,7 @@ describe('F4 · trace', () => {
     const { user } = setup({ [`GET /api/demo/security/traces/${T1}`]: () => json(200, { ...TRACE, truncated: true }) });
     await user.click(await screen.findByRole('button', { name: 'Xem trace 7c1e…a904' }));
 
-    expect(await screen.findByText('Trace chưa đầy đủ.')).toBeInTheDocument();
+    expect(await screen.findByText('Chỉ hiện 200 dòng đầu')).toBeInTheDocument();
   });
 
   it('draws no "no block" verdict from a cut trace (UX review M2)', async () => {
@@ -345,7 +345,7 @@ describe('F4 · trace', () => {
     const { user } = setup({ [`GET /api/demo/security/traces/${T1}`]: () => problem(403, 'FORBIDDEN') });
     await user.click(await screen.findByRole('button', { name: 'Xem trace 7c1e…a904' }));
 
-    expect(await screen.findByText('Bạn không có quyền xem sự kiện bảo mật.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn không có quyền xem trang này')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sự kiện bảo mật', level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });

@@ -102,7 +102,7 @@ describe('CustomerChatPage · conversation', () => {
   it('explains an unlinked account without calling the chat API', async () => {
     const { backend } = setup({}, { linked: false });
 
-    expect(screen.getByText('Bạn chưa dùng được kênh chat này.')).toBeInTheDocument();
+    expect(screen.getByText('Bạn chưa dùng được kênh chat này')).toBeInTheDocument();
     expect(screen.queryByLabelText('Nội dung tin nhắn')).not.toBeInTheDocument();
     expect(backend.calls).toHaveLength(0);
   });
@@ -110,7 +110,7 @@ describe('CustomerChatPage · conversation', () => {
   it('explains an unlinked account when the backend refuses it', async () => {
     setup({ 'POST /api/demo/conversations': () => problem(403, 'CUSTOMER_NOT_LINKED') });
 
-    expect(await screen.findByText('Bạn chưa dùng được kênh chat này.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn chưa dùng được kênh chat này')).toBeInTheDocument();
     expect(screen.queryByLabelText('Nội dung tin nhắn')).not.toBeInTheDocument();
   });
 
@@ -150,8 +150,8 @@ describe('CustomerChatPage · sending (CH-04)', () => {
   });
 
   it.each<[string, Handler, string]>([
-    ['409', () => problem(409, 'CONFLICT'), 'Lượt trước chưa xong'],
-    ['429', () => problem(429, 'TOO_MANY_REQUESTS'), 'Bạn gửi quá nhiều tin'],
+    ['409', () => problem(409, 'CONFLICT'), 'Tin trước đang được xử lý'],
+    ['429', () => problem(429, 'TOO_MANY_REQUESTS'), 'Bạn đã gửi nhiều yêu cầu trong thời gian ngắn'],
   ])('keeps what the customer typed on %s', async (_status, failure, title) => {
     const { user } = setup({ [`POST ${MESSAGES}`]: failure });
     await sendText(user, 'Còn hàng không?');
@@ -315,8 +315,9 @@ describe('CustomerChatPage · quote card (CH-01) and confirmation (CH-03)', () =
     });
     await user.click(screen.getByRole('button', { name: 'Xác nhận báo giá' }));
 
-    expect(await screen.findAllByText('Đang kiểm tra')).toHaveLength(2);
-    expect(screen.getByText(`Mã tham chiếu: ${REF} · phiên bản 1`)).toBeInTheDocument();
+    expect(await screen.findByText('Chưa nhận được kết quả từ hệ thống')).toBeInTheDocument();
+    expect(screen.getByText('Đang kiểm tra')).toBeInTheDocument();
+    expect(screen.getByText(`${REF} · phiên bản 1`)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Xác nhận/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Xem kết quả mới nhất' }));
     await waitFor(() => expect(backend.calls.filter((c) => c.path === `/api/demo/quotes/${REF}`)).toHaveLength(1));
@@ -342,7 +343,9 @@ describe('CustomerChatPage · quote card (CH-01) and confirmation (CH-03)', () =
     await user.click(screen.getByRole('button', { name: 'Xác nhận báo giá' }));
 
     expect(await screen.findByText(/Báo giá này không còn dùng để đặt hàng/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Xác nhận/ })).not.toBeInTheDocument();
+    // F1-QuoteStates "Hết hiệu lực · 410": the button stays, locked.
+    expect(screen.getByRole('button', { name: 'Xác nhận báo giá' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Xác nhận/ }).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
   });
 
   it.each(['QUOTE_REPRICED', 'QUOTE_STALE_VERSION'])('loads the new version after %s and confirms it with its own token', async (code) => {

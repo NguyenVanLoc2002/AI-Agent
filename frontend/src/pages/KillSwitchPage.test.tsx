@@ -17,7 +17,8 @@ function setup(read: Handler, write?: Handler) {
     ...(write ? { 'POST /api/ops/kill-switch': write } : {}),
   });
   const onUnauthenticated = vi.fn();
-  const view = render(<KillSwitchPage onUnauthenticated={onUnauthenticated} />);
+  // The shell puts every page inside <main> (shells.tsx); the page itself has no landmark of its own.
+  const view = render(<main><KillSwitchPage onUnauthenticated={onUnauthenticated} /></main>);
   return { backend, onUnauthenticated, view, user: userEvent.setup() };
 }
 
@@ -29,12 +30,12 @@ describe('KillSwitchPage', () => {
 
     expect(screen.getByText('Đang tải trạng thái…')).toBeInTheDocument();
     expect(await screen.findByText('AI đang bật')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Trợ lý AI' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('asks for confirmation before turning the AI off, and Hủy changes nothing', async () => {
     const { backend, user } = setup(() => json(200, ON), () => json(200, OFF_OPERATOR));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
 
     const dialog = screen.getByRole('alertdialog', { name: 'Tắt trợ lý AI?' });
     expect(within(dialog).getByText(/tối đa 30 giây/)).toBeInTheDocument();
@@ -47,13 +48,13 @@ describe('KillSwitchPage', () => {
 
   it('turns the AI off after confirmation and shows the answer of the server', async () => {
     const { backend, user } = setup(() => json(200, ON), () => json(200, OFF_OPERATOR));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
 
     expect(await screen.findByText('Đã tắt trợ lý AI.')).toBeInTheDocument();
     expect(screen.getByText('AI đang tắt')).toBeInTheDocument();
     expect(screen.getByText('Do người vận hành tắt')).toBeInTheDocument();
-    expect(screen.getByText('23/11/2026 08:40')).toBeInTheDocument();
+    expect(screen.getByText('Tắt lúc 23/11/2026 08:40')).toBeInTheDocument();
     expect(writes(backend)).toHaveLength(1);
     expect(writes(backend)[0]?.body).toBe('{"enabled":false}');
     expect(writes(backend)[0]?.headers['x-csrf-token']).toBeTruthy();
@@ -62,7 +63,7 @@ describe('KillSwitchPage', () => {
   it('sends one request when the confirm button is pressed twice', async () => {
     let answer: (r: Response) => void = () => {};
     const { backend, user } = setup(() => json(200, ON), () => new Promise<Response>((resolve) => { answer = resolve; }));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     const confirm = screen.getByRole('button', { name: 'Tắt AI' });
 
     await user.click(confirm);
@@ -80,7 +81,7 @@ describe('KillSwitchPage', () => {
 
     expect(await screen.findByText('Hệ thống tự tắt. Thay khóa trong kho bí mật, rồi bật lại bằng công tắc.')).toBeInTheDocument();
     expect(screen.getAllByText('Nhà cung cấp AI từ chối khóa truy cập').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(await screen.findByText('Đã bật lại trợ lý AI.')).toBeInTheDocument();
@@ -91,7 +92,7 @@ describe('KillSwitchPage', () => {
     setup(() => json(200, OFF_UNREADABLE));
 
     expect(await screen.findByText('Không đọc được cấu hình. Vui lòng thử tải lại; nếu vẫn lỗi, báo đội vận hành hệ thống.')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Trợ lý AI' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it.each<[string, Handler]>([
@@ -120,7 +121,7 @@ describe('KillSwitchPage', () => {
   it('shows a permission message when the server refuses the role', async () => {
     setup(() => problem(403, 'FORBIDDEN'));
 
-    expect(await screen.findByText('Bạn không có quyền xem công tắc trợ lý AI.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn không có quyền xem trang này')).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
@@ -132,11 +133,11 @@ describe('KillSwitchPage', () => {
 
   it('says nothing was changed when the server refuses the write (4xx) and keeps the state', async () => {
     const { backend, user } = setup(() => json(200, ON), () => problem(400, 'VALIDATION_FAILED'));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
 
-    expect(await screen.findByText('Chưa tắt được trợ lý AI')).toBeInTheDocument();
-    expect(screen.getByText(/Chưa có thay đổi nào được ghi./)).toBeInTheDocument();
+    expect(await screen.findByText('Không đổi được trạng thái AI')).toBeInTheDocument();
+    expect(screen.getByText(/Trạng thái hiện tại giữ nguyên./)).toBeInTheDocument();
     expect(screen.getByText('Mã tham chiếu: REQ-1A2B3C4D')).toBeInTheDocument();
     expect(screen.getByText('AI đang bật')).toBeInTheDocument();
     expect(screen.queryByText(/^Đã /)).not.toBeInTheDocument();
@@ -145,9 +146,9 @@ describe('KillSwitchPage', () => {
 
   it('says the same for a refused attempt to turn the AI back on', async () => {
     const { user } = setup(() => json(200, OFF_OPERATOR), () => problem(409, 'CONFLICT'));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
 
-    expect(await screen.findByText('Chưa bật được trợ lý AI')).toBeInTheDocument();
+    expect(await screen.findByText('Không đổi được trạng thái AI')).toBeInTheDocument();
     expect(screen.getByText('AI đang tắt')).toBeInTheDocument();
   });
 
@@ -161,7 +162,7 @@ describe('KillSwitchPage', () => {
   ])('never claims "no change" after %s: no retry, reads the state again and shows it', async (_label, failure) => {
     let reads = 0;
     const { backend, user } = setup(() => (++reads === 1 ? json(200, ON) : json(200, OFF_OPERATOR)), failure);
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
 
     expect(await screen.findByText('Chưa xác nhận được kết quả')).toBeInTheDocument();
@@ -175,7 +176,7 @@ describe('KillSwitchPage', () => {
   it('treats the AI as off when the read after an unknown write also fails', async () => {
     let reads = 0;
     const { user } = setup(() => (++reads === 1 ? json(200, ON) : networkFailure()), () => networkFailure());
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
 
     expect(await screen.findByText('AI được coi là đang tắt')).toBeInTheDocument();
@@ -184,10 +185,10 @@ describe('KillSwitchPage', () => {
 
   it('shows the permission message when the server refuses the write', async () => {
     const { user } = setup(() => json(200, ON), () => problem(403, 'FORBIDDEN'));
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
 
-    expect(await screen.findByText('Bạn không có quyền xem công tắc trợ lý AI.')).toBeInTheDocument();
+    expect(await screen.findByText('Bạn không có quyền xem trang này')).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
@@ -203,15 +204,15 @@ describe('KillSwitchPage', () => {
     render(<StrictMode><KillSwitchPage onUnauthenticated={vi.fn()} /></StrictMode>);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
     expect(await screen.findByText('Đã tắt trợ lý AI.')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Trợ lý AI' })).not.toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' })).not.toBeDisabled();
   });
 
   it('closes the confirmation with Escape and returns focus to the switch', async () => {
     const { user } = setup(() => json(200, ON));
-    const toggle = await screen.findByRole('switch', { name: 'Trợ lý AI' });
+    const toggle = await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' });
     await user.click(toggle);
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
@@ -226,7 +227,52 @@ describe('KillSwitchPage', () => {
     await screen.findByText('AI đang bật');
     expect(await axeViolations(view.container)).toEqual([]);
 
-    await user.click(screen.getByRole('switch', { name: 'Trợ lý AI' }));
+    await user.click(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
     expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  // FE-UI-P3: F5 artboard copy and the F6 "Đổi công tắc" error.
+  it('shows the propagation note and the time of the last change as the F5 artboard', async () => {
+    setup(() => json(200, OFF_OPERATOR));
+
+    expect(await screen.findByText('Thời gian áp dụng')).toBeInTheDocument();
+    expect(screen.getByText('Thay đổi gần nhất')).toBeInTheDocument();
+    expect(screen.getByText('Từ 23/11/2026 08:40. Bật lại bằng công tắc ở trên.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Trạng thái hiện tại' })).toBeInTheDocument();
+  });
+
+  it('keeps the advice of a 429 when the change is refused', async () => {
+    const { user } = setup(() => json(200, ON), () => problem(429, 'RATE_LIMITED'));
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
+    await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
+
+    expect(await screen.findByText('Không đổi được trạng thái AI')).toBeInTheDocument();
+    expect(screen.getByText(/Có quá nhiều yêu cầu/)).toBeInTheDocument();
+  });
+
+  it('reads the state again from the unreadable state on request', async () => {
+    const { backend, user } = setup(() => networkFailure());
+    expect(await screen.findByText('AI được coi là đang tắt')).toBeInTheDocument();
+    expect(screen.getAllByText('Không đọc được trạng thái').length).toBeGreaterThan(0);
+
+    backend.set('GET /api/ops/kill-switch', () => json(200, ON));
+    await user.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(await screen.findByText('AI đang bật')).toBeInTheDocument();
+  });
+
+  it('keeps the switch on screen, with the focus, while it reads the state after an unknown write (UX M2)', async () => {
+    const { backend, user } = setup(() => json(200, ON), () => networkFailure());
+    await user.click(await screen.findByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' }));
+    let answer: (r: Response) => void = () => {};
+    backend.set('GET /api/ops/kill-switch', () => new Promise<Response>((resolve) => { answer = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Tắt AI' }));
+
+    // The re-read has not answered yet: the switch is still on screen (no spinner in its place).
+    await screen.findByText('Chưa xác nhận được kết quả');
+    expect(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' })).toBeInTheDocument();
+    expect(screen.queryByText('Đang tải trạng thái…')).not.toBeInTheDocument();
+    answer(json(200, OFF_OPERATOR));
+    // Once unlocked, the switch has the focus back.
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Cho phép trợ lý AI trả lời khách' })).toHaveFocus());
   });
 });

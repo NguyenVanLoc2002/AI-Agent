@@ -87,6 +87,12 @@
 .ap-shell__main:focus {
   outline: none;
 }
+/* The same for a page heading the shell or a page focuses by script (FE-UI-P3: the browser's default ring showed on
+   the h1 at sign-in). Forced-colours mode keeps its outline (rule above). */
+h1[tabindex='-1']:focus,
+h2[tabindex='-1']:focus {
+  outline: none;
+}
 
 /* Page body inside the staff shell, as the F2–F5 <main>: left-aligned, max 1192, padding 28/32, gap 20. */
 .ap-page {
@@ -99,20 +105,54 @@
   gap: var(--space-5);
 }
 
-/* Customer layout (F1, 390 px artboards; EP-10b page): no sidebar, centred column, narrow gutter. */
+/* Customer layout (F1, 390 px artboards): header 56 (48 + 8), no sidebar, centred column with the artboard's 16 gutter. */
 .ap-customer {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg-app);
+  /* The last message and a focused control scroll clear of the sticky composer. */
+  scroll-padding-bottom: calc(var(--space-16) + var(--space-12));
+}
+.ap-customer__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  min-height: calc(var(--space-12) + var(--space-2));
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  background: var(--bg-surface);
+  border-bottom: var(--border-width-default) solid var(--border-default);
 }
 .ap-page--customer {
   box-sizing: border-box;
+  flex: 1 1 auto;
   width: 100%;
   max-width: var(--page-max-customer);
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-4) var(--space-4) 0;
+  display: flex;
+  flex-direction: column;
+}
+.ap-page--customer:focus {
+  outline: none;
+}
+/* F1 footer: the composer stays at the bottom of the screen while the messages scroll above it. */
+.ap-customer__composer {
+  position: sticky;
+  bottom: 0;
+  margin: auto calc(-1 * var(--space-4)) 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--bg-surface);
+  border-top: var(--border-width-default) solid var(--border-default);
 }
 
 /* Vertical stack with the design-system stack gap (12–16). */

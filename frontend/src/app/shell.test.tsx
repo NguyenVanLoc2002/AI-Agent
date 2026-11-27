@@ -155,6 +155,34 @@ describe('role shell', () => {
   });
 });
 
+// FE-UI-P3: the page-provided parts of the shells (F3 breadcrumb level, F1 header badge).
+describe('page parts of the shells', () => {
+  it('adds the held conversation to the breadcrumb while it is open (F3), and removes it on the way back', async () => {
+    const conv = 'cv_AAAAAAAAAAAAAAAAAAAAAA';
+    const { user } = start('SALES', '', {
+      'GET /api/internal/handoffs': () => json(200, [{ handoffId: 7, conversationId: conv, reasonCode: 'CUSTOMER_REQUEST', status: 'CLAIMED', openedAt: '2026-11-23T08:00:00Z', mine: true, followUpReasonCode: null }]),
+      [`GET /api/internal/conversations/${conv}/messages`]: () => json(200, []),
+      [`GET /api/internal/conversations/${conv}/quote`]: () => problem(404, 'NOT_FOUND'),
+    });
+    await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
+
+    const trail = await screen.findByRole('list', { name: 'Đường dẫn' });
+    await waitFor(() => expect(within(trail).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Kinh doanh', 'Hộp chờ nhân viên', '…AAAAAA']));
+    expect(screen.getByRole('heading', { level: 1, name: /Cuộc trò chuyện/ })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Về hộp chờ' }));
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Đường dẫn' })).getAllByRole('listitem')).toHaveLength(2));
+  });
+
+  it('shows the chat state badge of the page in the customer header (F1)', async () => {
+    start('CUST');
+
+    const header = (await screen.findByRole('button', { name: 'Đăng xuất' })).closest('header') as HTMLElement;
+    expect(await within(header).findByText('Trợ lý AI đang trả lời')).toBeInTheDocument();
+    expect(within(header).getByText('Tư vấn phụ tùng · Thử nghiệm')).toBeInTheDocument();
+  });
+});
+
 describe('sidebar and width', () => {
   function stubWidth(width: number) {
     vi.stubGlobal('matchMedia', (query: string) => {

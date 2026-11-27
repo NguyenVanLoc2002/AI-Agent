@@ -18,7 +18,7 @@ export function demoPassword(): string {
 export async function signInWithForm(page: Page, username: string, password: string = demoPassword()): Promise<void> {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
-  await page.getByLabel('Tên đăng nhập').fill(username);
+  await page.getByLabel('Tài khoản').fill(username);
   await page.getByLabel('Mật khẩu').fill(password);
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
 }

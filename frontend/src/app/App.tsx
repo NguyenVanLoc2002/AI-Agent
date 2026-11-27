@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HashRouter, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { currentSession, logout, type Session } from '../api/session';
 import { Alert, Button, Spinner } from '../design-system';
@@ -39,6 +39,11 @@ export function App() {
 function Root() {
   const [boot, setBoot] = useState<Boot>({ phase: 'checking' });
   const navigate = useNavigate();
+  const errorBox = useRef<HTMLDivElement>(null);
+  // P2 review UX M2: "Thử lại" disappears while checking; when the check fails again, focus returns to the message.
+  useEffect(() => {
+    if (boot.phase === 'error' && (document.activeElement === null || document.activeElement === document.body)) errorBox.current?.focus();
+  }, [boot.phase]);
 
   const check = useCallback(async () => {
     setBoot({ phase: 'checking' });
@@ -96,11 +101,13 @@ function Root() {
     case 'error':
       return (
         <main style={{ maxWidth: 520, margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+          <div ref={errorBox} tabIndex={-1} style={{ outline: 'none' }}>
           <Alert tone="error" title="Chưa kiểm tra được phiên đăng nhập"
             action={<Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={() => void check()}>Thử lại</Button>}>
             {failureText(boot.error)}
             {referenceText(boot.error) && <span style={{ display: 'block' }}>{referenceText(boot.error)}</span>}
           </Alert>
+          </div>
         </main>
       );
     case 'anonymous':
