@@ -107,11 +107,19 @@ export async function readHeldMessages(conversationId: string): Promise<ChatMess
   return decodeMessages(await request(`/api/internal/conversations/${conversationId}/messages`));
 }
 
-export async function postStaffMessage(conversationId: string, text: string): Promise<void> {
+const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * STAFF-MSG-ID (A-90): the same `clientEventId` with the same text is stored once, so a resend after an unknown
+ * outcome is safe; the caller keeps the ID until the send succeeded or the text changed.
+ */
+export async function postStaffMessage(conversationId: string, clientEventId: string, text: string): Promise<void> {
   checkConversation(conversationId);
   const trimmed = text.trim();
-  if (trimmed === '' || trimmed.length > MAX_MESSAGE_CHARS) throw new ApiError('invalid-response', null, null, null, false);
-  await request(`/api/internal/conversations/${conversationId}/messages`, { method: 'POST', json: { text: trimmed } });
+  if (!EVENT_ID.test(clientEventId) || trimmed === '' || trimmed.length > MAX_MESSAGE_CHARS) {
+    throw new ApiError('invalid-response', null, null, null, false);
+  }
+  await request(`/api/internal/conversations/${conversationId}/messages`, { method: 'POST', json: { clientEventId, text: trimmed } });
 }
 
 /** Fails closed: a quote with any field this client cannot read is not shown. */

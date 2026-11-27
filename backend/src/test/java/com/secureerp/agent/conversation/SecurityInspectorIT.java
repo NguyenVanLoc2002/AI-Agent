@@ -41,6 +41,11 @@ class SecurityInspectorIT extends ChatEnvironment {
     private static final String QUOTE_OE = "04465-0K290";
     private static final String STAFF_TEXT = "STAFFNOTE88 xin chờ một chút";
 
+    /** STAFF-MSG-ID (A-90): a staff message with its own event ID. */
+    private static String staffMessage() {
+        return "{\"clientEventId\":\"" + UUID.randomUUID() + "\",\"text\":\"" + STAFF_TEXT + "\"}";
+    }
+
     @Autowired
     TransactionTemplate transactions;
 
@@ -167,7 +172,7 @@ class SecurityInspectorIT extends ChatEnvironment {
         assertThat(claim.statusCode()).isEqualTo(200);
         String claimTrace = claim.headers().firstValue("X-Request-Id").orElseThrow();
         assertThat(sales.postJson("/api/internal/conversations/" + conversation + "/messages",
-                "{\"text\":\"" + STAFF_TEXT + "\"}").statusCode()).isEqualTo(204);
+                staffMessage()).statusCode()).isEqualTo(204);
         assertThat(sales.get("/api/internal/conversations/" + conversation + "/quote").statusCode())
                 .as("no quote in this conversation").isEqualTo(404);
         assertThat(loggedIn("sales-2").postEmpty("/api/internal/handoffs/" + handoff + "/resolve").statusCode())
@@ -357,7 +362,7 @@ class SecurityInspectorIT extends ChatEnvironment {
         jdbc.execute("alter table audit_event rename to audit_event_moved");
         try {
             HttpResponse<String> post = sales.postJson("/api/internal/conversations/" + conversation + "/messages",
-                    "{\"text\":\"" + STAFF_TEXT + "\"}");
+                    staffMessage());
             assertThat(post.statusCode()).as(post.body()).isGreaterThanOrEqualTo(500);
             assertThat(post.body()).doesNotContain("audit_event").doesNotContain(STAFF_TEXT);
             assertThat(loggedIn("sales-2").postEmpty("/api/internal/handoffs/" + handoff + "/claim").statusCode())
@@ -432,7 +437,7 @@ class SecurityInspectorIT extends ChatEnvironment {
             }));
             assertThat(locked.await(10, TimeUnit.SECONDS)).isTrue();
             Future<HttpResponse<String>> post = pool.submit(() -> sales.postJson(
-                    "/api/internal/conversations/" + conversation + "/messages", "{\"text\":\"" + STAFF_TEXT + "\"}"));
+                    "/api/internal/conversations/" + conversation + "/messages", staffMessage()));
             // The post passed the first check (the resolve is not committed) and now waits for the lock.
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
             while (jdbc.queryForObject("select count(*) from pg_locks where locktype = 'advisory' and not granted",

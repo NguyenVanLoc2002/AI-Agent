@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatMessage as Message } from '../../api/chat';
-import { MAX_MESSAGE_CHARS } from '../../api/chat';
+import { MAX_MESSAGE_CHARS, newClientEventId } from '../../api/chat';
 import { ApiError } from '../../api/client';
 import { postStaffMessage, readHeldMessages, readHeldQuote, resolveHandoff, type Handoff, type StaffQuote } from '../../api/staff';
 import { formatMoney } from '../../app/money';
@@ -56,10 +56,12 @@ export function StaffConversationPage({ handoff, onLeave, onUnauthenticated }: P
   /** Security review M-1: only the newest read of the messages is applied. */
   const readSeq = useRef(0);
   /**
-   * Security review M-2: the text of a send whose outcome is unknown and that the next read did not show.
-   * Sending that same text again needs an explicit "Xác nhận gửi lại" (the endpoint cannot deduplicate).
+   * STAFF-MSG-ID (A-90, owner 4A; closes security review M-2): the event ID of the text being sent. It is kept
+   * until a send succeeded or the text changed, so "Gửi lại" after an unknown outcome is stored once.
    */
-  const [unconfirmed, setUnconfirmed] = useState<string | null>(null);
+  const pending = useRef<{ eventId: string; text: string } | null>(null);
+  /** The last send of this text had an unknown outcome: the button reads "Gửi lại". */
+  const [uncertain, setUncertain] = useState<string | null>(null);
   useEffect(() => {
     mounted.current = true;
     // F3 opens without a route change (D04), so the shell does not move focus: start at the page heading (WCAG 2.4.3).
@@ -142,12 +144,15 @@ export function StaffConversationPage({ handoff, onLeave, onUnauthenticated }: P
     if (sending || refreshing) return;
     const text = draft.trim();
     if (text === '' || text.length > MAX_MESSAGE_CHARS) return;
+    if (pending.current?.text !== text) pending.current = { eventId: newClientEventId(), text };
+    const { eventId } = pending.current;
     setSending(true);
     setSendNotice(null);
     try {
-      await postStaffMessage(handoff.conversationId, text);
+      await postStaffMessage(handoff.conversationId, eventId, text);
       if (!mounted.current) return;
-      setUnconfirmed(null);
+      pending.current = null;
+      setUncertain(null);
       setDraft('');
       setSendNotice({ tone: 'success', title: 'Đã gửi tin cho khách.' });
       await readMessages();
@@ -159,20 +164,11 @@ export function StaffConversationPage({ handoff, onLeave, onUnauthenticated }: P
       } else if (error instanceof ApiError && (!error.sent || (error.kind === 'http' && error.status !== null && error.status < 500))) {
         setSendNotice({ tone: 'error', title: 'Chưa gửi được tin.', body: `Tin chưa được gửi; nội dung vẫn được giữ. ${failureText(error)} ${referenceText(error) ?? ''}`.trim() });
       } else {
-        // The message may be stored, and this endpoint has no event ID to dedupe a resend: read the
-        // conversation again so staff see whether it arrived before sending again.
-        const items = await readMessages();
-        if (!mounted.current) return;
-        const last = items?.filter((m) => m.direction === 'STAFF').pop();
-        if (last && last.text.trim() === text) {
-          setDraft('');
-          setUnconfirmed(null);
-          setSendNotice({ tone: 'success', title: 'Đã gửi tin cho khách.', body: 'Tin đã có trong cuộc trò chuyện.' });
-        } else {
-          setUnconfirmed(text);
-          setSendNotice({ tone: 'warning', title: 'Chưa xác nhận được tin đã gửi.',
-            body: 'Chưa thấy tin trong cuộc trò chuyện. Bấm "Tải tin mới" để kiểm tra; nếu vẫn không có, bấm "Xác nhận gửi lại". Nội dung vẫn được giữ.' });
-        }
+        // The message may be stored. A resend carries the same event ID, so the backend stores it at most once
+        // (STAFF-MSG-ID); nothing is sent again without the staff member pressing "Gửi lại".
+        setUncertain(text);
+        setSendNotice({ tone: 'warning', title: 'Chưa rõ tin đã gửi được chưa.',
+          body: 'Bấm "Gửi lại": nếu tin đã đến, khách không nhận hai lần. Nội dung vẫn được giữ.' });
       }
     } finally {
       if (mounted.current) {
@@ -276,7 +272,7 @@ export function StaffConversationPage({ handoff, onLeave, onUnauthenticated }: P
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="secondary" loading={sending} disabled={draft.trim() === '' || sending || refreshing} iconLeft="send" onClick={() => void send()}>
-                {sending ? 'Đang gửi…' : unconfirmed !== null && unconfirmed === draft.trim() ? 'Xác nhận gửi lại' : 'Gửi'}
+                {sending ? 'Đang gửi…' : uncertain !== null && uncertain === draft.trim() ? 'Gửi lại' : 'Gửi'}
               </Button>
             </div>
           </div>

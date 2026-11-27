@@ -8,6 +8,7 @@ import com.secureerp.agent.erp.internal.MockErpSimulation;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -67,8 +68,9 @@ class StaffInboxIT extends ChatEnvironment {
         return body.replaceAll("\"traceId\":\"[^\"]*\"", "").replaceAll("\"instance\":\"[^\"]*\"", "");
     }
 
+    /** STAFF-MSG-ID (A-90): every staff message carries its own event ID. */
     private static String staffMessage(String text) {
-        return "{\"text\":\"" + text + "\"}";
+        return "{\"clientEventId\":\"" + UUID.randomUUID() + "\",\"text\":\"" + text + "\"}";
     }
 
     /** UC-05/UC-06 happy path with T-UC05-LOCK, T-UC06-XTEAM, T-UC06-OPS and T-RBAC-AFTER-RESOLVE. */
