@@ -9,6 +9,13 @@
 - Rollback: revert the commit; no migration, no data change.
 - Next: (1) push, PR to `main`; (2) PROPOSED OUTPUT-ORDER-CLAIM-CONTEXT, OUTPUT-CODE-LOOKALIKE, OUTPUT-SYMBOL-ALLOW, FE-E2E-ADVERSARIAL-2, FE-PROD-EDGE, FE-TRUSTED-TYPES, FE-E2E-CI, EP-10e, STAFF-MSG-ID, CHAT-SYSTEM-TEXT, FE-OFF-UNREADABLE, SEC04-OVERLAP, SEC06-WALLCLOCK; SEC-DASH stays BLOCKED.
 
+## Previous: P0-T05 batch G design brief for EP-10e, 2026-11-27 — Q1–Q4 approved, merged (PR #73)
+- Branch `docs/P0-T05-batch-g-brief` from `main` `c5dfaad` (PR #71 FE-UI-P3 merged). Decision FE-UI-D06 (6A, A-80).
+- Change (docs only): `docs/ui-implementation/design-briefs/P0-T05-batch-g-staff-orders.md` (G1 awaiting decision, G2 reconciliation; fields checked against `StaffDecisionController`, `OrderReconciliationController` and their services; states, forbidden content per UX-03/UX-08/UX-10; owner questions Q1–Q4 approved 2026-11-27 "theo đề xuất" = Q1A–Q4A, FE-UI-D30..D33); `PROGRESS.md` P0-T05 ticked.
+- Tests: none (docs only). Check: `git diff --stat` docs only.
+- Rollback: revert the commit.
+- Next: owner merges PR #73 (main `b3f3e20` merged in, conflict only here), sends the brief to Claude Design; then P4-T00 (approve the design → `docs/design/specs/60-batch-g-don-hang-nhan-vien.md` + prototypes), then P4.
+
 ## Previous: OUTPUT-FOREIGN-CURRENCY foreign money in the model's answer, 2026-11-27 — merged (PR #72)
 - Branch `fix/OUTPUT-FOREIGN-CURRENCY-validator` from `main` `eea4140` (OUTPUT-ENGLISH-MONEY PR #69 merged). Owner 2026-11-27 ("theo đề xuất" = 1A–4A): DECISIONS_REQUIRED A-88 (written as A-87, renumbered when merging `main` `c5dfaad`: PR #71 FE-UI-P3 took A-87).
 - Change: `backend/src/main/java/com/secureerp/agent/agent/internal/OutputValidator.java` (FOREIGN_CURRENCY, NAME_SEP, FOREIGN_CODE_BEFORE, `\p{Sc}`); new `OutputValidatorForeignCurrencyTest.java`; `OutputValidatorEnglishMoneyTest.java` (gaps now blocked moved out of its gap list: "45 AUD", "45 baht", "45 đô", "45 đô la", "45 tệ", "45 bảng Anh"). Docs: A-88, IMPLEMENTATION_PLAN §2a (FOREIGN-CURRENCY DONE; OUTPUT-MONEY-PUNCT PROPOSED).

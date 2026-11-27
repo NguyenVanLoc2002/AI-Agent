@@ -29,7 +29,7 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (VERIFIED) · `[!
 - [x] P0-T02 A-80 trong `DECISIONS_REQUIRED.md` + `DECISIONS.md`
 - [x] P0-T03 Dòng FE-UI-P1..P6, FE-UI-WBIZ trong backlog §2a
 - [x] P0-T04 Worktree `AI-Agent-fe`, nhánh `feat/FE-UI-P1-design-system` từ `origin/main` `c4edc3b`
-- [ ] P0-T05 Brief thiết kế batch G (D06) — chưa làm, cần trước P4
+- [x] P0-T05 Brief thiết kế batch G (D06): `design-briefs/P0-T05-batch-g-staff-orders.md` (2026-11-27); Q1A–Q4A duyệt 2026-11-27 (FE-UI-D30..D33); chờ gửi Claude Design (P4-T00)
 
 ## P1 · Design System
 - [x] P1-T01 tokens.css/bundle.css giống bản gốc; `ds:verify` 57 → 73 file
