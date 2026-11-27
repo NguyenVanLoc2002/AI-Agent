@@ -1,6 +1,6 @@
 # P3 · Đưa F1–F5 và đăng nhập vào khung mới
 
-> DESIGN PROPOSAL · nhánh dự kiến `feat/FE-UI-P3-batch-f-shell` · issue FE-UI-P3.
+> DESIGN PROPOSAL · nhánh `feat/FE-UI-P3-batch-f-shell` · issue FE-UI-P3 · **XONG — quality gate 2026-11-26, chủ dự án duyệt 2026-11-27** — bằng chứng `../evidence/P3-quality-gate.md`, quyết định D22–D29.
 
 ## Scope
 Chuyển các page đã làm (EP-10a..d) sang router, khung và `PageState` của P2; đối chiếu lại từng page với artboard batch F và E7 để sửa chỗ lệch thiết kế (layout, khoảng cách, chữ, icon). **Không đổi hành vi nghiệp vụ hay luồng gọi API** (các quy tắc đọc "khi vào / sau thao tác / khi yêu cầu" vì audit, A-52/A-69/A-70 giữ nguyên).

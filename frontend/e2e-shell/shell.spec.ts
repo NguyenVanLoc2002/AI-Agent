@@ -7,7 +7,7 @@ const MOCK_PASSWORD = 'mock';
 
 async function signIn(page: Page, user: 'sales' | 'ops' | 'secrev' | 'cust', hash = '') {
   await page.goto(`/${hash}`);
-  await page.getByLabel(/Tên đăng nhập/).fill(user);
+  await page.getByLabel(/Tài khoản/).fill(user);
   await page.getByLabel(/Mật khẩu/).fill(MOCK_PASSWORD);
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
   await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();

@@ -10,6 +10,7 @@
 | 3 | 2026-11-26 | "theo đề xuất của bạn" (sau quality gate P1) | FE-UI-Q01 = A, commit P1, W-BIZ nhóm 0 (A-81) |
 | 5 | 2026-11-26 | "Đã merge PR #68, chọn B, bắt đầu P3 đi" | FE-UI-D21 = B (React 19); bắt đầu P3 (A-85) |
 | 4 | 2026-11-26 | "UX-09 chọn (a), bắt đầu P2 đi, tôi đã merge phần vừa rồi" (PR #65 merged) | UX-09 = (a); bắt đầu P2 (A-84) |
+| 6 | 2026-11-26 | "Đã merge PR #70, bắt đầu P3 đi" | Bắt đầu P3 (A-87); D22–D29 là lựa chọn cài đặt trong P3, chủ dự án có thể bác ở quality gate |
 
 ## Quyết định
 | ID | Quyết định | Trạng thái | Hệ quả / ràng buộc |
@@ -33,6 +34,14 @@
 | FE-UI-D19 | Mock bật bằng Vite mode `mock` (`npm run dev:mock`, cổng 5174), không bằng biến môi trường (cmd của Windows không nhận `VAR=1`; `.env.*` bị gitignore); người dùng mock `ops`/`sales`/`secrev`/`cust`, mật khẩu `mock`; `npm run build` chạy `verify-no-mocks` | DECIDED trong P2 (thực thi D05) | Mock chỉ trả các endpoint có thật, mỗi câu trả lời đi qua decoder của app trong test |
 | FE-UI-D20 | `react-router-dom` **7.18.5** ghim chính xác (kéo `react-router` 7.18.5, `cookie` 1.1.1, `set-cookie-parser` 2.7.3; MIT; integrity; > 2 tuần) | DONE trong P2 (thực thi D02) | `npm audit` 0; bundle JS 276 → 320 kB (gzip 81 → 96 kB) |
 | FE-UI-D21 | Lỗi render không được ghi ra console: nâng `react`/`react-dom` **19.3.1**, `@types` 19.3.0; root dùng `onCaughtError`/`onUncaughtError`/`onRecoverableError` chỉ ghi một dòng cố định (`src/app/rootErrors.ts`) | APPROVED 2026-11-26 (owner, B) · làm trước P3 trên nhánh riêng | Bằng chứng `evidence/FE-REACT19.md`; bundle +23 kB gzip |
+| FE-UI-D22 | 409 khi nhận xử lý (F2): backend trả một mã `CONFLICT` cho cả "đã có người nhận" và "đang bận". Màn hình đọc lại danh sách (như trước) rồi chọn: dòng nay của người khác → toast "Yêu cầu đã có người nhận"; dòng vẫn chờ (hoặc đọc lỗi) → toast "Cuộc trò chuyện đang bận"; dòng mất → thông báo "Yêu cầu không còn trong hộp chờ."; dòng nay của mình → không báo. 409 khi gửi tin (F3) → toast "đang bận"; 409 khi hoàn tất giữ câu thận trọng cũ (cũng có nghĩa "không còn do bạn giữ") | DECIDED trong P3, chỉnh sau review security M-1/L-1, duyệt 2026-11-27 | Không khẳng định điều màn hình không biết (review EP-10c UX M4) |
+| FE-UI-D23 | F3 mất quyền (404, hoặc 403 khi đọc báo giá): tin nhắn và báo giá rời màn hình ngay, hiện trạng thái F6 "Không tìm thấy cuộc trò chuyện" với mã `REQ-` và nút "Về hộp chờ"; không còn tự quay về hộp chờ | DECIDED trong P3, duyệt 2026-11-27 | Hộp chờ được đọc lại khi người dùng bấm (một lần, như trước); focus vào nút "Về hộp chờ" |
+| FE-UI-D24 | Page cấp thêm phần của khung qua context: `useExtraCrumb(label)` (cấp breadcrumb thứ ba cho F3, không có địa chỉ riêng, D04) và `useCustomerStatus({tone,label})` (badge trạng thái trong header khách F1) | DECIDED trong P3, duyệt 2026-11-27 | Ngoài khung (test) hai hook không làm gì |
+| FE-UI-D25 | Khung khách theo F1: header 56 (thương hiệu, "Tư vấn phụ tùng · Thử nghiệm", badge, nút đăng xuất dạng icon), cột 760 với lề 16, ô soạn dính đáy màn hình (`.ap-customer__composer`) | DECIDED trong P3, duyệt 2026-11-27 | Thay header `AppHeader` của P2 ở khung khách; nhãn vai trò còn cho trình đọc màn hình |
+| FE-UI-D26 | Không chép `ToolCall`: trace của F4 giữ bảng (thời điểm, quyết định, mã lý do) trong hộp nested của artboard, hai hộp chồng dọc | DECIDED trong P3, duyệt 2026-11-27 | `ToolCall` vẽ `<button>` cả khi không có chi tiết để mở; nếu cần dùng, chép bản sửa có review như D11/D14 |
+| FE-UI-D27 | E7: thương hiệu làm tiêu đề thẻ, h1 "Đăng nhập" ẩn; câu phụ "Đăng nhập bằng tài khoản demo · dữ liệu mô phỏng"; không có trạng thái tạm khóa, SSO | DECIDED trong P3, duyệt 2026-11-27 | E2E bảo mật (framing, headers, session) tìm heading "Đăng nhập": không đổi baseline. Khóa tài khoản chờ A-39(b) |
+| FE-UI-D28 | Focus sau đăng xuất, hết phiên, kiểm tra phiên lỗi lại: vào thông báo (hoặc h1 trang đăng nhập) khi focus đang ở `body` | DECIDED trong P3 (dư P2 UX M2, WCAG 2.4.3) | Test đột biến đỏ khi bỏ lệnh focus |
+| FE-UI-D29 | h1/h2 được focus bằng script (`tabindex=-1`) không hiện viền focus (trừ chế độ forced colors) | DECIDED trong P3, duyệt 2026-11-27 | Ảnh chụp cho thấy viền mặc định của trình duyệt trên h1 sau đăng nhập; đó không phải control |
 | FE-UI-D12 | Không tạo `CURRENT_STATE`; hiện trạng ở `docs/SESSION_HANDOFF.md` + `PROGRESS.md` | APPROVED 2026-11-26 (3A) | |
 | FE-UI-D13 | E2E hồi quy ở quality gate chỉ khi có `APAS_DEMO_PASSWORD` trong môi trường và được dựng PostgreSQL (`apas-e2e`) | APPROVED 2026-11-26 (4A) | P1: biến chưa có → NOT RUN, ghi lý do |
 

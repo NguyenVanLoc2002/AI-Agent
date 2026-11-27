@@ -60,7 +60,7 @@ W-BIZ (song song, chỉ tài liệu): giải quyết UX-xx của A–E theo nhó
 | P0 | Chốt điều kiện sẵn sàng (quyết định, hợp đồng, nhánh) | — | XONG 2026-11-26 (A-80) | `phases/P0-readiness.md` |
 | P1 | Nền tảng Design System trong app | P0 (QĐ 3, 8) | XONG 2026-11-26 (`0bac97f`, A-81) | `phases/P1-design-system.md` |
 | P2 | Application Layout & hạ tầng dùng chung | P1, P0 (QĐ 1, 2, 4, 5) | XONG 2026-11-26 (A-84) | `phases/P2-app-shell.md` |
-| P3 | Đưa F1–F5 và đăng nhập vào khung mới | P2 | Sẵn sàng sau P2 | `phases/P3-batch-f-migration.md` |
+| P3 | Đưa F1–F5 và đăng nhập vào khung mới | P2 | XONG — duyệt 2026-11-27 (A-87) | `phases/P3-batch-f-migration.md` |
 | P4 | Đơn hàng của nhân viên: chờ duyệt, đối soát (EP-10e) | P2, thiết kế được duyệt (QĐ 6) | GATED | `phases/P4-staff-orders.md` |
 | P5 | Batch A–E: tra cứu, Trợ lý NV, báo giá, đơn nháp, hỗ trợ | P2, UX-xx + contract (QĐ 7) | BLOCKED | `phases/P5-blocked-batches.md` |
 | P6 | Chất lượng xuyên suốt và nghiệm thu | mỗi phase | Liên tục | `phases/P6-quality.md` |

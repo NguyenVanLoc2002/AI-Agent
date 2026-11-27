@@ -10,7 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * OUTPUT-FOREIGN-CURRENCY (A-87). (1A) Vietnamese names of foreign money after a number, in digits or in words ("45
+ * OUTPUT-FOREIGN-CURRENCY (A-88). (1A) Vietnamese names of foreign money after a number, in digits or in words ("45
  * đô", "năm mươi đô", "45 tệ", "45 bảng Anh"), and rúp, ringgit, rupee, yuan, baht; (2A) currency codes before or
  * after a number ("45 SGD", "SGD 45", "Rs 45"). Words that start the same way ("đô thị", "tệ nạn", "yên xe", "bảng
  * mạch", "xu hướng") must still pass.
@@ -78,10 +78,10 @@ class OutputValidatorForeignCurrencyTest {
     }
 
     /**
-     * Documented gaps (A-87): "yên", "bảng", "xu", "cắc", "bạt", "won" alone (1A); amounts without a currency, often
+     * Documented gaps (A-88): "yên", "bảng", "xu", "cắc", "bạt", "won" alone (1A); amounts without a currency, often
      * quantities (3A); "do la" on the stripped copy, as "2 đó là" would read the same; "bảng anh" with a lower-case a
      * (review security M3); a code before number words; punctuation between the number and the unit (all units, also
-     * before A-87: review security M2); currencies not in the approved list (review QA M); typos ("đôlar", "nhân dân
+     * before A-88: review security M2); currencies not in the approved list (review QA M); typos ("đôlar", "nhân dân
      * tê").
      */
     @ParameterizedTest
@@ -95,7 +95,7 @@ class OutputValidatorForeignCurrencyTest {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();
     }
 
-    /** Accepted false positives (A-87): blocked and handed to staff. */
+    /** Accepted false positives (A-88): blocked and handed to staff. */
     @ParameterizedTest
     @ValueSource(strings = {"2 CAD files", "3 cad models", "bản vẽ CAD 2D", "nam do la nam tot", "Loai 2 do la loai tot"})
     void acceptedFalsePositivesAreBlocked(String text) {

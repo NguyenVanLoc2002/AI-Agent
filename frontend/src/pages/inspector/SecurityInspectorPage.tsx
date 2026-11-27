@@ -7,8 +7,9 @@ import {
 import {
   actorParts, EVENT_TYPE_LABELS, formatSeconds, fromLocalInput, outcomeTone, roleLabel, shortTrace, toLocalInput, utcOffset,
 } from '../../app/inspectorLabels';
+import { PageState } from '../../app/PageState';
 import { failureText, referenceText } from '../../app/texts';
-import { Alert, Badge, Button, DescriptionList, EmptyState, Input, Select, Skeleton } from '../../design-system';
+import { Alert, Badge, Button, DescriptionList, EmptyState, Input, PageHeader, Select } from '../../design-system';
 
 // F4 · SI-01 Security Inspector (UC-07, SECREV; specs/50 §F4, A-70). Metadata only: codes, field names, tool
 // names, roles, staff pseudonyms and trace IDs. Every read is audited by the backend (INSPECTOR_READ), so the
@@ -16,6 +17,9 @@ import { Alert, Badge, Button, DescriptionList, EmptyState, Input, Select, Skele
 // that is not already loading or shown (A-70 3A; security review L-1): a changed filter is not read until
 // applied. The backend checks the role, the window and the cursor again; the checks here only give feedback
 // at the field.
+// FE-UI-P3: layout and copy of the approved artboard F4-Inspector; page states of F6-StaffStates. The trace keeps
+// tables (a trace has several checks and tool calls, each with time and codes) inside the artboard's nested boxes,
+// one above the other: side by side (artboard) a 9-column table would scroll at every width.
 
 type Range = '24h' | '7d' | 'custom';
 
@@ -54,7 +58,16 @@ const RANGE_OPTIONS = [
 ];
 const TYPE_OPTIONS = [{ value: '', label: 'Tất cả' }, ...EVENT_TYPES.map((t) => ({ value: t, label: `${EVENT_TYPE_LABELS[t]} (${t})` }))];
 const ROLE_OPTIONS = [{ value: '', label: 'Tất cả' }, ...ACTOR_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))];
-const cell = { padding: 'var(--space-2) var(--space-3)', verticalAlign: 'top' } as const;
+// Cells 12 px wide-padded, not the artboard's 16: these tables have 7–9 columns of codes (deviation table).
+const cell = { padding: 'var(--space-2) var(--space-3)', verticalAlign: 'top', borderBottom: 'var(--border-width-default) solid var(--border-subtle)' } as const;
+const head = {
+  padding: 'var(--space-3)', whiteSpace: 'nowrap', font: 'var(--type-table-header)', textTransform: 'uppercase',
+  letterSpacing: 'var(--tracking-caps)', borderBottom: 'var(--border-width-default) solid var(--border-default)',
+} as const;
+const headRow = { color: 'var(--text-secondary)', textAlign: 'left' } as const;
+/** A nested box of the trace card (artboard: bg-nested, radius md, padding 16, overline title). */
+const nested = { background: 'var(--bg-nested)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', minWidth: 0 } as const;
+const overline = { margin: 0, font: 'var(--type-overline)', textTransform: 'uppercase', color: 'var(--text-secondary)' } as const;
 const hidden = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' } as const;
 const panel = { background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-card)', borderRadius: 'var(--radius-lg)' } as const;
 
@@ -245,15 +258,13 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
     void openTrace(id);
   }
 
-  const title = <h1 id="inspector-title" style={{ margin: 0, font: 'var(--type-page-title)' }}>Sự kiện bảo mật</h1>;
+  const description = 'Chỉ hiện mã chính sách, tên trường, tên công cụ và mã tham chiếu. Không có nội dung tin nhắn, giá hay dữ liệu cá nhân.';
   if (forbidden) {
     return (
-      <section aria-labelledby="inspector-title" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        {title}
-        <Alert tone="neutral" icon="lock" title="Bạn không có quyền xem sự kiện bảo mật.">
-          Chỉ tài khoản kiểm tra bảo mật được xem trang này. Liên hệ quản trị hệ thống nếu bạn cần quyền.
-        </Alert>
-      </section>
+      <>
+        <PageHeader title="Sự kiện bảo mật" description={description} />
+        <PageState kind="forbidden" />
+      </>
     );
   }
 
@@ -263,27 +274,23 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
   const shownTrace = trace.phase === 'ready' ? trace.trace.traceId : null;
 
   return (
-    <section aria-labelledby="inspector-title" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <div>
-          {title}
-          <p style={{ margin: '4px 0 var(--space-2)', font: 'var(--type-body)', color: 'var(--text-secondary)' }}>
-            Chỉ hiện mã chính sách, tên trường, tên công cụ và mã tham chiếu. Không có nội dung tin nhắn, giá hay dữ liệu cá nhân.
-          </p>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <Badge tone="neutral" icon="database">Dữ liệu tổng hợp (synthetic)</Badge>
-            <Badge tone="info" icon="eye">Mỗi lần xem được ghi nhật ký, kể cả lần xem của bạn</Badge>
-          </div>
-        </div>
-        <Button variant="ghost" iconLeft="search" onClick={() => { traceSection.current?.scrollIntoView?.({ block: 'start' }); document.getElementById('trace-lookup')?.focus(); }}>
-          Đến tra cứu trace
-        </Button>
-      </div>
+    <>
+      <PageHeader title="Sự kiện bảo mật" description={description}
+        meta={<>
+          <Badge tone="neutral" size="sm" icon="database">Dữ liệu tổng hợp (synthetic)</Badge>
+          <Badge tone="neutral" size="sm" icon="history">Lần xem này được ghi nhật ký</Badge>
+        </>}
+        actions={
+          // Not on the artboard: a way for keyboard users past the filter and the table (UX review, EP-10d).
+          <Button variant="ghost" iconLeft="search" onClick={() => { traceSection.current?.scrollIntoView?.({ block: 'start' }); document.getElementById('trace-lookup')?.focus(); }}>
+            Đến tra cứu trace
+          </Button>
+        } />
 
       <p role="status" aria-live="polite" style={hidden}>{announcement}</p>
 
-      <form onSubmit={apply} noValidate aria-label="Bộ lọc sự kiện"
-        style={{ ...panel, display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', flexWrap: 'wrap', padding: 'var(--space-4)' }}>
+      <form onSubmit={apply} noValidate aria-label="Lọc sự kiện"
+        style={{ ...panel, display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', flexWrap: 'wrap', padding: 'var(--space-4) var(--space-5)' }}>
         <Select id="filter-type" label="Loại sự kiện" options={TYPE_OPTIONS} value={draft.type}
           onChange={(e) => set('type')(e.target.value as Draft['type'])} />
         <Select id="filter-role" label="Vai trò" options={ROLE_OPTIONS} value={draft.role}
@@ -299,7 +306,7 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
           </>
         )}
         <AlignedWithFields>
-          <Button type="submit" iconLeft="filter" variant={changed ? 'primary' : 'secondary'} loading={busy}>Áp dụng</Button>
+          <Button type="submit" iconLeft="list-filter" loading={busy}>Áp dụng</Button>
           {changed && <span style={{ font: 'var(--type-helper)', color: 'var(--status-warning-fg)' }}>Bộ lọc đã đổi, chưa áp dụng.</span>}
         </AlignedWithFields>
       </form>
@@ -310,7 +317,7 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
         </p>
       )}
 
-      {list.phase === 'loading' && <Skeleton lines={5} />}
+      {list.phase === 'loading' && <PageState kind="loading" loadingLabel="Đang tải sự kiện bảo mật" />}
       {list.phase === 'failed' && (invalidFilter(list.error)
         ? (
           <Alert tone="warning" title="Bộ lọc không hợp lệ.">
@@ -319,28 +326,27 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
           </Alert>
         )
         : (
-          <Alert tone="error" title="Chưa tải được sự kiện bảo mật"
-            action={applied && <Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={() => void load(applied.query, applied.draft, 'summary')}>Thử lại</Button>}>
-            {failureText(list.error)}
-            {referenceText(list.error) && <span style={{ display: 'block' }}>{referenceText(list.error)}</span>}
-          </Alert>
+          <PageState kind={list.error instanceof ApiError && list.error.kind === 'timeout' ? 'timeout' : 'error'} error={list.error}
+            title={list.error instanceof ApiError && list.error.kind === 'timeout' ? undefined : 'Chưa tải được sự kiện bảo mật'}
+            action={applied && <Button variant="secondary" size="sm" iconLeft="refresh-cw" onClick={() => void load(applied.query, applied.draft, 'summary')}>Thử lại</Button>} />
         ))}
       {list.phase === 'ready' && list.events.length === 0 && (
-        <EmptyState icon="shield-check" title="Không có sự kiện trong khoảng này" description="Hãy đổi bộ lọc hoặc chọn khoảng thời gian khác." />
+        <PageState kind="empty" icon="shield-check" title="Không có sự kiện trong khoảng này" description="Hãy đổi bộ lọc hoặc chọn khoảng thời gian khác." />
       )}
       {list.phase === 'ready' && list.events.length > 0 && (
         <>
-          <div ref={eventsTable} aria-busy={list.refreshing || undefined} style={{ opacity: list.refreshing ? 0.6 : 1 }}>
-            <EventTable events={list.events} caption="Sự kiện kiểm toán, mới nhất ở trên" onTrace={(id) => void openTrace(id)} shownTrace={null} rowsFocusable />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
-              {list.events.length} sự kiện · {PAGE_SIZE} sự kiện mỗi lần tải · sự kiện giống nhau trong 1 phút được gộp
-              {list.next === null ? ' · đã hết sự kiện trong khoảng này' : ''}
-            </span>
-            {list.next !== null && (
-              <Button variant="secondary" iconLeft="chevron-down" loading={list.more === 'loading'} disabled={list.refreshing} onClick={() => void loadMore()}>Tải thêm</Button>
-            )}
+          {/* F4 artboard: the table and its footer ("Tải thêm") share one card. */}
+          <div ref={eventsTable} aria-busy={list.refreshing || undefined} style={{ ...panel, opacity: list.refreshing ? 0.6 : 1 }}>
+            <EventTable events={list.events} caption="Sự kiện kiểm toán, mới nhất ở trên" onTrace={(id) => void openTrace(id)} shownTrace={null} rowsFocusable bare />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap', padding: 'var(--space-3) var(--space-4)' }}>
+              <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
+                {list.events.length} sự kiện · {PAGE_SIZE} sự kiện mỗi trang · sự kiện lặp trong 1 phút được gộp
+                {list.next === null ? ' · đã hết sự kiện trong khoảng này' : ''}
+              </span>
+              {list.next !== null && (
+                <Button variant="secondary" size="sm" iconLeft="chevron-down" loading={list.more === 'loading'} disabled={list.refreshing} onClick={() => void loadMore()}>Tải thêm</Button>
+              )}
+            </div>
           </div>
           {typeof list.more === 'object' && (
             <Alert tone={invalidFilter(list.more.error) ? 'warning' : 'error'} title="Chưa tải thêm được sự kiện.">
@@ -351,10 +357,13 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
         </>
       )}
 
-      <section ref={traceSection} aria-labelledby="trace-title" style={{ ...panel, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)' }}>
-        <h2 id="trace-title" ref={traceHeading} tabIndex={-1} style={{ margin: 0, font: 'var(--type-section-title)', outline: 'none' }}>
-          {trace.phase === 'ready' ? `Trace ${shortTrace(trace.trace.traceId)}` : 'Tra cứu trace'}
-        </h2>
+      <section ref={traceSection} aria-labelledby="trace-title" style={{ ...panel, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-5)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <h2 id="trace-title" ref={traceHeading} tabIndex={-1} style={{ margin: 0, font: 'var(--type-section-title)', outline: 'none' }}>
+            {trace.phase === 'ready' ? <>Trace <span className="ap-code">{shortTrace(trace.trace.traceId)}</span></> : 'Tra cứu trace'}
+          </h2>
+          {trace.phase === 'ready' && <VerdictBadge trace={trace.trace} />}
+        </div>
         <form onSubmit={lookUp} noValidate aria-label="Tra cứu trace" style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <Input id="trace-lookup" label="Mã trace" mono value={lookup} error={lookupError} maxLength={64} autoComplete="off" spellCheck={false}
             helper="Bấm mã trace trong bảng, hoặc dán mã đầy đủ (36 ký tự)." onChange={(e) => setLookup(e.target.value)} />
@@ -364,7 +373,7 @@ export function SecurityInspectorPage({ onUnauthenticated }: { onUnauthenticated
         </form>
         <TracePanel state={trace} onTrace={(id) => void openTrace(id)} onRetry={(id) => void openTrace(id, true)} shownTrace={shownTrace} />
       </section>
-    </section>
+    </>
   );
 }
 
@@ -379,9 +388,9 @@ function AlignedWithFields({ children }: { children: ReactNode }) {
 }
 
 /** A horizontally scrollable table that keyboard users can reach and scroll (UX review M7). */
-function Scroll({ label, children }: { label: string; children: ReactNode }) {
+function Scroll({ label, bare = false, children }: { label: string; bare?: boolean; children: ReactNode }) {
   return (
-    <div role="region" aria-label={label} tabIndex={0} style={{ ...panel, overflowX: 'auto' }}>{children}</div>
+    <div role="region" aria-label={label} tabIndex={0} style={{ ...(bare ? {} : panel), overflowX: 'auto' }}>{children}</div>
   );
 }
 
@@ -397,32 +406,33 @@ function TraceButton({ traceId, last, onTrace, shownTrace }: { traceId: string; 
   );
 }
 
-function EventTable({ events, caption, onTrace, shownTrace, rowsFocusable = false }: {
-  events: SecurityEvent[]; caption: string; onTrace: (id: string) => void; shownTrace: string | null; rowsFocusable?: boolean;
+function EventTable({ events, caption, onTrace, shownTrace, rowsFocusable = false, bare = false }: {
+  events: SecurityEvent[]; caption: string; onTrace: (id: string) => void; shownTrace: string | null; rowsFocusable?: boolean; bare?: boolean;
 }) {
   return (
-    <Scroll label={caption}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-table)' }}>
+    <Scroll label={caption} bare={bare}>
+      <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', font: 'var(--type-table)' }}>
         <caption style={hidden}>{caption}</caption>
         <thead>
-          <tr style={{ font: 'var(--type-table-header)', color: 'var(--text-secondary)', textAlign: 'left', background: 'var(--bg-subtle)' }}>
-            {['Thời điểm', 'Hành động', 'Tài nguyên', 'Kết quả', 'Vai trò · Người', 'Mã trace', 'Số lần gộp'].map((h) => (
-              <th key={h} scope="col" style={{ ...cell, whiteSpace: 'nowrap' }}>{h}</th>
+          <tr style={headRow}>
+            {['Thời điểm', 'Hành động', 'Tài nguyên', 'Kết quả', 'Vai trò · Người', 'Mã trace'].map((h) => (
+              <th key={h} scope="col" style={head}>{h}</th>
             ))}
+            <th scope="col" style={{ ...head, textAlign: 'right' }}>Số lần</th>
           </tr>
         </thead>
         <tbody>
           {events.map((event, index) => {
             const who = actorParts(event);
             return (
-              <tr key={index} data-row={index} tabIndex={rowsFocusable ? -1 : undefined} style={{ borderTop: '1px solid var(--border-subtle)', outline: 'none' }}>
+              <tr key={index} data-row={index} tabIndex={rowsFocusable ? -1 : undefined} style={{ outline: 'none' }}>
                 <td style={{ ...cell, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }} title={event.occurredAt.toISOString()}>{formatSeconds(event.occurredAt)}</td>
                 <td className="ap-code" style={cell}>{event.action}</td>
                 <td className="ap-code" style={cell}>{event.resource}</td>
-                <td style={cell}><Badge tone={outcomeTone(event.outcome)} shape="pill"><span className="ap-code">{event.outcome}</span></Badge></td>
-                <td style={cell}>{who.role} · {who.pseudonym === null ? <None /> : <span className="ap-code">{who.pseudonym}</span>}</td>
+                <td style={cell}><Badge tone={outcomeTone(event.outcome)} size="sm"><span className="ap-code">{event.outcome}</span></Badge></td>
+                <td style={cell}>{who.role} · {who.pseudonym === null ? <None /> : <span className="ap-code" style={{ overflowWrap: 'anywhere' }}>{who.pseudonym}</span>}</td>
                 <td style={{ ...cell, whiteSpace: 'nowrap' }}>{event.traceId === null ? <None /> : <TraceButton traceId={event.traceId} onTrace={onTrace} shownTrace={shownTrace} />}</td>
-                <td style={{ ...cell, fontVariantNumeric: 'tabular-nums' }}>
+                <td style={{ ...cell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {event.occurrences}
                   {event.occurrences > 1 && event.lastOccurredAt && (
                     <span style={{ display: 'block', font: 'var(--type-caption)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
@@ -454,12 +464,11 @@ function TracePanel({ state, onTrace, onRetry, shownTrace }: { state: TraceState
     case 'idle':
       return null;
     case 'loading':
-      return <Skeleton lines={4} />;
+      return <PageState kind="loading" loadingLabel="Đang tải trace" />;
     case 'not-found':
       return (
-        <Alert tone="info" title="Không tìm thấy trace">
-          Không có bản ghi nào cho mã <span className="ap-code">{state.traceId}</span>. Hãy kiểm tra lại mã, hoặc chọn một trace trong bảng sự kiện.
-        </Alert>
+        <EmptyState compact variant="no-results" title="Không tìm thấy trace"
+          description="Mã trace này không có bản ghi nào. Kiểm tra lại mã hoặc chọn từ danh sách sự kiện." />
       );
     case 'failed':
       return (
@@ -474,6 +483,16 @@ function TracePanel({ state, onTrace, onRetry, shownTrace }: { state: TraceState
   }
 }
 
+/** The verdict as a badge beside the trace title (F4 artboard), worded by verdict(). */
+function VerdictBadge({ trace }: { trace: Trace }) {
+  const blocked = trace.egress.some((e) => e.decision === 'BLOCK');
+  return (
+    <Badge tone={blocked ? 'error' : trace.truncated ? 'warning' : 'success'} size="sm" icon={blocked ? 'shield-alert' : trace.truncated ? 'triangle-alert' : 'shield-check'}>
+      {verdict(trace)}
+    </Badge>
+  );
+}
+
 /** A verdict only for what is on screen; a cut trace gets none (UX review M2: no false "no block"). */
 function verdict(trace: Trace): string {
   if (trace.egress.some((e) => e.decision === 'BLOCK')) return 'Có dữ liệu bị chặn khi gửi tới AI hoặc khi AI trả về';
@@ -485,34 +504,33 @@ function verdict(trace: Trace): string {
 const attemptText = (e: EgressCheck) => (e.direction === 'REQUEST' && e.decision === 'BLOCK' ? <None /> : e.attempt);
 
 function TraceDetail({ trace, onTrace, shownTrace }: { trace: Trace; onTrace: (id: string) => void; shownTrace: string | null }) {
-  const subTitle = { margin: 0, font: 'var(--type-card-title)' } as const;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <DescriptionList columns={2} items={[
-        { label: 'Mã trace đầy đủ', value: trace.traceId, mono: true },
-        { label: 'Kết luận', value: verdict(trace) },
-      ]} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      {/* The verdict is the badge beside the title (VerdictBadge). */}
+      <DescriptionList columns={1} items={[{ label: 'Mã trace đầy đủ', value: trace.traceId, mono: true }]} />
       {trace.truncated && (
-        <Alert tone="warning" title="Trace chưa đầy đủ.">
-          Ít nhất một mục có hơn {MAX_TRACE_ROWS} dòng; mục đó chỉ hiện {MAX_TRACE_ROWS} dòng cũ nhất.
+        <Alert tone="info" title={`Chỉ hiện ${MAX_TRACE_ROWS} dòng đầu`}>
+          Trace này có nhiều bản ghi hơn giới hạn hiển thị của mỗi mục.
         </Alert>
       )}
 
-      <h3 style={subTitle}>Kiểm tra dữ liệu gửi ra</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+      <div style={{ ...nested, flex: '1 1 100%' }}>
+      <h3 style={overline}>Kiểm tra dữ liệu gửi ra</h3>
       {trace.egress.length === 0 ? <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Không có lần kiểm tra nào.</p> : (
         <Scroll label="Kiểm tra dữ liệu gửi ra của trace">
           <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-table)' }}>
             <caption style={hidden}>Kiểm tra dữ liệu gửi ra của trace</caption>
             <thead>
-              <tr style={{ font: 'var(--type-table-header)', color: 'var(--text-secondary)', textAlign: 'left', background: 'var(--bg-subtle)' }}>
+              <tr style={headRow}>
                 {['Thời điểm', 'Chiều', 'Quyết định', 'Lần gửi', 'Mã chính sách', 'Mã honeytoken', 'Trường bị chặn', 'Tên trường gửi', 'Số byte'].map((h) => (
-                  <th key={h} scope="col" style={{ ...cell, whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} scope="col" style={head}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {trace.egress.map((e, index) => (
-                <tr key={index} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <tr key={index}>
                   <td style={{ ...cell, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }} title={e.occurredAt.toISOString()}>{formatSeconds(e.occurredAt)}</td>
                   <td style={cell}>{e.direction === 'REQUEST' ? 'Gửi tới nhà cung cấp AI' : 'Câu trả lời của AI'}</td>
                   <td style={cell}><Badge tone={e.decision === 'BLOCK' ? 'error' : 'success'} shape="pill"><span className="ap-code">{e.decision}</span></Badge></td>
@@ -529,19 +547,21 @@ function TraceDetail({ trace, onTrace, shownTrace }: { trace: Trace; onTrace: (i
         </Scroll>
       )}
 
-      <h3 style={subTitle}>Gọi công cụ</h3>
+      </div>
+      <div style={{ ...nested, flex: '1 1 100%' }}>
+      <h3 style={overline}>Gọi công cụ</h3>
       {trace.tools.length === 0 ? <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Không có lần gọi công cụ nào.</p> : (
         <Scroll label="Lần gọi công cụ của trace">
           <table style={{ width: '100%', borderCollapse: 'collapse', font: 'var(--type-table)' }}>
             <caption style={hidden}>Lần gọi công cụ của trace</caption>
             <thead>
-              <tr style={{ font: 'var(--type-table-header)', color: 'var(--text-secondary)', textAlign: 'left', background: 'var(--bg-subtle)' }}>
-                {['Thời điểm', 'Công cụ', 'Quyết định', 'Mã lý do'].map((h) => <th key={h} scope="col" style={{ ...cell, whiteSpace: 'nowrap' }}>{h}</th>)}
+              <tr style={headRow}>
+                {['Thời điểm', 'Công cụ', 'Quyết định', 'Mã lý do'].map((h) => <th key={h} scope="col" style={head}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {trace.tools.map((t, index) => (
-                <tr key={index} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <tr key={index}>
                   <td style={{ ...cell, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }} title={t.occurredAt.toISOString()}>{formatSeconds(t.occurredAt)}</td>
                   <td className="ap-code" style={cell}>{t.toolName}</td>
                   <td style={cell}>
@@ -555,7 +575,10 @@ function TraceDetail({ trace, onTrace, shownTrace }: { trace: Trace; onTrace: (i
         </Scroll>
       )}
 
-      <h3 style={subTitle}>Sự kiện kiểm toán của trace</h3>
+      </div>
+      </div>
+
+      <h3 style={{ margin: 0, font: 'var(--type-card-title)' }}>Sự kiện kiểm toán của trace</h3>
       {trace.events.length === 0 ? <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Không có sự kiện kiểm toán nào.</p>
         : <EventTable events={trace.events} caption="Sự kiện kiểm toán của trace" onTrace={onTrace} shownTrace={shownTrace} />}
     </div>

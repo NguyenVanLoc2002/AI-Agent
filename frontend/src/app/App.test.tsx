@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axeViolations, fakeBackend, json, networkFailure, problem, type Handler } from '../test/fakeBackend';
@@ -14,7 +14,7 @@ function setup(routes: Record<string, Handler>) {
 }
 
 async function signIn(user: ReturnType<typeof userEvent.setup>, name = 'demo-ops') {
-  await user.type(await screen.findByLabelText(/Tên đăng nhập/), name);
+  await user.type(await screen.findByLabelText(/Tài khoản/), name);
   await user.type(screen.getByLabelText(/Mật khẩu/), PASSWORD);
   await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 }
@@ -31,9 +31,9 @@ describe('App', () => {
     const { backend, user } = setup({ 'GET /api/auth/session': () => problem(401, 'UNAUTHENTICATED') });
     await user.click(await screen.findByRole('button', { name: 'Đăng nhập' }));
 
-    expect(screen.getByText('Nhập tên đăng nhập.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Tên đăng nhập/)).toHaveFocus();
-    expect(screen.getByText('Nhập mật khẩu.')).toBeInTheDocument();
+    expect(screen.getAllByText('Bắt buộc')[0]).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tài khoản/)).toHaveFocus();
+    expect(screen.getAllByText('Bắt buộc')).toHaveLength(2);
     expect(backend.apiCalls().filter((c) => c.method === 'POST')).toHaveLength(0);
   });
 
@@ -62,7 +62,7 @@ describe('App', () => {
     });
     await signIn(user);
 
-    expect(await screen.findByText('Tên đăng nhập hoặc mật khẩu không đúng.')).toBeInTheDocument();
+    expect(await screen.findByText('Tài khoản hoặc mật khẩu không đúng')).toBeInTheDocument();
     expect(screen.getByLabelText(/Mật khẩu/)).toHaveValue('');
     expect(screen.getByRole('alert').parentElement).toHaveFocus();
   });
@@ -120,7 +120,7 @@ describe('App', () => {
       'POST /api/auth/logout': () => new Promise<Response>((resolve) => { answer = resolve; }),
     });
     await user.click(await screen.findByRole('button', { name: /^Mở cuộc trò chuyện/ }));
-    expect(await screen.findByText('2 × 1.250.000 ₫')).toBeInTheDocument();
+    expect(await screen.findByText('Đơn giá 1.250.000 ₫')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
     expect(await screen.findByText('Đang đăng xuất…')).toBeInTheDocument();
@@ -228,5 +228,38 @@ describe('App', () => {
 
     expect(touchesOld()).toBe(before);
     expect(window.sessionStorage.getItem('apas.chat.conversation')).toBe('cv_BBBBBBBBBBBBBBBBBBBBBB');
+  });
+});
+
+// FE-UI-P3 (P2 review UX M2): focus is never left on <body> when the control that had it disappears.
+describe('focus after leaving a screen', () => {
+  it('moves focus to the notice after sign-out', async () => {
+    const { user } = setup({
+      'GET /api/auth/session': () => json(200, { role: 'OPS', customerLinked: false }),
+      'GET /api/ops/kill-switch': () => json(200, { aiEnabled: true, reason: null, since: null }),
+      'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Đăng xuất' }));
+
+    const notice = await screen.findByText('Bạn đã đăng xuất.');
+    await waitFor(() => expect(notice.closest('[tabindex="-1"]')).toHaveFocus());
+  });
+
+  it('moves focus to the notice when the session expires on a screen', async () => {
+    setup({
+      'GET /api/auth/session': () => json(200, { role: 'OPS', customerLinked: false }),
+      'GET /api/ops/kill-switch': () => problem(401, 'UNAUTHENTICATED'),
+    });
+
+    const notice = await screen.findByText('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
+    await waitFor(() => expect(notice.closest('[tabindex="-1"]')).toHaveFocus());
+  });
+
+  it('returns focus to the message when "Thử lại" fails again', async () => {
+    const { user } = setup({ 'GET /api/auth/session': () => networkFailure() });
+    await user.click(await screen.findByRole('button', { name: 'Thử lại' }));
+
+    const message = await screen.findByText(/Không kết nối được máy chủ/);
+    await waitFor(() => expect(message.closest('[tabindex="-1"]')).toHaveFocus());
   });
 });

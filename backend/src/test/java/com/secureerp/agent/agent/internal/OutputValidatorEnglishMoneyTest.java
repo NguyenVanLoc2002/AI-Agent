@@ -75,7 +75,7 @@ class OutputValidatorEnglishMoneyTest {
      * price word after a hyphen ("low-cost") passes, and so does "Low-cost 45"; "Euros 45" ("Euro 6" is a standard);
      * one number word after a price word; amounts without a currency or price word ("45 each"); currency words and
      * codes not in the list. Vietnamese names of foreign money and the codes AUD, SGD… (review security H1) are blocked
-     * since A-87 ({@link OutputValidatorForeignCurrencyTest}).
+     * since A-88 ({@link OutputValidatorForeignCurrencyTest}).
      */
     @ParameterizedTest
     @ValueSource(strings = {
