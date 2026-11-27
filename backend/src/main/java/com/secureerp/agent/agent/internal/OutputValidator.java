@@ -65,16 +65,20 @@ final class OutputValidator {
     private static final String LARGE_UNIT = "(?:(?:nghìn|nghin|ngàn|ngan|triệu|trieu)(?!\\p{L})" + NOT_A_MEASURE
             + "|(?:tỷ|tỉ|ty)(?!\\p{L})(?!\\s*(lệ|le|số|so)(?!\\p{L}))"
             + "|vạn(?!\\p{L})(?!\\s*(năng|nang)(?!\\p{L}))" + NOT_A_MEASURE + ")";
-    private static final String DONG = "(?:đồng|dong)(?!\\p{L})(?!\\s*(hồ|ho|bộ|bo|nghĩa|nghia|thời|thoi)(?!\\p{L}))";
+    // A-89 review: also not "đồng ý" (agree: "Bước 2: Đồng ý") and "dong co" (động cơ typed without diacritics).
+    private static final String DONG = "(?:đồng|dong)(?!\\p{L})(?!\\s*(hồ|ho|bộ|bo|nghĩa|nghia|thời|thoi|ý|y|cơ|co)"
+            + "(?!\\p{L}))";
     private static final String CU = "củ(?!\\p{L})(?!\\s*(đề|de|phát|phat)(?!\\p{L}))";
-    private static final String ENGLISH_UNIT = "(?:million|mil|thousand|grand|billion|bn)(?!\\p{L})";
+    // A-89 review: not "Grand i10" (a car model).
+    private static final String ENGLISH_UNIT = "(?:million|mil|thousand|grand(?!\\s*+i\\d)|billion|bn)(?!\\p{L})";
     /**
      * OUTPUT-ENGLISH-MONEY (A-86, 1A): currencies written as words or codes, as whole words, with a country before
      * dollars ("45 US dollars", review security H2). Not "pound(s)": "45 pounds" may be a weight. Not "euro" before a
      * digit: "Euro 5, Euro 6 engines" is an emission standard (review security).
      */
     private static final String CURRENCY_WORD = "(?:(?:us|u\\.s\\.?|american|australian|canadian|singapore|hk)\\s*)?"
-            + "(?:dollars?|bucks?|euros?(?!\\s*\\d)|eur|cents?|gbp|yen|jpy)(?!\\p{L})";
+            // A-89 review: nor "Euro IV" (Roman numerals).
+            + "(?:dollars?|bucks?|euros?(?!\\s*(\\d|[ivx]++(?!\\p{L})))|eur|cents?|gbp|yen|jpy)(?!\\p{L})";
     /**
      * OUTPUT-FOREIGN-CURRENCY (A-88, 1A, 2A): Vietnamese names of foreign money, other currency names and codes, as
      * whole words after a number. Not "đô thị" (city), "đô vật", "đô đốc", "tệ nạn", "tệ hại"; "bảng" only with "Anh"
@@ -92,19 +96,46 @@ final class OutputValidator {
             + "|tệ(?!\\s*(nạn|nan|hại|hai|hơn|hon|quá|qua|lắm|lam|nhất|nhat)(?!\\p{L}))"
             + "|(?:bảng|bang)" + NAME_SEP + "(?-i:Anh|ANH)"
             + "|(?:yên|yen)" + NAME_SEP + "(?:nhật|nhat)|rúp|rup|ringgit|rupees?|yuan|baht"
+            // OUTPUT-MONEY-PUNCT (A-89, 4A): more codes and names after a number. Not "PHP" ("PHP 8" is a language),
+            // not "kip" (too short).
+            + "|chf|nzd|myr|twd|rub|aed|idr|khr|lak|pesos?|francs?|dirhams?|rupiah|riel"
             + "|aud|sgd|cny|rmb|thb|krw|hkd|cad|inr|quid|(?-i:Rs)\\.?)(?!\\p{L})";
-    /** OUTPUT-FOREIGN-CURRENCY (A-88, 2A): the codes before a number ("SGD 45", "Rs. 45"). */
-    private static final String FOREIGN_CODE_BEFORE = "aud|sgd|cny|rmb|thb|krw|hkd|cad|inr|quid|(?-i:Rs)\\.?";
+    /**
+     * OUTPUT-FOREIGN-CURRENCY (A-88, 2A): the codes before a number ("SGD 45", "Rs. 45"). A-89 (4A): the new codes
+     * too, but not "RUB" ("rub 2 times" is plain English).
+     */
+    private static final String FOREIGN_CODE_BEFORE = "chf|nzd|myr|twd|aed|idr|khr|lak"
+            + "|aud|sgd|cny|rmb|thb|krw|hkd|cad|inr|quid|(?-i:Rs)\\.?";
+    /**
+     * A money unit after a number. A-76 review security M5: "tr"/"k" as whole words ("\\b" is ASCII-only, so "2 trục",
+     * "4 kỳ" are not amounts); "5 trăm" stays blocked; slang "1tr25", "500 cành".
+     */
+    private static final String MONEY_UNIT_CORE = "₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|£|¥|₹|₩|¢|\\p{Sc}|" + DONG + "|"
+            + LARGE_UNIT + "|" + CU + "|" + ENGLISH_UNIT + "|" + CURRENCY_WORD + "|" + FOREIGN_CURRENCY
+            + "|trăm(?!\\p{L})|tram(?!\\p{L})|cành(?!\\p{L})";
+    private static final String MONEY_UNIT = MONEY_UNIT_CORE + "|tr\\.?(?!\\p{L})|k(?!\\p{L})";
+    /**
+     * OUTPUT-MONEY-PUNCT (A-89, 1A, 2A): up to four punctuation marks, with spaces, between a number and its unit
+     * ("**45** USD", "45 (USD)", "45 – yuan", "45/tệ") or between a code and its number ("SGD - 45", "USD (45)",
+     * "Rs=45"). Not "x" ("2 x 4 bộ", "M8 x 1.25"). After punctuation, not the slang "1m2"/"1tr5" that needs a digit
+     * right after the letter: "2 / M8" is a bolt size. Review: the same kind of brackets, quotes and dashes (backtick,
+     * angle and curly brackets, guillemets, Unicode hyphen and minus); a hyphen, comma, dot or underscore after a mark
+     * ("**45** - USD", "**45**, USD"); "k" and "tr." before a digit after a mark are a model or a page ("Kia K3 / K5",
+     * "mục 3 (tr. 12)"). Not ";", "+", "•", "·", "#" (documented gaps; "…" is "..." after NFKC).
+     */
+    private static final String MONEY_PUNCT = "[*_()\\[\\]\"'“”‘’–—~≈=:/|`<>{}«»‹›‐−]";
+    private static final String MONEY_PUNCT_BEFORE = "[\\-*_()\\[\\]\"'“”‘’–—~≈=:/|`<>{}«»‹›‐−]";
+    private static final String MONEY_UNIT_AFTER_PUNCT = MONEY_UNIT_CORE + "|tr\\.?+(?!\\p{L})(?!\\s*+\\d)"
+            + "|k(?!\\p{L})(?!\\s*+\\d)";
+    /** A currency symbol or code before an amount. */
+    private static final String CODE_BEFORE = "(₫|\\$|€|£|¥|₹|₩|\\p{Sc}|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?|"
+            + FOREIGN_CODE_BEFORE + ")(?!\\p{L}))";
     private static final Pattern MONEY = Pattern.compile(
             // Possessive run (A-76 review: "1-1-1-…" took 0.5 s with backtracking through every unit).
-            "(?iu)(\\d[\\d.,\\s\\-_]*+(₫|đ(?!\\p{L})|vnd|vnđ|usd|\\$|€|£|¥|₹|₩|¢|\\p{Sc}|" + DONG + "|" + LARGE_UNIT + "|" + CU + "|"
-                    + ENGLISH_UNIT + "|" + CURRENCY_WORD + "|" + FOREIGN_CURRENCY
-                    // A-76 review security M5: "tr"/"k" as whole words ("\\b" is ASCII-only, so "2 trục", "4 kỳ" are
-                    // not amounts); "5 trăm" stays blocked; slang "1tr25", "1m2", "500 cành".
-                    + "|tr\\.?(?!\\p{L})|tr(?=\\d)|trăm(?!\\p{L})|tram(?!\\p{L})|k(?!\\p{L})|m(?=\\d)|cành(?!\\p{L})))"
+            "(?iu)(\\d[\\d.,\\s\\-_]*+(tr(?=\\d)|m(?=\\d)|" + MONEY_UNIT + "|(?:" + MONEY_PUNCT + "[\\s\\-.,_]*+){1,4}+("
+                    + MONEY_UNIT_AFTER_PUNCT + ")))"
                     // A-88 review security L5: any currency symbol (₽, ฿, ₱…) before or after a digit.
-                    + "|((₫|\\$|€|£|¥|₹|₩|\\p{Sc}|vnd|usd|(?<!\\p{L})(eur|gbp|jpy|dollars?|bucks?|" + FOREIGN_CODE_BEFORE
-                    + ")(?!\\p{L}))\\s*:?\\s*\\d)"
+                    + "|(" + CODE_BEFORE + "\\s*+(?:" + MONEY_PUNCT_BEFORE + "\\s*+){0,4}+\\d)"
                     // A-86 (2A): English price words as whole words, not after a hyphen ("low-cost") nor before a
                     // hyphen and a letter ("cost-effective"; "Cost-45" is blocked), then a digit in the same sentence
                     // as below, within 40 characters (English sentences run longer, review QA M2). "Discount 10%" is
@@ -130,6 +161,10 @@ final class OutputValidator {
             // A-86 (3A): the other English teens and tens.
             + "|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|thirty|forty|sixty|seventy"
             + "|eighty|ninety)(?!\\p{L})";
+    /** The English number words of NUMBER_WORD. */
+    private static final String ENGLISH_NUMBER_WORD = "(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|fifty"
+            + "|hundred|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|thirty|forty|sixty"
+            + "|seventy|eighty|ninety)(?!\\p{L})";
     /** Between number words and units: spaces, and the hyphens, brackets and quotes a model could slip in (review M1). */
     private static final String SEP = "[\\s\\-_–—()\"'“”]{1,3}";
     /** A count, a time or a measure after a number: "hai bộ", "ba năm", "hai lần". */
@@ -143,10 +178,20 @@ final class OutputValidator {
      * cảm ơn" is blocked); number words alone ("ba trăm rưởi") are not, they read like a quantity.
      */
     private static final Pattern MONEY_WORDS = Pattern.compile(
-            "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*" + SEP
+            // A-89 review: the punctuation of MONEY_PUNCT between number words and the unit too ("**fifty** dollars",
+            // "năm *triệu*", "fifty / USD").
+            "(?iu)((?<!\\p{L})" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")*"
+                    // Not "." or ",": "hai năm. Triệu chứng…" ends a sentence.
+                    + "[\\s\\-_–—()\"'“”‘’*\\[\\]~≈=:/|`<>{}«»‹›‐−]{1,8}+"
                     + "(" + LARGE_UNIT + "|" + DONG + "|" + CU + "|" + ENGLISH_UNIT + "|" + CURRENCY_WORD
-                    + "|" + FOREIGN_CURRENCY + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
+                    + "|" + FOREIGN_CURRENCY + "|usd|vnd|vnđ|\\p{Sc}"
+                    + "|tr\\.?(?!\\p{L})|k(?!\\p{L})))"
                     + "|((?<!\\p{L})(triệu|trieu|tỷ|tỉ|nghìn|nghin|ngàn|ngan)" + SEP + NUMBER_WORD + ")"
+                    // OUTPUT-MONEY-PUNCT (A-89, 3A): a currency symbol or code before an English number word ("USD
+                    // fifty", "SGD forty-five", "$ fifty") or before two or more Vietnamese number words that are not a
+                    // count: one Vietnamese word alone is often a common word ("USD sau khi đổi").
+                    + "|(" + CODE_BEFORE + "\\s*+(?:" + MONEY_PUNCT_BEFORE + "\\s*+){0,4}+(?<!\\p{L})(" + ENGLISH_NUMBER_WORD
+                    + "|" + NUMBER_WORD + "(" + SEP + NUMBER_WORD + ")++" + COUNT + "))"
                     + "|((?<!\\p{L})(giá|gía|gìa|gỉa|gĩa|gịa|gia|tổng|tong|thành tiền|thanh tien|chiết khấu|chiet khau|giảm|giam|chi phí|chi phi"
                     // A-86 review security M: the English price words of MONEY too ("It costs forty-five").
                     + "|phí|price|cost|costs|costing|fee|fees|subtotal|discount|priced|pricing|prices)(?!\\p{L})(?!\\s*(trị|tri)(?!\\p{L}))[^.!?\\n]{0,30}?(?<!\\p{L})"
