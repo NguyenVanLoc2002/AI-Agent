@@ -19,6 +19,9 @@ import java.util.List;
  */
 public interface ToolManager {
 
+    /** The quote tool's name, for callers that react to a quote proposal (A-90: the order claim context). */
+    String REQUEST_QUOTE = "requestQuote";
+
     /** Tool definitions offered to the model for this role and channel (may be empty). */
     List<ToolSpec> toolsFor(Role role, Channel channel);
 

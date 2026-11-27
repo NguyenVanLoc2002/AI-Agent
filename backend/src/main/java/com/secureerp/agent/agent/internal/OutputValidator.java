@@ -1,6 +1,7 @@
 package com.secureerp.agent.agent.internal;
 
 import java.text.Normalizer;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -355,10 +356,130 @@ final class OutputValidator {
     }
 
     /**
+     * OUTPUT-ORDER-CLAIM-CONTEXT (A-90, 2A): the turn is about an order or a quote when a customer message of the
+     * policy-safe history names one, or a quote tool was proposed in this turn. Whole words, with or without
+     * diacritics; "don" alone is not used without diacritics (đón, dồn), nor "đơn giản/vị…". Review: buying words too
+     * ("lấy luôn", "đồng ý", "chuyển khoản", "confirm", "ship").
+     */
+    private static final Pattern ORDER_TOPIC = Pattern.compile(
+            "(?iu)(?<!\\p{L})(đơn(?!\\s*(giản|vị|thuần|điệu|độc|lẻ|sắc)(?!\\p{L}))|báo giá|duyệt|xác nhận|chốt|giao hàng"
+                    + "|thanh toán|đặt hàng|đặt mua|mua hàng|lấy hàng|lấy luôn|đồng ý|chuyển khoản|order|orders|approve"
+                    + "|approved|quote|confirm|ship)(?!\\p{L})");
+    private static final Pattern STRIPPED_ORDER_TOPIC = Pattern.compile(
+            "(?i)(?<![a-z])(don hang|bao gia|duyet|xac nhan|chot|giao hang|thanh toan|dat hang|dat mua|mua hang|lay hang"
+                    + "|lay luon|dong y|chuyen khoan)(?![a-z])");
+    /**
+     * A-90 (1A, 3A): in an order or quote context, a done claim without "đơn" and without the 60-character window:
+     * "đã" then, within three words, an order verb ("Anh yên tâm, đã được duyệt rồi"), or an order verb then, within
+     * two words, "rồi/xong/ok/thành công" ("Dạ duyệt rồi", "Đơn hàng chạy rồi ạ"). See {@link #contextClaim} for the
+     * clauses that are not claims. Review security H3, not claims: "được" alone ("Hàng được giao trong 2 ngày"); a
+     * word between that names a part or a fit ("đã kèm chốt", "đã có…"); "chốt piston/chẻ/cài…" (a pin); "xác nhận
+     * là/phù hợp/tương thích…" (a fit); "chạy" before a distance or a manner ("Xe đã chạy 60 km"). "Dạ giao trong 2
+     * ngày" is handled on the copy without diacritics ("da" after a word only).
+     */
+    private static final String CONTEXT_VERB = "(phê duyệt|duyệt"
+            + "|xác nhận(?!\\s+(là|phù hợp|tương thích|đúng|khớp)(?!\\p{L}))"
+            + "|chốt(?!\\s+(piston|chẻ|cài|an toàn|định vị|khóa|hãm)(?!\\p{L}))|xử lý|xử lí"
+            + "|giao|thanh toán|lên đơn"
+            + "|chạy(?!\\s*+(\\d|(được|khoảng|tầm|hơn|gần|trên|thử|êm|ổn|tốt)(?!\\p{L}))))(?!\\p{L})";
+    private static final String CONTEXT_BETWEEN = "(?:\\s+(?!(có|kèm|thay|lắp|gồm|thiếu|mất|bị)(?!\\p{L}))\\p{L}+){0,3}?";
+    private static final Pattern CONTEXT_CLAIM = Pattern.compile(
+            "(?iu)(?<!\\p{L})(?:đã(?!\\p{L})" + CONTEXT_BETWEEN + "\\s+" + CONTEXT_VERB + "|" + CONTEXT_VERB
+                    + "(?:\\s+\\p{L}+){0,2}?\\s+(?:rồi|xong|ok|okay|thành công)(?!\\p{L}))");
+    /**
+     * Without diacritics ("Đã duỵêt rồi ạ" → "da duyet roi a"): "da" only after a word, because "Dạ" first in a
+     * sentence reads "da" too ("Dạ giao trong 2 ngày ạ"); not "chay" (cháy: "cầu chì đã cháy").
+     */
+    private static final String A_CONTEXT_VERB = "(phe duyet|duyet"
+            + "|xac nhan(?!\\s+(la|phu hop|tuong thich|dung|khop)(?![a-z]))"
+            + "|chot(?!\\s+(piston|che|cai|an toan|dinh vi|khoa|ham)(?![a-z]))|xu ly|xu li"
+            + "|giao|thanh toan|len don)(?![a-z])";
+    private static final String A_CONTEXT_BETWEEN = "(?:\\s+(?!(co|kem|thay|lap|gom|thieu|mat|bi)(?![a-z]))[a-z]+){0,3}?";
+    private static final Pattern STRIPPED_CONTEXT_CLAIM = Pattern.compile(
+            "(?i)(?:(?<=[a-z][,\\s]|[a-z],\\s)da(?![a-z])" + A_CONTEXT_BETWEEN + "\\s+" + A_CONTEXT_VERB
+                    + "|(?<![a-z])" + A_CONTEXT_VERB + "(?:\\s+[a-z]+){0,2}?\\s+(?:roi|xong|ok|okay|thanh cong)(?![a-z]))");
+    /**
+     * Not a claim when the word right before it (one pronoun or "đơn/hàng" may sit between) is a condition, a
+     * negation, a future or a request ("…sau khi anh đã xác nhận báo giá", "Anh cần xác nhận rồi…", "Mời anh xác
+     * nhận rồi…"); when "chưa" follows right after, "rồi" allowed between ("Đã duyệt chưa anh nhỉ"); or when "?" ends
+     * the clause within two words ("Đã được duyệt rồi à?"). Review security H1, H2: an exemption word further back or
+     * a question further on does not count ("Anh không phải lo đã duyệt rồi", "Đã duyệt rồi anh cần thêm gì không
+     * ạ?").
+     */
+    private static final Pattern CONTEXT_EXEMPT = Pattern.compile(
+            "(?iu)(?<!\\p{L})(chưa|sẽ|đang|chờ|đợi|cần|nếu|khi|lúc|để|hãy|vui lòng|bấm|nhấn|xem|không|chẳng|mời)(?!\\p{L})"
+                    + "(\\s+(anh|chị|em|bạn|mình|quý khách|khách|đơn hàng|đơn|hàng|nó)(?!\\p{L}))?\\s*$");
+    private static final String A_EXEMPT_TAIL = "(?![a-z])(\\s+(anh|chi|em|ban|minh|quy khach|khach|don hang|don|hang|no)"
+            + "(?![a-z]))?\\s*$";
+    /** Text typed without any diacritics: only the words that are an exemption however they are read. */
+    private static final Pattern STRIPPED_CONTEXT_EXEMPT = Pattern.compile(
+            "(?i)(?<![a-z])(chua|se|dang|doi|neu|khi|luc|hay|vui long|bam|xem|khong)" + A_EXEMPT_TAIL);
+    /**
+     * Text with diacritics, checked again without them (a misspelled verb): also the words that read as an exemption
+     * once stripped (can: cần, moi: mời, cho: chờ, de: để, xin); CONTEXT_CLAIM still checks the text with diacritics.
+     * Review security M3: a text typed without any diacritics uses {@link #STRIPPED_CONTEXT_EXEMPT}.
+     */
+    private static final Pattern STRIPPED_CONTEXT_EXEMPT_AMBIGUOUS = Pattern.compile(
+            "(?i)(?<![a-z])(chua|se|dang|doi|neu|khi|luc|hay|vui long|bam|xem|khong|can|moi|cho|de|xin)" + A_EXEMPT_TAIL);
+    private static final Pattern NOT_YET = Pattern.compile("(?iu)^(\\s+(rồi|roi))?\\s*,?\\s*(chưa|chua)(?!\\p{L})");
+    private static final Pattern SHORT_TAIL = Pattern.compile("(?u)^(\\s*\\p{L}+){0,2}\\s*$");
+    /**
+     * Clause ends. Dashes and brackets are not needed: an exemption must sit right before the claim and a question
+     * within two words after it, so a longer clause does not widen either.
+     */
+    private static final String CLAUSE_END = ",;:.!?\n\r";
+
+    /** A-90 (2A): whether the customer messages of this turn name an order or a quote. */
+    static boolean orderTopic(List<String> customerTexts) {
+        for (String text : customerTexts) {
+            if (text == null) {
+                continue;
+            }
+            String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC);
+            if (ORDER_TOPIC.matcher(normalized).find()
+                    || STRIPPED_ORDER_TOPIC.matcher(withoutDiacritics(normalized)).find()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A-90 (3A): a done claim without an exemption right before it, "chưa" right after it or a short question. */
+    private static boolean contextClaim(String text, Pattern claim, Pattern exempt) {
+        Matcher m = claim.matcher(text);
+        int from = 0;
+        while (from < text.length() && m.find(from)) {
+            int start = m.start();
+            while (start > 0 && CLAUSE_END.indexOf(text.charAt(start - 1)) < 0) {
+                start--;
+            }
+            int end = m.end();
+            while (end < text.length() && CLAUSE_END.indexOf(text.charAt(end)) < 0) {
+                end++;
+            }
+            String after = text.substring(m.end(), end);
+            boolean question = end < text.length() && text.charAt(end) == '?' && SHORT_TAIL.matcher(after).matches();
+            if (!question && !exempt.matcher(text.substring(start, m.start())).find() && !NOT_YET.matcher(after).find()) {
+                return true;
+            }
+            from = m.start() + 1;
+        }
+        return false;
+    }
+
+    /**
      * @param allowedCodes SKU and OE codes returned by tools in this turn (upper case); a code in the text
      *                     must be one of them
      */
     static Optional<Rejection> check(String text, Set<String> allowedCodes) {
+        return check(text, allowedCodes, false);
+    }
+
+    /**
+     * @param orderContext A-90: the turn is about an order or a quote ({@link #orderTopic} or a quote tool ran); then
+     *                     done claims are rejected without "đơn" and without the 60-character window
+     */
+    static Optional<Rejection> check(String text, Set<String> allowedCodes, boolean orderContext) {
         if (text == null || text.isBlank()) {
             return Optional.of(Rejection.EMPTY);
         }
@@ -386,6 +507,15 @@ final class OutputValidator {
         if (ORDER_CLAIM.matcher(normalized).find()
                 || STRIPPED_ORDER_CLAIM.matcher(withoutDiacritics(normalized)).find()) {
             return Optional.of(Rejection.ORDER_CLAIM);
+        }
+        if (orderContext) {
+            String stripped = withoutDiacritics(normalized);
+            // A-90 review security M3: a text typed without any diacritics gets only the unambiguous exemptions.
+            boolean typedWithoutDiacritics = stripped.equals(SPACE_RUN.matcher(normalized).replaceAll(" "));
+            if (contextClaim(normalized, CONTEXT_CLAIM, CONTEXT_EXEMPT) || contextClaim(stripped, STRIPPED_CONTEXT_CLAIM,
+                    typedWithoutDiacritics ? STRIPPED_CONTEXT_EXEMPT : STRIPPED_CONTEXT_EXEMPT_AMBIGUOUS)) {
+                return Optional.of(Rejection.ORDER_CLAIM);
+            }
         }
         // Part codes first: an allowed code may contain digit runs, which must not count as numbers.
         StringBuilder withoutCodes = new StringBuilder();

@@ -69,6 +69,8 @@ class OutputValidatorForeignCurrencyTest {
         "We won 2 awards", "2 tệp", "2 tệ nạn", "2 tệ hại", "2 te", "chạy 45 km", "45 cái", "2 cắc kè",
         "bảng 45 x 30 cm", "2 đô vật", "hai đô thị", "Audi RS 6", "RS 3 Sportback", "RS6", "2 bạt phủ xe",
         "Loại 2 đó là loại tốt", "2 bảng", "2 tệp đính kèm", "Cadillac 2 cửa", "2 audio", "2 đôi", "45 độ C",
+        // A-90 mutation re-run (runner fix): "RS" after a number, "do" alone without diacritics.
+        "Skoda Octavia 4 RS", "nhiet do 45 do C", "Nhiet do khoang 45 do",
         "Cadillac", "2 Rsx", "Rs", "SGD", "SGD.", "quid pro quo 2",
         // Review security M3, L4: "anh" addresses the customer; "tệ" also means bad.
         "Em gửi 2 bảng anh tham khảo nhé", "Loại 2 tệ hơn loại 1", "Hàng 2 tệ quá", "loại 3 tệ nhất"

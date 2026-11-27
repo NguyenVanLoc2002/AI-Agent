@@ -137,6 +137,61 @@ class DefaultAgentTest {
         assertThat(agent.reply(turn("x"))).isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUTPUT_REJECTED));
     }
 
+    /** A-90 (2A): a customer message about an order turns on the stricter order claim rule. */
+    @Test
+    void aDoneClaimIsDroppedWhenTheCustomerAsksAboutAnOrder() {
+        answers.add(text("Anh yên tâm, đã được duyệt rồi"));
+        assertThat(agent.reply(turn("má phanh trước", "đơn của tôi sao rồi")))
+                .isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUTPUT_REJECTED));
+    }
+
+    /** A-90 (2A): an earlier customer message counts too. */
+    @Test
+    void anEarlierOrderMessageTurnsOnTheContext() {
+        answers.add(text("Dạ duyệt rồi"));
+        assertThat(agent.reply(turn("bao gia giup toi", "cảm ơn")))
+                .isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUTPUT_REJECTED));
+    }
+
+    /** A-90: without an order or a quote in the turn, the stricter rule stays off (A-83 gap). */
+    @Test
+    void withoutAnOrderContextTheStricterRuleIsOff() {
+        answers.add(text("Anh yên tâm, đã được duyệt rồi"));
+        assertThat(agent.reply(turn("má phanh xe tôi")))
+                .isEqualTo(new AgentReply.Answer("Anh yên tâm, đã được duyệt rồi", null));
+    }
+
+    /** A-90 (2A): a quote tool in this turn turns on the context, even when the customer names no order. */
+    @Test
+    void aQuoteToolTurnsOnTheContext() {
+        toolBehaviour = proposal -> new ToolOutcome(new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, HANDLE, 1),
+                false);
+        answers.add(tool("requestQuote", "{\"lines\":[{\"productRef\":\"pr_PPPPPPPPPPPPPPPPPPPPPP\",\"quantity\":2}]}"));
+        answers.add(text("Dạ duyệt rồi ạ"));
+        assertThat(agent.reply(turn("lấy 2 cái")))
+                .isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUTPUT_REJECTED));
+    }
+
+    /** A-90 review (security M1, backend M1, QA H1): a rejected quote proposal turns the context on too. */
+    @Test
+    void aRejectedQuoteProposalTurnsOnTheContext() {
+        toolBehaviour = proposal -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.TOOL_SCHEMA), false);
+        answers.add(tool("requestQuote", "{}"));
+        answers.add(text("Đã chốt rồi ạ"));
+        assertThat(agent.reply(turn("lấy 2 cái")))
+                .isEqualTo(new AgentReply.Handoff(AgentReply.Reason.OUTPUT_REJECTED));
+    }
+
+    /** A-90: another tool does not; the A-83 rules apply (a documented gap). */
+    @Test
+    void anotherToolDoesNotTurnOnTheContext() {
+        toolBehaviour = proposal -> new ToolOutcome(new ToolErrorResult(ToolErrorResult.Code.TOOL_SCHEMA), false);
+        answers.add(tool("searchVerifiedProduct", "{}"));
+        answers.add(text("Dạ duyệt rồi"));
+        assertThat(agent.reply(turn("má phanh trước")))
+                .isEqualTo(new AgentReply.Answer("Dạ duyệt rồi", null));
+    }
+
     @Test
     void anIssuedQuoteHandleComesFromTheToolResultOnly() {
         toolBehaviour = proposal -> new ToolOutcome(new QuoteRequestResult(QuoteRequestResult.Status.ISSUED, HANDLE, 1),

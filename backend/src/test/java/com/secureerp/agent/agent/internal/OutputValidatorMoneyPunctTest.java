@@ -66,7 +66,9 @@ class OutputValidatorMoneyPunctTest {
         "Euro 2 (Euro II)", "Buoc 2: dong co", "Bước 2: Đồng ý", "1) Đồng ý", "2 đồng ý",
         // Review QA M3: steps and lists.
         "Bước 2: đồng bộ", "Mục 3: đồng hồ", "2) Tỷ lệ nén", "2 (km/h)", "Bước 2: Kiểm tra", "Bảng 2: thông số",
-        "Bảo hành hai năm. Triệu chứng khác", "USD hai bộ", "USD một", "2 (tr. 5)"
+        "Bảo hành hai năm. Triệu chứng khác", "USD hai bộ", "USD một", "2 (tr. 5)",
+        // A-90 mutation re-run (runner fix): a count after number words.
+        "USD hai mươi cái"
     })
     void ordinaryTextPasses(String text) {
         assertThat(OutputValidator.check(text, NO_CODES)).as(text).isEmpty();
