@@ -64,8 +64,15 @@ class StaffMessageDedupIT extends ChatEnvironment {
     }
 
     private int postedAudits() {
-        return jdbc.queryForObject("select count(*) from audit_event where action = 'STAFF_MESSAGE_POSTED'",
-                Integer.class);
+        return jdbc.queryForObject("select count(*) from audit_event where action = 'STAFF_MESSAGE_POSTED' "
+                + "and outcome = 'STORED'", Integer.class);
+    }
+
+    /** STAFF-MSG-ID-AUDIT (A-92): rows and the collapsed count of refused reuses. */
+    private List<Integer> reuseAudits() {
+        return jdbc.queryForList("select occurrences from audit_event where action = 'STAFF_MESSAGE_POSTED' "
+                + "and outcome = 'EVENT_ID_REUSED' and resource_type = 'CONVERSATION' and actor like 'usr\\_%' "
+                + "and actor_role = 'SALES'", Integer.class);
     }
 
     @Test
@@ -90,6 +97,7 @@ class StaffMessageDedupIT extends ChatEnvironment {
         assertThat(staffMessages(held.conversation())).isEqualTo(2);
         assertThat(postedAudits()).isEqualTo(2);
         assertThat(output.getAll()).doesNotContain("STAFFDEDUP42").contains("conversation.staff_message duplicate");
+        assertThat(reuseAudits()).as("a resend of the same message is not a reuse (A-92 3A)").isEmpty();
     }
 
     @Test
@@ -135,6 +143,14 @@ class StaffMessageDedupIT extends ChatEnvironment {
 
         assertThat(staffMessages(held.conversation())).isEqualTo(1);
         assertThat(postedAudits()).isEqualTo(1);
+        // A-92: two reuses counted (collapsed per minute, so one row, or two across a minute boundary); no text, no ID,
+        // no conversation.
+        assertThat(reuseAudits()).hasSizeBetween(1, 2);
+        assertThat(reuseAudits().stream().mapToInt(Integer::intValue).sum()).isEqualTo(2);
+        String stored = String.join(" ", jdbc.queryForList("select concat_ws(' ', action, resource_type, outcome, actor, "
+                + "actor_role, trace_id) from audit_event", String.class));
+        assertThat(stored).doesNotContain("STAFFREUSE9").doesNotContain(event.toString())
+                .doesNotContain(customerEvent.toString()).doesNotContain(held.conversation());
         assertThat(output.getAll()).doesNotContain("STAFFREUSE9").contains("reason=EVENT_ID_REUSED");
     }
 
