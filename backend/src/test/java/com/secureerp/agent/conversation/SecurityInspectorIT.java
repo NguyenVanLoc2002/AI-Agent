@@ -41,7 +41,7 @@ class SecurityInspectorIT extends ChatEnvironment {
     private static final String QUOTE_OE = "04465-0K290";
     private static final String STAFF_TEXT = "STAFFNOTE88 xin chờ một chút";
 
-    /** STAFF-MSG-ID (A-90): a staff message with its own event ID. */
+    /** STAFF-MSG-ID (A-91): a staff message with its own event ID. */
     private static String staffMessage() {
         return "{\"clientEventId\":\"" + UUID.randomUUID() + "\",\"text\":\"" + STAFF_TEXT + "\"}";
     }

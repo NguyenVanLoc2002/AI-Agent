@@ -253,7 +253,7 @@ class ConversationStore {
      */
     StaffInsert insertStaff(ConversationId id, UUID clientEventId, String text) {
         Objects.requireNonNull(clientEventId, "clientEventId");
-        // STAFF-MSG-ID (A-90): the same event again is the message already stored, not a second one. The caller
+        // STAFF-MSG-ID (A-91): the same event again is the message already stored, not a second one. The caller
         // holds the handoff lock; the unique (conversation_id, client_event_id) still decides a race.
         Optional<StaffInsert> previous = previousEvent(id, clientEventId, text);
         if (previous.isPresent()) {

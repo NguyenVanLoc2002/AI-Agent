@@ -105,7 +105,7 @@ class StaffChatService implements StaffChat {
         }
         switch (Objects.requireNonNull(outcome)) {
             case STORED -> log.info("conversation.staff_message stored");
-            // STAFF-MSG-ID (A-90, owner 2A): the resend answers like the first send.
+            // STAFF-MSG-ID (A-91, owner 2A): the resend answers like the first send.
             case DUPLICATE -> log.info("conversation.staff_message duplicate");
             case ID_REUSED -> {
                 log.warn("conversation.staff_message refused code=CONFLICT reason=EVENT_ID_REUSED");

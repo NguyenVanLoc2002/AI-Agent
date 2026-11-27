@@ -56,7 +56,7 @@ export function StaffConversationPage({ handoff, onLeave, onUnauthenticated }: P
   /** Security review M-1: only the newest read of the messages is applied. */
   const readSeq = useRef(0);
   /**
-   * STAFF-MSG-ID (A-90, owner 4A; closes security review M-2): the event ID of the text being sent. It is kept
+   * STAFF-MSG-ID (A-91, owner 4A; closes security review M-2): the event ID of the text being sent. It is kept
    * until a send succeeded or the text changed, so "Gửi lại" after an unknown outcome is stored once.
    */
   const pending = useRef<{ eventId: string; text: string } | null>(null);

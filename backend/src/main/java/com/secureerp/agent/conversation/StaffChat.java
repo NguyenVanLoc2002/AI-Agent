@@ -15,7 +15,7 @@ import java.util.UUID;
  * <p>Staff messages are stored with direction STAFF and never enter the model history (BR-36,
  * ADR-011): the history is built from customer messages only.
  *
- * <p>STAFF-MSG-ID (A-90): a staff message carries the client's event ID. The same ID with the same text again
+ * <p>STAFF-MSG-ID (A-91): a staff message carries the client's event ID. The same ID with the same text again
  * is the message already stored (no second message, no second audit record); the ID of another message (other
  * text or a customer message) is 409.
  */

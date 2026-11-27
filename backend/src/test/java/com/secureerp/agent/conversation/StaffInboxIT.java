@@ -68,7 +68,7 @@ class StaffInboxIT extends ChatEnvironment {
         return body.replaceAll("\"traceId\":\"[^\"]*\"", "").replaceAll("\"instance\":\"[^\"]*\"", "");
     }
 
-    /** STAFF-MSG-ID (A-90): every staff message carries its own event ID. */
+    /** STAFF-MSG-ID (A-91): every staff message carries its own event ID. */
     private static String staffMessage(String text) {
         return "{\"clientEventId\":\"" + UUID.randomUUID() + "\",\"text\":\"" + text + "\"}";
     }

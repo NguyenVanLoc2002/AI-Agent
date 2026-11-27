@@ -91,7 +91,7 @@ class StaffConversationController {
     record LineView(String sku, int quantity, String unitPrice, String lineTotal) {
     }
 
-    /** STAFF-MSG-ID (A-90, owner 1A): the event ID is required, as for the customer's message. */
+    /** STAFF-MSG-ID (A-91, owner 1A): the event ID is required, as for the customer's message. */
     record StaffMessageRequest(@NotNull UUID clientEventId, @NotBlank @Size(max = 2000) String text) {
 
         @Override

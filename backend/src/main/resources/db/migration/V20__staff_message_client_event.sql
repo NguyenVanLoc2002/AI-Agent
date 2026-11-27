@@ -1,4 +1,4 @@
--- STAFF-MSG-ID (owner decisions 2026-11-27 "theo đề xuất" = 1A–4A, DECISIONS_REQUIRED A-90). Module conversation.
+-- STAFF-MSG-ID (owner decisions 2026-11-27 "theo đề xuất" = 1A–4A, DECISIONS_REQUIRED A-91). Module conversation.
 -- A staff message carries the client's event ID like a customer message (AC-01.2), so a resend after an unknown
 -- outcome stores it once; the existing unique (conversation_id, client_event_id) is the final guard.
 -- CUSTOMER rows keep a required ID, BOT rows never have one; STAFF rows written before this migration have none,

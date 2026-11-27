@@ -21,7 +21,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
- * STAFF-MSG-ID (A-90, owner 2026-11-27 1A–4A) over HTTP with PostgreSQL: a staff message carries a required
+ * STAFF-MSG-ID (A-91, owner 2026-11-27 1A–4A) over HTTP with PostgreSQL: a staff message carries a required
  * {@code clientEventId}; a resend with the same ID and text is stored once and audited once (204 both times), the
  * ID of another message is 409, and the event ID never opens a conversation the caller does not hold.
  *
